@@ -110,7 +110,7 @@ class HassILExpressionListener(HassILGrammarListener):
 
     def enterText_chunk(self, ctx: HassILGrammarParser.Text_chunkContext):
         # Includes whitespace
-        chunk_text = normalize_text(ctx.STRING().getText())
+        chunk_text = normalize_text(ctx.getText())
         chunk_text = remove_escapes(chunk_text)
 
         # Add to last sub-sequence

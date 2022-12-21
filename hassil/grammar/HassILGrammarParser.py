@@ -15,8 +15,8 @@ def serializedATN():
     return [
         4,
         1,
-        13,
-        71,
+        14,
+        103,
         2,
         0,
         7,
@@ -119,6 +119,20 @@ def serializedATN():
         3,
         1,
         3,
+        3,
+        3,
+        49,
+        8,
+        3,
+        1,
+        3,
+        1,
+        3,
+        3,
+        3,
+        53,
+        8,
+        3,
         1,
         3,
         1,
@@ -126,6 +140,20 @@ def serializedATN():
         1,
         4,
         1,
+        4,
+        3,
+        4,
+        59,
+        8,
+        4,
+        1,
+        4,
+        1,
+        4,
+        3,
+        4,
+        63,
+        8,
         4,
         1,
         4,
@@ -133,15 +161,49 @@ def serializedATN():
         4,
         1,
         5,
+        3,
+        5,
+        68,
+        8,
+        5,
         1,
         5,
         1,
-        6,
+        5,
+        3,
+        5,
+        72,
+        8,
+        5,
         1,
         6,
+        4,
+        6,
+        75,
+        8,
+        6,
+        11,
+        6,
+        12,
+        6,
+        76,
         1,
         7,
         1,
+        7,
+        3,
+        7,
+        81,
+        8,
+        7,
+        1,
+        7,
+        1,
+        7,
+        3,
+        7,
+        85,
+        8,
         7,
         1,
         7,
@@ -154,6 +216,20 @@ def serializedATN():
         1,
         9,
         1,
+        9,
+        3,
+        9,
+        93,
+        8,
+        9,
+        1,
+        9,
+        1,
+        9,
+        3,
+        9,
+        97,
+        8,
         9,
         1,
         9,
@@ -180,8 +256,14 @@ def serializedATN():
         18,
         20,
         0,
+        1,
+        2,
         0,
-        66,
+        10,
+        10,
+        14,
+        14,
+        109,
         0,
         23,
         1,
@@ -207,382 +289,651 @@ def serializedATN():
         0,
         0,
         8,
-        50,
-        1,
-        0,
-        0,
-        0,
-        10,
-        54,
-        1,
-        0,
-        0,
-        0,
-        12,
         56,
         1,
         0,
         0,
         0,
+        10,
+        67,
+        1,
+        0,
+        0,
+        0,
+        12,
+        74,
+        1,
+        0,
+        0,
+        0,
         14,
-        58,
+        78,
         1,
         0,
         0,
         0,
         16,
-        62,
+        88,
         1,
         0,
         0,
         0,
         18,
+        90,
+        1,
+        0,
+        0,
+        0,
+        20,
+        100,
+        1,
+        0,
+        0,
+        0,
+        22,
+        24,
+        3,
+        2,
+        1,
+        0,
+        23,
+        22,
+        1,
+        0,
+        0,
+        0,
+        24,
+        25,
+        1,
+        0,
+        0,
+        0,
+        25,
+        23,
+        1,
+        0,
+        0,
+        0,
+        25,
+        26,
+        1,
+        0,
+        0,
+        0,
+        26,
+        1,
+        1,
+        0,
+        0,
+        0,
+        27,
+        28,
+        3,
+        4,
+        2,
+        0,
+        28,
+        29,
+        5,
+        13,
+        0,
+        0,
+        29,
+        3,
+        1,
+        0,
+        0,
+        0,
+        30,
+        36,
+        3,
+        6,
+        3,
+        0,
+        31,
+        36,
+        3,
+        8,
+        4,
+        0,
+        32,
+        36,
+        3,
+        12,
+        6,
+        0,
+        33,
+        36,
+        3,
+        14,
+        7,
+        0,
+        34,
+        36,
+        3,
+        18,
+        9,
+        0,
+        35,
+        30,
+        1,
+        0,
+        0,
+        0,
+        35,
+        31,
+        1,
+        0,
+        0,
+        0,
+        35,
+        32,
+        1,
+        0,
+        0,
+        0,
+        35,
+        33,
+        1,
+        0,
+        0,
+        0,
+        35,
+        34,
+        1,
+        0,
+        0,
+        0,
+        36,
+        43,
+        1,
+        0,
+        0,
+        0,
+        37,
+        39,
+        3,
+        10,
+        5,
+        0,
+        38,
+        37,
+        1,
+        0,
+        0,
+        0,
+        38,
+        39,
+        1,
+        0,
+        0,
+        0,
+        39,
+        40,
+        1,
+        0,
+        0,
+        0,
+        40,
+        42,
+        3,
+        4,
+        2,
+        0,
+        41,
+        38,
+        1,
+        0,
+        0,
+        0,
+        42,
+        45,
+        1,
+        0,
+        0,
+        0,
+        43,
+        41,
+        1,
+        0,
+        0,
+        0,
+        43,
+        44,
+        1,
+        0,
+        0,
+        0,
+        44,
+        5,
+        1,
+        0,
+        0,
+        0,
+        45,
+        43,
+        1,
+        0,
+        0,
+        0,
+        46,
+        48,
+        5,
+        1,
+        0,
+        0,
+        47,
+        49,
+        5,
+        14,
+        0,
+        0,
+        48,
+        47,
+        1,
+        0,
+        0,
+        0,
+        48,
+        49,
+        1,
+        0,
+        0,
+        0,
+        49,
+        50,
+        1,
+        0,
+        0,
+        0,
+        50,
+        52,
+        3,
+        4,
+        2,
+        0,
+        51,
+        53,
+        5,
+        14,
+        0,
+        0,
+        52,
+        51,
+        1,
+        0,
+        0,
+        0,
+        52,
+        53,
+        1,
+        0,
+        0,
+        0,
+        53,
+        54,
+        1,
+        0,
+        0,
+        0,
+        54,
+        55,
+        5,
+        2,
+        0,
+        0,
+        55,
+        7,
+        1,
+        0,
+        0,
+        0,
+        56,
+        58,
+        5,
+        3,
+        0,
+        0,
+        57,
+        59,
+        5,
+        14,
+        0,
+        0,
+        58,
+        57,
+        1,
+        0,
+        0,
+        0,
+        58,
+        59,
+        1,
+        0,
+        0,
+        0,
+        59,
+        60,
+        1,
+        0,
+        0,
+        0,
+        60,
+        62,
+        3,
+        4,
+        2,
+        0,
+        61,
+        63,
+        5,
+        14,
+        0,
+        0,
+        62,
+        61,
+        1,
+        0,
+        0,
+        0,
+        62,
+        63,
+        1,
+        0,
+        0,
+        0,
+        63,
         64,
         1,
         0,
         0,
         0,
-        20,
+        64,
+        65,
+        5,
+        4,
+        0,
+        0,
+        65,
+        9,
+        1,
+        0,
+        0,
+        0,
+        66,
+        68,
+        5,
+        14,
+        0,
+        0,
+        67,
+        66,
+        1,
+        0,
+        0,
+        0,
+        67,
         68,
         1,
         0,
         0,
         0,
-        22,
-        24,
-        3,
-        2,
-        1,
-        0,
-        23,
-        22,
+        68,
+        69,
         1,
         0,
         0,
         0,
-        24,
-        25,
-        1,
-        0,
-        0,
-        0,
-        25,
-        23,
-        1,
-        0,
-        0,
-        0,
-        25,
-        26,
-        1,
-        0,
-        0,
-        0,
-        26,
-        1,
-        1,
-        0,
-        0,
-        0,
-        27,
-        28,
-        3,
-        4,
-        2,
-        0,
-        28,
-        29,
+        69,
+        71,
         5,
-        13,
+        5,
         0,
         0,
-        29,
-        3,
-        1,
-        0,
-        0,
-        0,
-        30,
-        36,
-        3,
-        6,
-        3,
-        0,
-        31,
-        36,
-        3,
-        8,
-        4,
-        0,
-        32,
-        36,
-        3,
-        12,
-        6,
-        0,
-        33,
-        36,
-        3,
+        70,
+        72,
+        5,
         14,
-        7,
         0,
-        34,
-        36,
-        3,
-        18,
-        9,
         0,
-        35,
-        30,
+        71,
+        70,
         1,
         0,
         0,
         0,
-        35,
-        31,
+        71,
+        72,
         1,
         0,
         0,
         0,
-        35,
-        32,
-        1,
-        0,
-        0,
-        0,
-        35,
-        33,
-        1,
-        0,
-        0,
-        0,
-        35,
-        34,
-        1,
-        0,
-        0,
-        0,
-        36,
-        43,
-        1,
-        0,
-        0,
-        0,
-        37,
-        39,
-        3,
-        10,
-        5,
-        0,
-        38,
-        37,
-        1,
-        0,
-        0,
-        0,
-        38,
-        39,
-        1,
-        0,
-        0,
-        0,
-        39,
-        40,
-        1,
-        0,
-        0,
-        0,
-        40,
-        42,
-        3,
-        4,
-        2,
-        0,
-        41,
-        38,
-        1,
-        0,
-        0,
-        0,
-        42,
-        45,
-        1,
-        0,
-        0,
-        0,
-        43,
-        41,
-        1,
-        0,
-        0,
-        0,
-        43,
-        44,
-        1,
-        0,
-        0,
-        0,
-        44,
-        5,
-        1,
-        0,
-        0,
-        0,
-        45,
-        43,
-        1,
-        0,
-        0,
-        0,
-        46,
-        47,
-        5,
-        1,
-        0,
-        0,
-        47,
-        48,
-        3,
-        4,
-        2,
-        0,
-        48,
-        49,
-        5,
-        2,
-        0,
-        0,
-        49,
-        7,
-        1,
-        0,
-        0,
-        0,
-        50,
-        51,
-        5,
-        3,
-        0,
-        0,
-        51,
-        52,
-        3,
-        4,
-        2,
-        0,
-        52,
-        53,
-        5,
-        4,
-        0,
-        0,
-        53,
-        9,
-        1,
-        0,
-        0,
-        0,
-        54,
-        55,
-        5,
-        5,
-        0,
-        0,
-        55,
+        72,
         11,
         1,
         0,
         0,
         0,
-        56,
-        57,
-        5,
-        10,
+        73,
+        75,
+        7,
         0,
         0,
-        57,
+        0,
+        74,
+        73,
+        1,
+        0,
+        0,
+        0,
+        75,
+        76,
+        1,
+        0,
+        0,
+        0,
+        76,
+        74,
+        1,
+        0,
+        0,
+        0,
+        76,
+        77,
+        1,
+        0,
+        0,
+        0,
+        77,
         13,
         1,
         0,
         0,
         0,
-        58,
-        59,
+        78,
+        80,
         5,
         6,
         0,
         0,
-        59,
-        60,
+        79,
+        81,
+        5,
+        14,
+        0,
+        0,
+        80,
+        79,
+        1,
+        0,
+        0,
+        0,
+        80,
+        81,
+        1,
+        0,
+        0,
+        0,
+        81,
+        82,
+        1,
+        0,
+        0,
+        0,
+        82,
+        84,
         3,
         16,
         8,
         0,
-        60,
-        61,
+        83,
+        85,
+        5,
+        14,
+        0,
+        0,
+        84,
+        83,
+        1,
+        0,
+        0,
+        0,
+        84,
+        85,
+        1,
+        0,
+        0,
+        0,
+        85,
+        86,
+        1,
+        0,
+        0,
+        0,
+        86,
+        87,
         5,
         7,
         0,
         0,
-        61,
+        87,
         15,
         1,
         0,
         0,
         0,
-        62,
-        63,
+        88,
+        89,
         5,
         10,
         0,
         0,
-        63,
+        89,
         17,
         1,
         0,
         0,
         0,
-        64,
-        65,
+        90,
+        92,
         5,
         8,
         0,
         0,
-        65,
-        66,
+        91,
+        93,
+        5,
+        14,
+        0,
+        0,
+        92,
+        91,
+        1,
+        0,
+        0,
+        0,
+        92,
+        93,
+        1,
+        0,
+        0,
+        0,
+        93,
+        94,
+        1,
+        0,
+        0,
+        0,
+        94,
+        96,
         3,
         20,
         10,
         0,
-        66,
-        67,
+        95,
+        97,
+        5,
+        14,
+        0,
+        0,
+        96,
+        95,
+        1,
+        0,
+        0,
+        0,
+        96,
+        97,
+        1,
+        0,
+        0,
+        0,
+        97,
+        98,
+        1,
+        0,
+        0,
+        0,
+        98,
+        99,
         5,
         9,
         0,
         0,
-        67,
+        99,
         19,
         1,
         0,
         0,
         0,
-        68,
-        69,
+        100,
+        101,
         5,
         10,
         0,
         0,
-        69,
+        101,
         21,
         1,
         0,
         0,
         0,
-        4,
+        15,
         25,
         35,
         38,
         43,
+        48,
+        52,
+        58,
+        62,
+        67,
+        71,
+        76,
+        80,
+        84,
+        92,
+        96,
     ]
 
 
@@ -624,6 +975,7 @@ class HassILGrammarParser(Parser):
         "ESC",
         "CHARACTER",
         "EOL",
+        "WS",
     ]
 
     RULE_document = 0
@@ -666,6 +1018,7 @@ class HassILGrammarParser(Parser):
     ESC = 11
     CHARACTER = 12
     EOL = 13
+    WS = 14
 
     def __init__(self, input: TokenStream, output: TextIO = sys.stdout):
         super().__init__(input, output)
@@ -723,7 +1076,7 @@ class HassILGrammarParser(Parser):
                 self.state = 25
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if not (((_la) & ~0x3F) == 0 and ((1 << _la) & 1354) != 0):
+                if not (((_la) & ~0x3F) == 0 and ((1 << _la) & 17738) != 0):
                     break
 
         except RecognitionException as re:
@@ -843,7 +1196,6 @@ class HassILGrammarParser(Parser):
 
         localctx = HassILGrammarParser.ExpressionContext(self, self._ctx, self.state)
         self.enterRule(localctx, 4, self.RULE_expression)
-        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 35
@@ -857,7 +1209,7 @@ class HassILGrammarParser(Parser):
                 self.state = 31
                 self.optional()
                 pass
-            elif token in [10]:
+            elif token in [10, 14]:
                 self.state = 32
                 self.text_chunk()
                 pass
@@ -879,8 +1231,8 @@ class HassILGrammarParser(Parser):
                 if _alt == 1:
                     self.state = 38
                     self._errHandler.sync(self)
-                    _la = self._input.LA(1)
-                    if _la == 5:
+                    la_ = self._interp.adaptivePredict(self._input, 2, self._ctx)
+                    if la_ == 1:
                         self.state = 37
                         self.alt()
 
@@ -910,6 +1262,12 @@ class HassILGrammarParser(Parser):
         def expression(self):
             return self.getTypedRuleContext(HassILGrammarParser.ExpressionContext, 0)
 
+        def WS(self, i: int = None):
+            if i is None:
+                return self.getTokens(HassILGrammarParser.WS)
+            else:
+                return self.getToken(HassILGrammarParser.WS, i)
+
         def getRuleIndex(self):
             return HassILGrammarParser.RULE_group
 
@@ -931,13 +1289,28 @@ class HassILGrammarParser(Parser):
 
         localctx = HassILGrammarParser.GroupContext(self, self._ctx, self.state)
         self.enterRule(localctx, 6, self.RULE_group)
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 46
             self.match(HassILGrammarParser.T__0)
-            self.state = 47
-            self.expression()
             self.state = 48
+            self._errHandler.sync(self)
+            la_ = self._interp.adaptivePredict(self._input, 4, self._ctx)
+            if la_ == 1:
+                self.state = 47
+                self.match(HassILGrammarParser.WS)
+
+            self.state = 50
+            self.expression()
+            self.state = 52
+            self._errHandler.sync(self)
+            _la = self._input.LA(1)
+            if _la == 14:
+                self.state = 51
+                self.match(HassILGrammarParser.WS)
+
+            self.state = 54
             self.match(HassILGrammarParser.T__1)
         except RecognitionException as re:
             localctx.exception = re
@@ -958,6 +1331,12 @@ class HassILGrammarParser(Parser):
 
         def expression(self):
             return self.getTypedRuleContext(HassILGrammarParser.ExpressionContext, 0)
+
+        def WS(self, i: int = None):
+            if i is None:
+                return self.getTokens(HassILGrammarParser.WS)
+            else:
+                return self.getToken(HassILGrammarParser.WS, i)
 
         def getRuleIndex(self):
             return HassILGrammarParser.RULE_optional
@@ -980,13 +1359,28 @@ class HassILGrammarParser(Parser):
 
         localctx = HassILGrammarParser.OptionalContext(self, self._ctx, self.state)
         self.enterRule(localctx, 8, self.RULE_optional)
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 50
+            self.state = 56
             self.match(HassILGrammarParser.T__2)
-            self.state = 51
+            self.state = 58
+            self._errHandler.sync(self)
+            la_ = self._interp.adaptivePredict(self._input, 6, self._ctx)
+            if la_ == 1:
+                self.state = 57
+                self.match(HassILGrammarParser.WS)
+
+            self.state = 60
             self.expression()
-            self.state = 52
+            self.state = 62
+            self._errHandler.sync(self)
+            _la = self._input.LA(1)
+            if _la == 14:
+                self.state = 61
+                self.match(HassILGrammarParser.WS)
+
+            self.state = 64
             self.match(HassILGrammarParser.T__3)
         except RecognitionException as re:
             localctx.exception = re
@@ -1004,6 +1398,12 @@ class HassILGrammarParser(Parser):
         ):
             super().__init__(parent, invokingState)
             self.parser = parser
+
+        def WS(self, i: int = None):
+            if i is None:
+                return self.getTokens(HassILGrammarParser.WS)
+            else:
+                return self.getToken(HassILGrammarParser.WS, i)
 
         def getRuleIndex(self):
             return HassILGrammarParser.RULE_alt
@@ -1026,10 +1426,25 @@ class HassILGrammarParser(Parser):
 
         localctx = HassILGrammarParser.AltContext(self, self._ctx, self.state)
         self.enterRule(localctx, 10, self.RULE_alt)
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 54
+            self.state = 67
+            self._errHandler.sync(self)
+            _la = self._input.LA(1)
+            if _la == 14:
+                self.state = 66
+                self.match(HassILGrammarParser.WS)
+
+            self.state = 69
             self.match(HassILGrammarParser.T__4)
+            self.state = 71
+            self._errHandler.sync(self)
+            la_ = self._interp.adaptivePredict(self._input, 9, self._ctx)
+            if la_ == 1:
+                self.state = 70
+                self.match(HassILGrammarParser.WS)
+
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -1047,8 +1462,17 @@ class HassILGrammarParser(Parser):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def STRING(self):
-            return self.getToken(HassILGrammarParser.STRING, 0)
+        def STRING(self, i: int = None):
+            if i is None:
+                return self.getTokens(HassILGrammarParser.STRING)
+            else:
+                return self.getToken(HassILGrammarParser.STRING, i)
+
+        def WS(self, i: int = None):
+            if i is None:
+                return self.getTokens(HassILGrammarParser.WS)
+            else:
+                return self.getToken(HassILGrammarParser.WS, i)
 
         def getRuleIndex(self):
             return HassILGrammarParser.RULE_text_chunk
@@ -1071,10 +1495,28 @@ class HassILGrammarParser(Parser):
 
         localctx = HassILGrammarParser.Text_chunkContext(self, self._ctx, self.state)
         self.enterRule(localctx, 12, self.RULE_text_chunk)
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 56
-            self.match(HassILGrammarParser.STRING)
+            self.state = 74
+            self._errHandler.sync(self)
+            _alt = 1
+            while _alt != 2 and _alt != ATN.INVALID_ALT_NUMBER:
+                if _alt == 1:
+                    self.state = 73
+                    _la = self._input.LA(1)
+                    if not (_la == 10 or _la == 14):
+                        self._errHandler.recoverInline(self)
+                    else:
+                        self._errHandler.reportMatch(self)
+                        self.consume()
+
+                else:
+                    raise NoViableAltException(self)
+                self.state = 76
+                self._errHandler.sync(self)
+                _alt = self._interp.adaptivePredict(self._input, 10, self._ctx)
+
         except RecognitionException as re:
             localctx.exception = re
             self._errHandler.reportError(self, re)
@@ -1094,6 +1536,12 @@ class HassILGrammarParser(Parser):
 
         def list_name(self):
             return self.getTypedRuleContext(HassILGrammarParser.List_nameContext, 0)
+
+        def WS(self, i: int = None):
+            if i is None:
+                return self.getTokens(HassILGrammarParser.WS)
+            else:
+                return self.getToken(HassILGrammarParser.WS, i)
 
         def getRuleIndex(self):
             return HassILGrammarParser.RULE_list
@@ -1116,13 +1564,28 @@ class HassILGrammarParser(Parser):
 
         localctx = HassILGrammarParser.ListContext(self, self._ctx, self.state)
         self.enterRule(localctx, 14, self.RULE_list)
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 58
+            self.state = 78
             self.match(HassILGrammarParser.T__5)
-            self.state = 59
+            self.state = 80
+            self._errHandler.sync(self)
+            _la = self._input.LA(1)
+            if _la == 14:
+                self.state = 79
+                self.match(HassILGrammarParser.WS)
+
+            self.state = 82
             self.list_name()
-            self.state = 60
+            self.state = 84
+            self._errHandler.sync(self)
+            _la = self._input.LA(1)
+            if _la == 14:
+                self.state = 83
+                self.match(HassILGrammarParser.WS)
+
+            self.state = 86
             self.match(HassILGrammarParser.T__6)
         except RecognitionException as re:
             localctx.exception = re
@@ -1167,7 +1630,7 @@ class HassILGrammarParser(Parser):
         self.enterRule(localctx, 16, self.RULE_list_name)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 62
+            self.state = 88
             self.match(HassILGrammarParser.STRING)
         except RecognitionException as re:
             localctx.exception = re
@@ -1188,6 +1651,12 @@ class HassILGrammarParser(Parser):
 
         def rule_name(self):
             return self.getTypedRuleContext(HassILGrammarParser.Rule_nameContext, 0)
+
+        def WS(self, i: int = None):
+            if i is None:
+                return self.getTokens(HassILGrammarParser.WS)
+            else:
+                return self.getToken(HassILGrammarParser.WS, i)
 
         def getRuleIndex(self):
             return HassILGrammarParser.RULE_rule
@@ -1210,13 +1679,28 @@ class HassILGrammarParser(Parser):
 
         localctx = HassILGrammarParser.RuleContext(self, self._ctx, self.state)
         self.enterRule(localctx, 18, self.RULE_rule)
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 64
+            self.state = 90
             self.match(HassILGrammarParser.T__7)
-            self.state = 65
+            self.state = 92
+            self._errHandler.sync(self)
+            _la = self._input.LA(1)
+            if _la == 14:
+                self.state = 91
+                self.match(HassILGrammarParser.WS)
+
+            self.state = 94
             self.rule_name()
-            self.state = 66
+            self.state = 96
+            self._errHandler.sync(self)
+            _la = self._input.LA(1)
+            if _la == 14:
+                self.state = 95
+                self.match(HassILGrammarParser.WS)
+
+            self.state = 98
             self.match(HassILGrammarParser.T__8)
         except RecognitionException as re:
             localctx.exception = re
@@ -1261,7 +1745,7 @@ class HassILGrammarParser(Parser):
         self.enterRule(localctx, 20, self.RULE_rule_name)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 68
+            self.state = 100
             self.match(HassILGrammarParser.STRING)
         except RecognitionException as re:
             localctx.exception = re

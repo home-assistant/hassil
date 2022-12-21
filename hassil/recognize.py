@@ -218,16 +218,17 @@ def match_expression(
             yield context
 
         context_text_left = context.text
-        chunk_text_left = chunk.text
+        chunk_text_left = chunk.text.lstrip()
 
-        while chunk_text_left:
+        while chunk_text_left.strip():
             prefix = commonprefix((context_text_left, chunk_text_left))
 
             if prefix:
-                # Common prefix
+                # Texts share a common prefix
                 context_text_left = context_text_left[len(prefix) :]
                 chunk_text_left = chunk_text_left[len(prefix) :]
             else:
+                # Try to skip over "skip words" or non-words
                 can_skip, context_text_left = _skip(
                     context_text_left, context.skip_words
                 )
@@ -235,7 +236,8 @@ def match_expression(
                 if not can_skip:
                     break
 
-        if not chunk_text_left:
+        if not chunk_text_left.strip():
+            # Successful match for chunk
             yield dataclasses.replace(context, text=context_text_left)
 
     elif isinstance(expression, Sequence):

@@ -11,6 +11,7 @@ STRING=10
 ESC=11
 CHARACTER=12
 EOL=13
+WS=14
 '('=1
 ')'=2
 '['=3

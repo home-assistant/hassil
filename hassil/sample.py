@@ -21,7 +21,7 @@ from .expression import (
 )
 from .intents import Intents, RangeSlotList, SlotList, TextSlotList
 from .recognize import MissingListError, MissingRuleError
-from .util import merge_dict
+from .util import merge_dict, normalize_whitespace
 
 _LOGGER = logging.getLogger("hassil.sample")
 
@@ -30,7 +30,6 @@ def sample_intents(
     intents: Intents,
     slot_lists: Optional[Dict[str, SlotList]] = None,
     expansion_rules: Optional[Dict[str, Sentence]] = None,
-    separator: str = " ",
     max_sentences_per_intent: Optional[int] = None,
     intent_names: Optional[Set[str]] = None,
 ) -> Iterable[Tuple[str, str]]:
@@ -61,7 +60,9 @@ def sample_intents(
         for intent_data in intent.data:
             for intent_sentence in intent_data.sentences:
                 sentence_texts = sample_expression(
-                    intent_sentence, slot_lists, expansion_rules, separator
+                    intent_sentence,
+                    slot_lists,
+                    expansion_rules,
                 )
                 for sentence_text in sentence_texts:
                     yield (intent_name, sentence_text)
@@ -80,14 +81,10 @@ def sample_intents(
                 break
 
 
-_X = False
-
-
 def sample_expression(
     expression: Expression,
     slot_lists: Optional[Dict[str, SlotList]] = None,
     expansion_rules: Optional[Dict[str, Sentence]] = None,
-    separator: str = " ",
 ) -> Iterable[str]:
     """Sample possible text strings from an expression."""
     if isinstance(expression, TextChunk):
@@ -98,7 +95,9 @@ def sample_expression(
         if seq.type == SequenceType.ALTERNATIVE:
             for item in seq.items:
                 yield from sample_expression(
-                    item, slot_lists, expansion_rules, separator
+                    item,
+                    slot_lists,
+                    expansion_rules,
                 )
         elif seq.type == SequenceType.GROUP:
             seq_sentences = map(
@@ -106,13 +105,12 @@ def sample_expression(
                     sample_expression,
                     slot_lists=slot_lists,
                     expansion_rules=expansion_rules,
-                    separator=separator,
                 ),
                 seq.items,
             )
             sentence_texts = itertools.product(*seq_sentences)
             for sentence_words in sentence_texts:
-                yield separator.join(filter(None, sentence_words))
+                yield normalize_whitespace("".join(sentence_words))
         else:
             raise ValueError(f"Unexpected sequence type: {seq}")
     elif isinstance(expression, ListReference):
@@ -134,7 +132,6 @@ def sample_expression(
                     text_value.text_in,
                     slot_lists,
                     expansion_rules,
-                    separator,
                 )
         elif isinstance(slot_list, RangeSlotList):
             range_list: RangeSlotList = slot_list
@@ -156,7 +153,6 @@ def sample_expression(
             rule_body,
             slot_lists,
             expansion_rules,
-            separator,
         )
     else:
         raise ValueError(f"Unexpected expression: {expression}")
@@ -174,11 +170,6 @@ def main():
     )
     parser.add_argument(
         "--intents", nargs="+", help="Only sample sentences from these intents"
-    )
-    parser.add_argument(
-        "--separator",
-        default=" ",
-        help="Separator between words in sentences (default: space)",
     )
     parser.add_argument(
         "--areas",
@@ -222,7 +213,6 @@ def main():
     intents_and_texts = sample_intents(
         intents,
         slot_lists,
-        separator=args.separator,
         max_sentences_per_intent=args.max_sentences_per_intent,
         intent_names=set(args.intents) if args.intents else None,
     )

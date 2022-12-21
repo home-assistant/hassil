@@ -14,23 +14,23 @@ expression
 
 // One or more text chunks in a sequence
 group
-   : '(' expression ')'
+   : '(' WS? expression WS? ')'
    ;
 
 optional
-   : '[' expression ']'
+   : '[' WS? expression WS? ']'
    ;
 
 alt
-   : '|'
+   : WS? '|' WS?
    ;
 
 text_chunk
-   : STRING
+   : (STRING | WS)+
    ;
 
 list
-   : '{' list_name '}'
+   : '{' WS? list_name WS? '}'
    ;
 
 list_name
@@ -38,7 +38,7 @@ list_name
    ;
 
 rule
-   : '<' rule_name '>'
+   : '<' WS? rule_name WS? '>'
    ;
 
 rule_name
@@ -54,9 +54,13 @@ ESC
    ;
 
 CHARACTER
-   : ~ [<>()[\]{}\n\r|]
+   : ~ [<>()[\]{} \t\n\r|]
    ;
 
 EOL
    : [\n\r] +
+   ;
+
+WS
+   : [ \t] +
    ;
