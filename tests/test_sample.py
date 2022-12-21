@@ -16,9 +16,11 @@ def test_group():
 
 
 def test_optional():
-    assert set(sample_expression(parse_sentence("this is [a] test"))) == {
-        "this is test",
-        "this is a test",
+    assert set(sample_expression(parse_sentence("turn on [the] light[s]"))) == {
+        "turn on light",
+        "turn on lights",
+        "turn on the light",
+        "turn on the lights",
     }
 
 
