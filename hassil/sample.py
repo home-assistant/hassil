@@ -217,7 +217,11 @@ def main():
         intent_names=set(args.intents) if args.intents else None,
     )
     for intent_name, sentence_text in intents_and_texts:
-        json.dump({"intent": intent_name, "text": sentence_text}, sys.stdout)
+        json.dump(
+            {"intent": intent_name, "text": sentence_text},
+            sys.stdout,
+            ensure_ascii=False,
+        )
         print("")
 
 
