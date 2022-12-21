@@ -50,7 +50,7 @@ python3 -m hassil.sample examples/en.yaml -n 1
 {"intent": "HassOpenCover", "text": "open the entity in the area"}
 {"intent": "HassCloseCover", "text": "close the entity in the area"}
 {"intent": "HassLightsSet", "text": "set the entity color to red"}
-{"intent": "HassClimateSetTemperature", "text": "set temperature to 0 degree s in the area"}
+{"intent": "HassClimateSetTemperature", "text": "set temperature to 0 degrees in the area"}
 {"intent": "HassClimateGetTemperature", "text": "what is the temperature in the area"}
 ```
 
