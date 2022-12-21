@@ -3,6 +3,9 @@ import collections
 import re
 import unicodedata
 
+_WHITESPACE_PATTERN = re.compile(r"(\s+)")
+_WHITESPACE_SEPARATOR = " "
+
 
 def merge_dict(base_dict, new_dict):
     """Merges new_dict into base_dict."""
@@ -43,7 +46,7 @@ def remove_quotes(text: str) -> str:
 
 def normalize_whitespace(text: str) -> str:
     """Makes all whitespace inside a string single spaced."""
-    return " ".join(text.split())
+    return _WHITESPACE_PATTERN.sub(_WHITESPACE_SEPARATOR, text)
 
 
 def normalize_text(text: str) -> str:
