@@ -1,0 +1,75 @@
+language: "en"
+intents:
+  HassTurnOn:
+    data:
+      - sentences:
+          - "turn on <name>"
+      - sentences:
+          - "turn on light[s] in <area>"
+        slots:
+          domain: "light"
+  HassTurnOff:
+    data:
+      - sentences:
+          - "turn off <name>"
+      - sentences:
+          - "turn off light[s] in <area>"
+        slots:
+          domain: "light"
+  HassOpenCover:
+    data:
+      - sentences:
+          - "open <name> [in <area>]"
+        slots:
+          domain: "cover"
+      - sentences:
+          - "open [the] garage door"
+        slots:
+          domain: "cover"
+          device_class: "garage_door"
+  HassCloseCover:
+    data:
+      - sentences:
+          - "close <name> [in <area>]"
+        slots:
+          domain: "cover"
+      - sentences:
+          - "close [the] garage door"
+        slots:
+          domain: "cover"
+          device_class: "garage_door"
+  HassLightsSet:
+    data:
+      - sentences:
+          - "set (<name> | <area>) color to {color}"
+        slots:
+          domain: "light"
+  HassClimateSetTemperature:
+    data:
+      - sentences:
+          - "set temperature to <temperature> [in <area>]"
+        slots:
+          domain: "climate"
+  HassClimateGetTemperature:
+    data:
+      - sentences:
+          - "(what is | what's | whats) the temperature [in <area>]"
+        slots:
+          domain: "climate"
+lists:
+  color:
+    values:
+      - "red"
+      - "green"
+      - "blue"
+  temperature:
+    range:
+      type: "temperature"
+      from: 0
+      to: 100
+expansion_rules:
+  name: "[the] {name}"
+  area: "[the] {area}"
+  temperature: "{temperature} [degree[s]]"
+skip_words:
+  - "please"
