@@ -30,11 +30,11 @@ def test_optional():
     assert parse_sentences(["this is [a] test"]) == [
         s(
             [
-                tc("this is"),
+                tc("this is "),
                 alt(
                     [tc("a"), TextChunk.empty()],
                 ),
-                tc("test"),
+                tc(" test"),
             ]
         )
     ]
@@ -44,14 +44,14 @@ def test_optional_nested():
     assert parse_sentences(["this [is [a]] test"]) == [
         s(
             [
-                tc("this"),
+                tc("this "),
                 alt(
                     [
-                        grp([tc("is"), alt([tc("a"), TextChunk.empty()])]),
+                        grp([tc("is "), alt([tc("a"), TextChunk.empty()])]),
                         TextChunk.empty(),
                     ]
                 ),
-                tc("test"),
+                tc(" test"),
             ]
         )
     ]
@@ -61,11 +61,11 @@ def test_alternative():
     assert parse_sentences(["this is (a | the) test"]) == [
         s(
             [
-                tc("this is"),
+                tc("this is "),
                 alt(
-                    [grp([tc("a")]), grp([tc("the")])],
+                    [grp([tc("a ")]), grp([tc("the")])],
                 ),
-                tc("test"),
+                tc(" test"),
             ]
         )
     ]
@@ -75,18 +75,18 @@ def test_alternative_multiple_words():
     assert parse_sentences(["this is (a bigger | the biggest) test"]) == [
         s(
             [
-                tc("this is"),
+                tc("this is "),
                 alt(
                     [
                         grp(
-                            [tc("a bigger")],
+                            [tc("a bigger ")],
                         ),
                         grp(
                             [tc("the biggest")],
                         ),
                     ],
                 ),
-                tc("test"),
+                tc(" test"),
             ]
         )
     ]
@@ -99,13 +99,13 @@ def test_alternative_what():
                 alt(
                     [
                         grp(
-                            [tc("what")],
+                            [tc("what ")],
                         ),
                         grp(
-                            [tc("what's")],
+                            [tc("what's ")],
                         ),
                         grp(
-                            [tc("whats")],
+                            [tc("whats ")],
                         ),
                         grp(
                             [tc("what is")],
@@ -119,7 +119,7 @@ def test_alternative_what():
 
 def test_list_reference():
     assert parse_sentences(["this is a {test}"]) == [
-        s([tc("this is a"), ListReference("test")])
+        s([tc("this is a "), ListReference("test")])
     ]
 
 
@@ -131,7 +131,7 @@ def test_list_reference_prefix_suffix():
 
 def test_rule_reference():
     assert parse_sentences(["this is a <test>"]) == [
-        s([tc("this is a"), RuleReference("test")])
+        s([tc("this is a "), RuleReference("test")])
     ]
 
 
