@@ -35,6 +35,9 @@ class IntentData:
     requires_context: Optional[Dict[str, Any]] = None
     """Context items required before match is successful."""
 
+    excludes_context: Optional[Dict[str, Any]] = None
+    """Context items that must not be present for match to be successful."""
+
 
 @dataclass_json
 @dataclass
@@ -195,6 +198,7 @@ class Intents:
                             ),
                             slots=data_dict.get("slots", {}),
                             requires_context=data_dict.get("requires_context"),
+                            excludes_context=data_dict.get("excludes_context"),
                         )
                         for data_dict in intent_dict["data"]
                     ],

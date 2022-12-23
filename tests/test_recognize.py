@@ -43,6 +43,14 @@ intents:
           domain: "cover"
         slots:
           domain: "cover"
+  Play:
+    data:
+      - sentences:
+          - "play <name>"
+        excludes_context:
+          domain:
+            - "cover"
+            - "light"
 expansion_rules:
   area: "[the] {area}"
   name: "[the] {name}"
@@ -78,6 +86,11 @@ def slot_lists():
                     "garage door",
                     "cover.garage_door",
                     {"domain": "cover"},
+                ),
+                (
+                    "roku",
+                    "media_player.roku",
+                    {"domain": "media_player"},
                 ),
             ]
         ),
@@ -167,4 +180,19 @@ def test_close_name(intents, slot_lists):
 # pylint: disable=redefined-outer-name
 def test_close_not_light(intents, slot_lists):
     result = recognize("close the hue", intents, slot_lists=slot_lists)
+    assert result is None
+
+
+# pylint: disable=redefined-outer-name
+def test_play(intents, slot_lists):
+    result = recognize("play roku", intents, slot_lists=slot_lists)
+    assert result is not None
+    assert result.intent.name == "Play"
+
+    assert result.entities["name"].value == "media_player.roku"
+
+
+# pylint: disable=redefined-outer-name
+def test_play_no_cover(intents, slot_lists):
+    result = recognize("play the garage door", intents, slot_lists=slot_lists)
     assert result is None
