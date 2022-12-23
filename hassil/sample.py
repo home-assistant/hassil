@@ -218,7 +218,7 @@ def main():
     )
     for intent_name, sentence_text in intents_and_texts:
         json.dump(
-            {"intent": intent_name, "text": sentence_text},
+            {"intent": intent_name, "text": sentence_text.strip()},
             sys.stdout,
             ensure_ascii=False,
         )
