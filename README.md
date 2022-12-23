@@ -77,3 +77,54 @@ Parsed using a custom [ANTLR](https://www.antlr.org) grammar (see [`HassILGramma
 * Expansion Rules
   * `<rule_name>`
   * Refers to a pre-defined expansion rule in YAML (`expansion_rules`)
+
+
+## YAML Format
+
+``` yaml
+language: "<language code>"
+intents:
+  <intent name>:
+    data:
+      # List of sentences/slots/etc.
+      - sentences:
+          - "<sentence template>"
+          - "<sentence template>"
+        # Optional
+        slots:
+          # Fixed slots for the recognized intent
+          <name>: <value>
+        requires_context:
+          # Must be present in match context
+          <name>: <value or list>
+        excludes_context:
+          # Must NOT be present in match context
+          <name>: <value or list>
+
+# Optional lists of items that become alternatives in sentence templates
+lists:
+  # Referenced as {list_name} or {list_name:slot_name}
+  <list name>:
+    values:
+      - "items"
+      - "in list"
+      - in: "text in"
+        out: <value for slot>
+        # Optional
+        context:
+          <name>: <value>
+  <range_name>
+    range:
+      type: "number"
+      from: 0
+      to: 100  # inclusive
+
+# Optional rules that are expanded in sentence templates
+expansion_rules:
+  # Referenced as <rule_name>
+  <rule_name>: "<sentence template>"
+
+# Optional words that the intent recognizer can skip during recognition
+skip_words:
+  - "<word>"
+```
