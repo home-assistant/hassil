@@ -25,12 +25,12 @@ Once loaded, you may type in a sentence and see what intent it matches.
 For example:
 
 ``` sh
-python3 -m hassil examples/en.yaml
+python3 -m hassil examples/en.yaml --areas 'living room'
 what is the temperature in the living room
 {'intent': 'HassClimateGetTemperature', 'area': 'living room', 'domain': 'climate'}
 ```
 
-By default, the areas "kitchen", "bedroom", and "living room" are available. You can override this with `--areas`. Device or entity names can be provided with `--names`.
+Make sure to provide area names with `--areas`. Device or entity names can be provided with `--names`.
 
 ``` sh
 python3 -m hassil examples/en.yaml --areas office --names trapdoor
@@ -65,9 +65,11 @@ Parsed using a custom [ANTLR](https://www.antlr.org) grammar (see [`HassILGramma
 
 * Alternative words or phrases
   * `(red | green | blue)`
+  * `turn(s | ed | ing)`
 * Optional words or phrases
   * `[the]`
   * `[this | that]`
+  * `light[s]`
 * Slot Lists
   * `{list_name}`
   * `{list_name:slot_name}`

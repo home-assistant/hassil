@@ -22,7 +22,7 @@ def main():
         "--areas",
         nargs="+",
         help="Area names",
-        default=["kitchen", "bedroom", "living room"],
+        default=[],
     )
     parser.add_argument("--names", nargs="+", default=[], help="Device/entity names")
     parser.add_argument(
