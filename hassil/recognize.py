@@ -1,5 +1,6 @@
 """Methods for recognizing intents from text."""
 
+import collections.abc
 import dataclasses
 import itertools
 import re
@@ -141,18 +142,57 @@ def recognize(
                     if maybe_match_context.is_match:
                         skip_match = False
 
-                        if intent_data.requires_context:
-                            # Verify intent context
+                        # Verify excluded context
+                        if intent_data.excludes_context:
+                            for (
+                                context_key,
+                                context_value,
+                            ) in intent_data.excludes_context.items():
+                                actual_value = maybe_match_context.intent_context.get(
+                                    context_key
+                                )
+                                if actual_value == context_value:
+                                    # Exact match to context value
+                                    skip_match = True
+                                    break
+
+                                if (
+                                    isinstance(
+                                        context_value, collections.abc.Collection
+                                    )
+                                    and not isinstance(context_value, str)
+                                    and (actual_value in context_value)
+                                ):
+                                    # Actual value was in context value list
+                                    skip_match = True
+                                    break
+
+                        # Verify required context
+                        if (not skip_match) and intent_data.requires_context:
                             for (
                                 context_key,
                                 context_value,
                             ) in intent_data.requires_context.items():
+                                actual_value = maybe_match_context.intent_context.get(
+                                    context_key
+                                )
+                                if actual_value == context_value:
+                                    # Exact match to context value
+                                    continue
+
                                 if (
-                                    maybe_match_context.intent_context.get(context_key)
-                                    != context_value
+                                    isinstance(
+                                        context_value, collections.abc.Collection
+                                    )
+                                    and not isinstance(context_value, str)
+                                    and (actual_value in context_value)
                                 ):
-                                    skip_match = True
-                                    break
+                                    # Actual value was in context value list
+                                    continue
+
+                                # Did not match required context
+                                skip_match = True
+                                break
 
                         if skip_match:
                             # Intent context did not match
