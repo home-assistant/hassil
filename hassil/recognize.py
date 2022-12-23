@@ -65,6 +65,9 @@ class MatchContext:
     entities: List[MatchEntity] = field(default_factory=list)
     """Entities that have been found in input text."""
 
+    intent_context: Dict[str, Any] = field(default_factory=dict)
+    """Context items from outside or acquired during matching."""
+
     @property
     def is_match(self) -> bool:
         """True if no words are left"""
@@ -91,6 +94,7 @@ def recognize(
     slot_lists: Optional[Dict[str, SlotList]] = None,
     expansion_rules: Optional[Dict[str, Sentence]] = None,
     skip_words: Optional[Iterable[str]] = None,
+    intent_context: Optional[Dict[str, Any]] = None,
 ) -> Optional[RecognizeResult]:
     """Return the first match of input text/words against a collection of intents."""
     text = normalize_text(text)
@@ -116,24 +120,47 @@ def recognize(
         # Combine skip words
         skip_words = itertools.chain(skip_words, intents.skip_words)
 
+    if intent_context is None:
+        intent_context = {}
+
     # Check sentence against each intent.
     # This should eventually be done in parallel.
     for intent in intents.intents.values():
         for intent_data in intent.data:
             for intent_sentence in intent_data.sentences:
                 # Create initial context
-                context = MatchContext(
+                match_context = MatchContext(
                     text=text,
                     slot_lists=slot_lists,
                     expansion_rules=expansion_rules,
                     skip_words=_prepare_skip_words(skip_words),
+                    intent_context=intent_context,
                 )
-                sentence_contexts = _match_and_skip(context, intent_sentence)
-                for sentence_context in sentence_contexts:
-                    if sentence_context.is_match:
+                maybe_match_contexts = _match_and_skip(match_context, intent_sentence)
+                for maybe_match_context in maybe_match_contexts:
+                    if maybe_match_context.is_match:
+                        skip_match = False
+
+                        if intent_data.requires_context:
+                            # Verify intent context
+                            for (
+                                context_key,
+                                context_value,
+                            ) in intent_data.requires_context.items():
+                                if (
+                                    maybe_match_context.intent_context.get(context_key)
+                                    != context_value
+                                ):
+                                    skip_match = True
+                                    break
+
+                        if skip_match:
+                            # Intent context did not match
+                            continue
+
                         # Add fixed entities
                         for slot_name, slot_value in intent_data.slots.items():
-                            sentence_context.entities.append(
+                            maybe_match_context.entities.append(
                                 MatchEntity(name=slot_name, value=slot_value)
                             )
 
@@ -142,9 +169,9 @@ def recognize(
                             intent,
                             {
                                 entity.name: entity
-                                for entity in sentence_context.entities
+                                for entity in maybe_match_context.entities
                             },
-                            sentence_context.entities,
+                            maybe_match_context.entities,
                         )
 
     return None
@@ -157,6 +184,7 @@ def is_match(
     expansion_rules: Optional[Dict[str, Sentence]] = None,
     skip_words: Optional[Iterable[str]] = None,
     entities: Optional[Dict[str, Any]] = None,
+    intent_context: Optional[Dict[str, Any]] = None,
 ) -> Optional[MatchContext]:
     """Return the first match of input text/words against a sentence expression."""
     text = normalize_text(text)
@@ -172,16 +200,20 @@ def is_match(
     else:
         skip_words = sorted(skip_words, key=len, reverse=True)
 
-    context = MatchContext(
+    if intent_context is None:
+        intent_context = {}
+
+    match_context = MatchContext(
         text=text,
         slot_lists=slot_lists,
         expansion_rules=expansion_rules,
         skip_words=_prepare_skip_words(skip_words),
+        intent_context=intent_context,
     )
 
-    for match_context in _match_and_skip(context, sentence):
-        if match_context.is_match:
-            return match_context
+    for maybe_match_context in _match_and_skip(match_context, sentence):
+        if maybe_match_context.is_match:
+            return maybe_match_context
 
     return None
 
@@ -290,6 +322,11 @@ def match_expression(
                                 name=list_ref.slot_name, value=slot_value.value_out
                             )
                         )
+
+                        if slot_value.context:
+                            # Merge context from matched list value
+                            value_context.intent_context.update(slot_value.context)
+
                         yield value_context
 
         elif isinstance(slot_list, RangeSlotList):

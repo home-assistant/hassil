@@ -23,14 +23,29 @@ intents:
         slots:
           domain: "light"
           name: "all"
+      - sentences:
+        - "set [the] brightness of <name> to <brightness>"
+        requires_context:
+          domain: "light"
+        slots:
+          domain: "light"
   GetTemperature:
     data:
       - sentences:
         - "<what_is> [the] temperature in <area>"
         slots:
           domain: "climate"
+  CloseCover:
+    data:
+      - sentences:
+        - "close <name>"
+        requires_context:
+          domain: "cover"
+        slots:
+          domain: "cover"
 expansion_rules:
   area: "[the] {area}"
+  name: "[the] {name}"
   brightness: "{brightness_pct} [percent]"
   what_is: "(what's | whats | what is)"
 lists:
@@ -55,7 +70,17 @@ def slot_lists():
     return {
         "area": TextSlotList.from_tuples(
             [("kitchen", "area.kitchen"), ("living room", "area.living_room")]
-        )
+        ),
+        "name": TextSlotList.from_tuples(
+            [
+                ("hue", "light.hue", {"domain": "light"}),
+                (
+                    "garage door",
+                    "cover.garage_door",
+                    {"domain": "cover"},
+                ),
+            ]
+        ),
     }
 
 
@@ -75,7 +100,7 @@ def test_turn_on(intents, slot_lists):
 
 
 # pylint: disable=redefined-outer-name
-def test_brightness(intents, slot_lists):
+def test_brightness_area(intents, slot_lists):
     result = recognize(
         "set the brightness in the living room to 75%", intents, slot_lists=slot_lists
     )
@@ -91,6 +116,29 @@ def test_brightness(intents, slot_lists):
 
 
 # pylint: disable=redefined-outer-name
+def test_brightness_name(intents, slot_lists):
+    result = recognize(
+        "set brightness of the hue to 50%", intents, slot_lists=slot_lists
+    )
+    assert result is not None
+    assert result.intent.name == "SetBrightness"
+
+    assert result.entities["name"].value == "light.hue"
+    assert result.entities["brightness_pct"].value == 50
+
+    # From YAML
+    assert result.entities["domain"].value == "light"
+
+
+# pylint: disable=redefined-outer-name
+def test_brightness_not_cover(intents, slot_lists):
+    result = recognize(
+        "set brightness of the garage door to 50%", intents, slot_lists=slot_lists
+    )
+    assert result is None
+
+
+# pylint: disable=redefined-outer-name
 def test_temperature(intents, slot_lists):
     result = recognize(
         "what is the temperature in the living room?", intents, slot_lists=slot_lists
@@ -102,3 +150,21 @@ def test_temperature(intents, slot_lists):
 
     # From YAML
     assert result.entities["domain"].value == "climate"
+
+
+# pylint: disable=redefined-outer-name
+def test_close_name(intents, slot_lists):
+    result = recognize("close the garage door", intents, slot_lists=slot_lists)
+    assert result is not None
+    assert result.intent.name == "CloseCover"
+
+    assert result.entities["name"].value == "cover.garage_door"
+
+    # From YAML
+    assert result.entities["domain"].value == "cover"
+
+
+# pylint: disable=redefined-outer-name
+def test_close_not_light(intents, slot_lists):
+    result = recognize("close the hue", intents, slot_lists=slot_lists)
+    assert result is None
