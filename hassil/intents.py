@@ -3,7 +3,7 @@
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import IO, Any, Dict, Iterable, List, Tuple
+from typing import IO, Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 from dataclasses_json import dataclass_json
 from yaml import safe_load
@@ -27,7 +27,13 @@ class IntentData:
     """Block of sentences and known slots for an intent."""
 
     sentences: List[Sentence]
+    """Sentence templates that match this intent."""
+
     slots: Dict[str, Any] = field(default_factory=dict)
+    """Slot values that are assumed if intent is matched."""
+
+    requires_context: Optional[Dict[str, Any]] = None
+    """Context items required before match is successful."""
 
 
 @dataclass_json
@@ -77,6 +83,25 @@ class TextSlotValue:
     value_out: Any
     """Output value put into slot"""
 
+    context: Optional[Dict[str, Any]] = None
+    """Items added to context if value is matched"""
+
+    @staticmethod
+    def from_tuple(
+        value_tuple: Union[Tuple[str, Any], Tuple[str, Any, Dict[str, Any]]]
+    ) -> "TextSlotValue":
+        """Construct text slot value from a tuple."""
+        text_in, value_out, context = value_tuple[0], value_tuple[1], None
+
+        if len(value_tuple) > 2:
+            context = cast(Tuple[str, Any, Dict[str, Any]], value_tuple)[2]
+
+        return TextSlotValue(
+            text_in=parse_sentence(text_in, keep_text=True),
+            value_out=value_out,
+            context=context,
+        )
+
 
 @dataclass
 class TextSlotList(SlotList):
@@ -101,19 +126,16 @@ class TextSlotList(SlotList):
         )
 
     @staticmethod
-    def from_tuples(tuples: Iterable[Tuple[str, Any]]) -> "TextSlotList":
+    def from_tuples(
+        tuples: Iterable[Union[Tuple[str, Any], Tuple[str, Any, Dict[str, Any]]]]
+    ) -> "TextSlotList":
         """
         Construct a text slot list from text/value pairs.
 
         Input values are the left (text), output values are the right (any).
         """
         return TextSlotList(
-            values=[
-                TextSlotValue(
-                    text_in=parse_sentence(text, keep_text=True), value_out=value
-                )
-                for text, value in tuples
-            ],
+            values=[TextSlotValue.from_tuple(value_tuple) for value_tuple in tuples],
         )
 
 
@@ -172,6 +194,7 @@ class Intents:
                                 data_dict["sentences"], keep_text=True
                             ),
                             slots=data_dict.get("slots", {}),
+                            requires_context=data_dict.get("requires_context"),
                         )
                         for data_dict in intent_dict["data"]
                     ],
@@ -211,6 +234,7 @@ def _parse_list(list_dict: Dict[str, Any]) -> SlotList:
                     TextSlotValue(
                         text_in=parse_sentence(value["in"], keep_text=True),
                         value_out=value["out"],
+                        context=value.get("context"),
                     )
                 )
 
