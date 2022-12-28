@@ -8,8 +8,8 @@ from typing import IO, Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 from dataclasses_json import dataclass_json
 from yaml import safe_load
 
-from .expression import Sentence
-from .parse import parse_sentence, parse_sentences
+from .expression import Sentence, TextChunk
+from .parse import parse_sentences
 
 
 class ResponseType(str, Enum):
@@ -80,7 +80,7 @@ class RangeSlotList(SlotList):
 class TextSlotValue:
     """Single value in a text slot list."""
 
-    text_in: Sentence
+    text_in: TextChunk
     """Input text for this value"""
 
     value_out: Any
@@ -100,7 +100,7 @@ class TextSlotValue:
             context = cast(Tuple[str, Any, Dict[str, Any]], value_tuple)[2]
 
         return TextSlotValue(
-            text_in=parse_sentence(text_in, keep_text=True),
+            text_in=TextChunk(text_in),
             value_out=value_out,
             context=context,
         )
@@ -121,9 +121,7 @@ class TextSlotList(SlotList):
         """
         return TextSlotList(
             values=[
-                TextSlotValue(
-                    text_in=parse_sentence(text, keep_text=True), value_out=text
-                )
+                TextSlotValue(text_in=TextChunk(text), value_out=text)
                 for text in strings
             ],
         )
@@ -228,15 +226,13 @@ def _parse_list(list_dict: Dict[str, Any]) -> SlotList:
             if isinstance(value, str):
                 # String value
                 text_values.append(
-                    TextSlotValue(
-                        text_in=parse_sentence(value, keep_text=True), value_out=value
-                    )
+                    TextSlotValue(text_in=TextChunk(value), value_out=value)
                 )
             else:
                 # Object with "in" and "out"
                 text_values.append(
                     TextSlotValue(
-                        text_in=parse_sentence(value["in"], keep_text=True),
+                        text_in=TextChunk(value["in"]),
                         value_out=value["out"],
                         context=value.get("context"),
                     )

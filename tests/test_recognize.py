@@ -3,6 +3,7 @@ import io
 import pytest
 
 from hassil import Intents, recognize
+from hassil.expression import TextChunk
 from hassil.intents import TextSlotList
 
 TEST_YAML = """
@@ -196,3 +197,23 @@ def test_play(intents, slot_lists):
 def test_play_no_cover(intents, slot_lists):
     result = recognize("play the garage door", intents, slot_lists=slot_lists)
     assert result is None
+
+
+def test_lists_no_template():
+    """Ensure list values are plain text."""
+    yaml_text = """
+    language: "en"
+    intents: {}
+    lists:
+      test:
+        values:
+          - "[a | b]"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    test_list: TextSlotList = intents.slot_lists["test"]
+    text_in = test_list.values[0].text_in
+    assert isinstance(text_in, TextChunk)
+    assert text_in.text == "[a | b]"
