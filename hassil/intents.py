@@ -27,7 +27,7 @@ class ResponseType(str, Enum):
 class IntentData:
     """Block of sentences and known slots for an intent."""
 
-    sentences: List[Sentence]
+    sentence_texts: List[str]
     """Sentence templates that match this intent."""
 
     slots: Dict[str, Any] = field(default_factory=dict)
@@ -38,6 +38,17 @@ class IntentData:
 
     excludes_context: Optional[Dict[str, Any]] = None
     """Context items that must not be present for match to be successful."""
+
+    _sentences: Optional[List[Sentence]] = None
+    """Sentences after they are parsed."""
+
+    @property
+    def sentences(self) -> List[Sentence]:
+        """Sentence templates that match this intent."""
+        if self._sentences is None:
+            self._sentences = parse_sentences(self.sentence_texts, keep_text=True)
+
+        return self._sentences
 
 
 @dataclass_json
@@ -192,9 +203,7 @@ class Intents:
                     name=intent_name,
                     data=[
                         IntentData(
-                            sentences=parse_sentences(
-                                data_dict["sentences"], keep_text=True
-                            ),
+                            sentence_texts=data_dict["sentences"],
                             slots=data_dict.get("slots", {}),
                             requires_context=data_dict.get("requires_context"),
                             excludes_context=data_dict.get("excludes_context"),
