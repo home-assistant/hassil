@@ -1,4 +1,5 @@
 import io
+from typing import cast
 
 import pytest
 
@@ -199,7 +200,7 @@ def test_play_no_cover(intents, slot_lists):
     assert result is None
 
 
-def test_lists_no_template():
+def test_lists_no_template() -> None:
     """Ensure list values are plain text."""
     yaml_text = """
     language: "en"
@@ -213,7 +214,30 @@ def test_lists_no_template():
     with io.StringIO(yaml_text) as test_file:
         intents = Intents.from_yaml(test_file)
 
-    test_list: TextSlotList = intents.slot_lists["test"]
+    test_list = cast(TextSlotList, intents.slot_lists["test"])
     text_in = test_list.values[0].text_in
     assert isinstance(text_in, TextChunk)
     assert text_in.text == "[a | b]"
+
+
+def test_list_text_normalized() -> None:
+    """Ensure list text in values are normalized."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+            - "run {test_name}"
+    lists:
+      test_name:
+        values:
+          - "tEsT    1"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("run test 1", intents)
+    assert result is not None
+    assert result.entities["test_name"].value == "tEsT    1"
