@@ -10,6 +10,7 @@ from yaml import safe_load
 
 from .expression import Sentence, TextChunk
 from .parse import parse_sentences
+from .util import normalize_text
 
 
 class ResponseType(str, Enum):
@@ -100,7 +101,7 @@ class TextSlotValue:
             context = cast(Tuple[str, Any, Dict[str, Any]], value_tuple)[2]
 
         return TextSlotValue(
-            text_in=TextChunk(text_in),
+            text_in=TextChunk(normalize_text(text_in)),
             value_out=value_out,
             context=context,
         )
@@ -121,7 +122,7 @@ class TextSlotList(SlotList):
         """
         return TextSlotList(
             values=[
-                TextSlotValue(text_in=TextChunk(text), value_out=text)
+                TextSlotValue(text_in=TextChunk(normalize_text(text)), value_out=text)
                 for text in strings
             ],
         )
@@ -226,13 +227,15 @@ def _parse_list(list_dict: Dict[str, Any]) -> SlotList:
             if isinstance(value, str):
                 # String value
                 text_values.append(
-                    TextSlotValue(text_in=TextChunk(value), value_out=value)
+                    TextSlotValue(
+                        text_in=TextChunk(normalize_text(value)), value_out=value
+                    )
                 )
             else:
                 # Object with "in" and "out"
                 text_values.append(
                     TextSlotValue(
-                        text_in=TextChunk(value["in"]),
+                        text_in=TextChunk(normalize_text(value["in"])),
                         value_out=value["out"],
                         context=value.get("context"),
                     )
