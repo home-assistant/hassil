@@ -24,7 +24,7 @@ class ResponseType(str, Enum):
     HANDLE_ERROR = "handle_error"
 
 
-@dataclass
+@dataclass(frozen=True)
 class IntentData:
     """Block of sentences and known slots for an intent."""
 
