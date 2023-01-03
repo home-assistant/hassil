@@ -22,7 +22,15 @@ from .util import normalize_text
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
 
-NON_WORD = re.compile(r"^(\W+\s*)")
+NON_WORD_START = re.compile(r"^\W+")
+
+NON_WORD_ALL = re.compile(r"^\W+$")
+
+# NON_WORD = re.compile(r'^[.!?,;:"]+')
+
+# TOKEN_SPLIT = re.compile(r"\b")
+
+# WHITESPACE = re.compile(r".*\s.*")
 
 
 class MissingListError(Exception):
@@ -49,10 +57,6 @@ class MatchContext:
     """Context passed to match_expression."""
 
     text: str
-    """Input text remaining to be processed."""
-
-    text_index: int = 0
-    """Index of text currently being processed."""
 
     slot_lists: Dict[str, SlotList] = field(default_factory=dict)
     """Available slot lists mapped by name."""
@@ -71,8 +75,9 @@ class MatchContext:
 
     @property
     def is_match(self) -> bool:
-        """True if no words are left"""
-        return not self.text
+        """True if no text is left that isn't just whitespace or non-word characters"""
+        text = re.sub(r"\W+", "", self.text).strip()
+        return not text
 
 
 @dataclass
@@ -100,6 +105,17 @@ def recognize(
     """Return the first match of input text/words against a collection of intents."""
     text = normalize_text(text)
 
+    if skip_words is None:
+        skip_words = intents.skip_words
+    else:
+        # Combine skip words
+        skip_words = itertools.chain(skip_words, intents.skip_words)
+
+    if skip_words:
+        text = _remove_skip_words(text, skip_words)
+
+    text += " "
+
     if slot_lists is None:
         slot_lists = intents.slot_lists
     else:
@@ -115,12 +131,6 @@ def recognize(
         # Combine rules
         expansion_rules = {**intents.expansion_rules, **expansion_rules}
 
-    if skip_words is None:
-        skip_words = intents.skip_words
-    else:
-        # Combine skip words
-        skip_words = itertools.chain(skip_words, intents.skip_words)
-
     if intent_context is None:
         intent_context = {}
 
@@ -134,10 +144,9 @@ def recognize(
                     text=text,
                     slot_lists=slot_lists,
                     expansion_rules=expansion_rules,
-                    skip_words=_prepare_skip_words(skip_words),
                     intent_context=intent_context,
                 )
-                maybe_match_contexts = _match_and_skip(match_context, intent_sentence)
+                maybe_match_contexts = match_expression(match_context, intent_sentence)
                 for maybe_match_context in maybe_match_contexts:
                     if maybe_match_context.is_match:
                         skip_match = False
@@ -229,16 +238,16 @@ def is_match(
     """Return the first match of input text/words against a sentence expression."""
     text = normalize_text(text)
 
+    if skip_words:
+        text = _remove_skip_words(text, skip_words)
+
+    text = text + " "
+
     if slot_lists is None:
         slot_lists = {}
 
     if expansion_rules is None:
         expansion_rules = {}
-
-    if skip_words is None:
-        skip_words = []
-    else:
-        skip_words = sorted(skip_words, key=len, reverse=True)
 
     if intent_context is None:
         intent_context = {}
@@ -247,36 +256,22 @@ def is_match(
         text=text,
         slot_lists=slot_lists,
         expansion_rules=expansion_rules,
-        skip_words=_prepare_skip_words(skip_words),
         intent_context=intent_context,
     )
 
-    for maybe_match_context in _match_and_skip(match_context, sentence):
+    for maybe_match_context in match_expression(match_context, sentence):
         if maybe_match_context.is_match:
             return maybe_match_context
 
     return None
 
 
-def _prepare_skip_words(skip_words: Iterable[str]) -> List[re.Pattern]:
-    """Convert skip word strings to regex patterns."""
-    patterns: List[re.Pattern] = []
+def _remove_skip_words(text: str, skip_words: Iterable[str]) -> str:
     for skip_word in skip_words:
         skip_word = normalize_text(skip_word)
-        patterns.append(re.compile(rf"^{re.escape(skip_word)}\b"))
+        text = re.sub(rf"\b{re.escape(skip_word)}\b", "", text)
 
-    return patterns
-
-
-def _match_and_skip(context: MatchContext, *args, **kwargs) -> Iterable[MatchContext]:
-    """Match a sentence, then skip any skippable words at the end of input"""
-    for match_context in match_expression(context, *args, *kwargs):
-        while match_context.text:
-            can_skip, match_context.text = _skip(match_context.text, context.skip_words)
-            if not can_skip:
-                break
-
-        yield match_context
+    return text
 
 
 def match_expression(
@@ -285,32 +280,24 @@ def match_expression(
     """Yield matching contexts for an expresion"""
     if isinstance(expression, TextChunk):
         chunk: TextChunk = expression
-        if chunk.is_empty:
-            # Skip template chunk
+
+        if (not context.text.strip()) or chunk.is_empty:
+            # Skip empty chunk
             yield context
-
-        context_text_left = context.text
-        chunk_text_left = chunk.text.lstrip()
-
-        while chunk_text_left.strip():
-            prefix = commonprefix((context_text_left, chunk_text_left))
-
-            if prefix:
-                # Texts share a common prefix
-                context_text_left = context_text_left[len(prefix) :]
-                chunk_text_left = chunk_text_left[len(prefix) :]
-            else:
-                # Try to skip over "skip words" or non-words
-                can_skip, context_text_left = _skip(
-                    context_text_left, context.skip_words
-                )
-
-                if not can_skip:
-                    break
-
-        if not chunk_text_left.strip():
+        elif context.text.startswith(chunk.text):
             # Successful match for chunk
-            yield dataclasses.replace(context, text=context_text_left)
+            context_text = context.text[len(chunk.text) :]
+            context_text = context_text.lstrip()
+            yield dataclasses.replace(context, text=context_text)
+        else:
+            # Remove non-word characters and try again
+            match = NON_WORD_START.match(context.text)
+            if match is not None:
+                context_text = context.text[len(match[0]) :].lstrip()
+                if context_text.startswith(chunk.text):
+                    context_text = context_text[len(chunk.text) :]
+                    context_text = context_text.lstrip()
+                    yield dataclasses.replace(context, text=context_text)
 
     elif isinstance(expression, Sequence):
         seq: Sequence = expression
@@ -412,23 +399,3 @@ def match_expression(
         )
     else:
         raise ValueError(f"Unexpected expression: {expression}")
-
-
-def _skip(text: str, skip_words: Iterable[re.Pattern]) -> Tuple[bool, str]:
-    """Skip over skip/non-words."""
-    # Skip words
-    for skip_word in skip_words:
-        skip_word_match = skip_word.match(text)
-        if skip_word_match is not None:
-            text = text[len(skip_word_match[0]) :].lstrip()
-            return True, text
-
-    # Non-words
-    nonword_match = NON_WORD.match(text)
-    if nonword_match is not None:
-        # Skip nonword parts
-        nonword_text = nonword_match[1]
-        text = text[len(nonword_text) :]
-        return True, text
-
-    return False, text

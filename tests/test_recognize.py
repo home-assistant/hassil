@@ -241,3 +241,27 @@ def test_list_text_normalized() -> None:
     result = recognize("run test 1", intents)
     assert result is not None
     assert result.entities["test_name"].value == "tEsT    1"
+
+
+def test_skip_prefix() -> None:
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+            - "run {test_name}"
+    lists:
+      test_name:
+        values:
+          - "test"
+    skip_words:
+      - "the"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("run the test", intents)
+    assert result is not None
+    assert result.entities["test_name"].value == "test"
