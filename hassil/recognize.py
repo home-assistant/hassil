@@ -18,7 +18,7 @@ from .expression import (
     TextChunk,
 )
 from .intents import Intent, Intents, RangeSlotList, SlotList, TextSlotList
-from .util import normalize_text
+from .util import normalize_text, normalize_whitespace
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
 
@@ -271,6 +271,9 @@ def _remove_skip_words(text: str, skip_words: Iterable[str]) -> str:
         skip_word = normalize_text(skip_word)
         text = re.sub(rf"\b{re.escape(skip_word)}\b", "", text)
 
+    text = normalize_whitespace(text)
+    text = text.strip()
+
     return text
 
 
@@ -280,13 +283,14 @@ def match_expression(
     """Yield matching contexts for an expresion"""
     if isinstance(expression, TextChunk):
         chunk: TextChunk = expression
+        chunk_text = chunk.text.lstrip()
 
         if (not context.text.strip()) or chunk.is_empty:
             # Skip empty chunk
             yield context
-        elif context.text.startswith(chunk.text):
+        elif context.text.startswith(chunk_text):
             # Successful match for chunk
-            context_text = context.text[len(chunk.text) :]
+            context_text = context.text[len(chunk_text) :]
             context_text = context_text.lstrip()
             yield dataclasses.replace(context, text=context_text)
         else:
@@ -294,8 +298,8 @@ def match_expression(
             match = NON_WORD_START.match(context.text)
             if match is not None:
                 context_text = context.text[len(match[0]) :].lstrip()
-                if context_text.startswith(chunk.text):
-                    context_text = context_text[len(chunk.text) :]
+                if context_text.startswith(chunk_text):
+                    context_text = context_text[len(chunk_text) :]
                     context_text = context_text.lstrip()
                     yield dataclasses.replace(context, text=context_text)
 
