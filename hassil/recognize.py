@@ -5,8 +5,7 @@ import dataclasses
 import itertools
 import re
 from dataclasses import dataclass, field
-from os.path import commonprefix
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional
 
 from .expression import (
     Expression,
@@ -26,18 +25,16 @@ NON_WORD_START = re.compile(r"^\W+")
 
 NON_WORD_ALL = re.compile(r"^\W+$")
 
-# NON_WORD = re.compile(r'^[.!?,;:"]+')
 
-# TOKEN_SPLIT = re.compile(r"\b")
-
-# WHITESPACE = re.compile(r".*\s.*")
+class HassilError(Exception):
+    """Base class for hassil errors"""
 
 
-class MissingListError(Exception):
+class MissingListError(HassilError):
     """Error when a {slot_list} is missing."""
 
 
-class MissingRuleError(Exception):
+class MissingRuleError(HassilError):
     """Error when an <expansion_rule> is missing."""
 
 
@@ -57,6 +54,7 @@ class MatchContext:
     """Context passed to match_expression."""
 
     text: str
+    """Input text remaining to be processed."""
 
     slot_lists: Dict[str, SlotList] = field(default_factory=dict)
     """Available slot lists mapped by name."""
