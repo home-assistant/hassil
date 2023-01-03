@@ -6,6 +6,8 @@ import unicodedata
 _WHITESPACE_PATTERN = re.compile(r"(\s+)")
 _WHITESPACE_SEPARATOR = " "
 
+_TEMPLATE_SYNTAX = re.compile(r".*[(){}<>\[\]|].*")
+
 
 def merge_dict(base_dict, new_dict):
     """Merges new_dict into base_dict."""
@@ -36,14 +38,6 @@ def remove_escapes(text: str) -> str:
     return re.sub(r"\\(.)", r"\1", text)
 
 
-def remove_quotes(text: str) -> str:
-    """Remove double quotes."""
-    if (len(text) > 1) and (text[0] == '"') and (text[-1] == '"'):
-        text = text[1:-1]
-
-    return text
-
-
 def normalize_whitespace(text: str) -> str:
     """Makes all whitespace inside a string single spaced."""
     return _WHITESPACE_PATTERN.sub(_WHITESPACE_SEPARATOR, text)
@@ -56,3 +50,8 @@ def normalize_text(text: str) -> str:
     text = unicodedata.normalize("NFC", text)
 
     return text
+
+
+def is_template(text: str) -> bool:
+    """True if text contains template syntax"""
+    return _TEMPLATE_SYNTAX.match(text) is not None

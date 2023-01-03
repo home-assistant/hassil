@@ -8,9 +8,9 @@ from typing import IO, Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 from dataclasses_json import dataclass_json
 from yaml import safe_load
 
-from .expression import Sentence, TextChunk
-from .parse import parse_sentences
-from .util import normalize_text
+from .expression import Expression, Sentence, TextChunk
+from .parse import parse_sentence, parse_sentences
+from .util import is_template, normalize_text
 
 
 class ResponseType(str, Enum):
@@ -92,7 +92,7 @@ class RangeSlotList(SlotList):
 class TextSlotValue:
     """Single value in a text slot list."""
 
-    text_in: TextChunk
+    text_in: Expression
     """Input text for this value"""
 
     value_out: Any
@@ -112,7 +112,7 @@ class TextSlotValue:
             context = cast(Tuple[str, Any, Dict[str, Any]], value_tuple)[2]
 
         return TextSlotValue(
-            text_in=TextChunk(normalize_text(text_in)),
+            text_in=_maybe_parse_template(text_in),
             value_out=value_out,
             context=context,
         )
@@ -133,7 +133,7 @@ class TextSlotList(SlotList):
         """
         return TextSlotList(
             values=[
-                TextSlotValue(text_in=TextChunk(normalize_text(text)), value_out=text)
+                TextSlotValue(text_in=_maybe_parse_template(text), value_out=text)
                 for text in strings
             ],
         )
@@ -236,15 +236,13 @@ def _parse_list(list_dict: Dict[str, Any]) -> SlotList:
             if isinstance(value, str):
                 # String value
                 text_values.append(
-                    TextSlotValue(
-                        text_in=TextChunk(normalize_text(value)), value_out=value
-                    )
+                    TextSlotValue(text_in=_maybe_parse_template(value), value_out=value)
                 )
             else:
                 # Object with "in" and "out"
                 text_values.append(
                     TextSlotValue(
-                        text_in=TextChunk(normalize_text(value["in"])),
+                        text_in=_maybe_parse_template(value["in"]),
                         value_out=value["out"],
                         context=value.get("context"),
                     )
@@ -263,3 +261,11 @@ def _parse_list(list_dict: Dict[str, Any]) -> SlotList:
         )
 
     raise ValueError(f"Unknown slot list type: {list_dict}")
+
+
+def _maybe_parse_template(text: str) -> Expression:
+    """Parse string as a sentence template if it has template syntax."""
+    if is_template(text):
+        return parse_sentence(text)
+
+    return TextChunk(normalize_text(text))
