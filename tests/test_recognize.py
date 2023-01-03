@@ -201,14 +201,14 @@ def test_play_no_cover(intents, slot_lists):
 
 
 def test_lists_no_template() -> None:
-    """Ensure list values are plain text."""
+    """Ensure list values without template syntax are plain text."""
     yaml_text = """
     language: "en"
     intents: {}
     lists:
       test:
         values:
-          - "[a | b]"
+          - "test value"
     """
 
     with io.StringIO(yaml_text) as test_file:
@@ -217,7 +217,7 @@ def test_lists_no_template() -> None:
     test_list = cast(TextSlotList, intents.slot_lists["test"])
     text_in = test_list.values[0].text_in
     assert isinstance(text_in, TextChunk)
-    assert text_in.text == "[a | b]"
+    assert text_in.text == "test value"
 
 
 def test_list_text_normalized() -> None:
