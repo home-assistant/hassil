@@ -37,7 +37,7 @@ def test_optional():
                 alt(
                     [tc("a"), TextChunk.empty()],
                 ),
-                tc("test"),
+                tc(" test"),
             ]
         )
     ]
@@ -70,7 +70,7 @@ def test_optional_nested():
                         TextChunk.empty(),
                     ]
                 ),
-                tc("test"),
+                tc(" test"),
             ]
         )
     ]
@@ -85,7 +85,7 @@ def test_alternative():
                 alt(
                     [grp([tc("a ")]), grp([tc("the")])],
                 ),
-                tc("test"),
+                tc(" test"),
             ]
         )
     ]
@@ -107,7 +107,7 @@ def test_alternative_multiple_words():
                         ),
                     ],
                 ),
-                tc("test"),
+                tc(" test"),
             ]
         )
     ]
