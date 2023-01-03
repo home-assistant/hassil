@@ -40,6 +40,22 @@ def test_optional():
     ]
 
 
+def test_optional_in_word():
+    assert parse_sentences(["turn on the light[s]"]) == [
+        s(
+            [
+                tc("turn "),
+                tc("on "),
+                tc("the "),
+                tc("light"),
+                alt(
+                    [tc("s"), TextChunk.empty()],
+                ),
+            ]
+        )
+    ]
+
+
 def test_optional_nested():
     assert parse_sentences(["this [is [a]] test"]) == [
         s(

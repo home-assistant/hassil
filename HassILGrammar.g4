@@ -9,7 +9,7 @@ sentence
    ;
 
 expression
-   : (group | optional | text_chunk | list | rule) (alt? expression)*
+   : (group | optional | text_chunk | list | rule) WS? (alt? expression)*
    ;
 
 // One or more text chunks in a sequence
@@ -26,7 +26,7 @@ alt
    ;
 
 text_chunk
-   : (STRING | WS)+
+   : STRING WS?
    ;
 
 list
