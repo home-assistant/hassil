@@ -3,6 +3,7 @@
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import cached_property
 from typing import IO, Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 from dataclasses_json import dataclass_json
@@ -23,7 +24,7 @@ class ResponseType(str, Enum):
     HANDLE_ERROR = "handle_error"
 
 
-@dataclass
+@dataclass(frozen=True)
 class IntentData:
     """Block of sentences and known slots for an intent."""
 
@@ -39,16 +40,10 @@ class IntentData:
     excludes_context: Optional[Dict[str, Any]] = None
     """Context items that must not be present for match to be successful."""
 
-    _sentences: Optional[List[Sentence]] = None
-    """Sentences after they are parsed."""
-
-    @property
+    @cached_property
     def sentences(self) -> List[Sentence]:
         """Sentence templates that match this intent."""
-        if self._sentences is None:
-            self._sentences = parse_sentences(self.sentence_texts, keep_text=True)
-
-        return self._sentences
+        return parse_sentences(self.sentence_texts, keep_text=True)
 
 
 @dataclass_json
