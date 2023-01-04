@@ -35,9 +35,9 @@ def test_skip_words():
 
 
 def test_optional():
-    sentence = parse_sentence("turn on [the] light[s] in [the] kitchen")
+    sentence = parse_sentence("turn on [the] lights in [the] kitchen")
     assert is_match("turn on the lights in the kitchen", sentence)
-    assert is_match("turn on light in kitchen", sentence)
+    assert is_match("turn on lights in kitchen", sentence)
 
 
 def test_optional_plural():
@@ -84,3 +84,9 @@ def test_rule_prefix_suffix():
         sentence,
         expansion_rules={"area": parse_sentence("[the] kitchen")},
     )
+
+
+def test_alternative_whitespace():
+    sentence = parse_sentence("(start | stopp)ed")
+    assert is_match("started", sentence)
+    assert is_match("stopped", sentence)
