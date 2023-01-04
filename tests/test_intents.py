@@ -84,3 +84,9 @@ def test_rule_prefix_suffix():
         sentence,
         expansion_rules={"area": parse_sentence("[the] kitchen")},
     )
+
+
+def test_alternative_whitespace():
+    sentence = parse_sentence("(start | stopp)ed")
+    assert is_match("started", sentence)
+    assert is_match("stopped", sentence)
