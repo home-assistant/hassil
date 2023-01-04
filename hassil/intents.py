@@ -4,6 +4,7 @@ from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import cached_property
+from pathlib import Path
 from typing import IO, Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 from dataclasses_json import dataclass_json
@@ -11,7 +12,7 @@ from yaml import safe_load
 
 from .expression import Expression, Sentence, TextChunk
 from .parse import parse_sentence, parse_sentences
-from .util import is_template, normalize_text
+from .util import is_template, merge_dict, normalize_text
 
 
 class ResponseType(str, Enum):
@@ -165,6 +166,16 @@ class Intents:
 
     skip_words: List[str] = field(default_factory=list)
     """Words that can be skipped during recognition."""
+
+    @staticmethod
+    def from_files(file_paths: Iterable[Union[str, Path]]) -> "Intents":
+        """Load intents from YAML file paths."""
+        intents_dict: Dict[str, Any] = {}
+        for file_path in file_paths:
+            with open(file_path, "r", encoding="utf-8") as yaml_file:
+                merge_dict(intents_dict, safe_load(yaml_file))
+
+        return Intents.from_dict(intents_dict)
 
     @staticmethod
     def from_yaml(yaml_file: IO[str]) -> "Intents":
