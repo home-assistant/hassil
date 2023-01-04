@@ -83,7 +83,7 @@ def test_alternative():
                 tc("this "),
                 tc("is "),
                 alt(
-                    [grp([tc("a ")]), grp([tc("the")])],
+                    [grp([tc("a")]), grp([tc("the")])],
                 ),
                 tc(" test"),
             ]
@@ -100,7 +100,7 @@ def test_alternative_multiple_words():
                 alt(
                     [
                         grp(
-                            [tc("a "), tc("bigger ")],
+                            [tc("a "), tc("bigger")],
                         ),
                         grp(
                             [tc("the "), tc("biggest")],
@@ -114,19 +114,19 @@ def test_alternative_multiple_words():
 
 
 def test_alternative_what():
-    assert parse_sentences(["(what | what's | whats | what is)"]) == [
+    assert parse_sentences(["( what | what's | whats | what is )"]) == [
         s(
             [
                 alt(
                     [
                         grp(
-                            [tc("what ")],
+                            [tc("what")],
                         ),
                         grp(
-                            [tc("what's ")],
+                            [tc("what's")],
                         ),
                         grp(
-                            [tc("whats ")],
+                            [tc("whats")],
                         ),
                         grp(
                             [tc("what "), tc("is")],

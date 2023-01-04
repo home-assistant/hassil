@@ -34,6 +34,8 @@ class HassILExpressionListener(HassILGrammarListener):
         # Groups of sequences and sub-sequences are separated with None.
         self._sequences: List[Optional[Sequence]] = []
 
+        self._last_chunk: Optional[TextChunk] = None
+
     def enterSentence(self, ctx: HassILGrammarParser.SentenceContext):
         # Begin new sentence
         self._sentence = Sentence()
@@ -54,6 +56,10 @@ class HassILExpressionListener(HassILGrammarListener):
     def exitGroup(self, ctx):
         # Complete (group)
         group = self._pop_group()
+
+        if (group.type == SequenceType.ALTERNATIVE) and (self._last_chunk is not None):
+            self._last_chunk.text = self._last_chunk.text.rstrip()
+
         self.last_sequence.items.append(group)
 
     def enterOptional(self, ctx):
@@ -76,6 +82,9 @@ class HassILExpressionListener(HassILGrammarListener):
 
             optional.type = SequenceType.ALTERNATIVE
 
+        if self._last_chunk is not None:
+            self._last_chunk.text = self._last_chunk.text.rstrip()
+
         # Optionals are just alternatives with an empty text chunk ("") as an option.
         optional.items.append(TextChunk.empty())
         self.last_sequence.items.append(optional)
@@ -92,6 +101,9 @@ class HassILExpressionListener(HassILGrammarListener):
                 sequence.items = [Sequence(type=SequenceType.GROUP, items=old_items)]
 
             sequence.type = SequenceType.ALTERNATIVE
+
+        if self._last_chunk is not None:
+            self._last_chunk.text = self._last_chunk.text.rstrip()
 
         # Start new group (sub-sequence)
         next_group = Sequence(type=SequenceType.GROUP)
@@ -114,7 +126,8 @@ class HassILExpressionListener(HassILGrammarListener):
         chunk_text = remove_escapes(chunk_text)
 
         # Add to last sub-sequence
-        self.last_sequence.items.append(TextChunk(chunk_text))
+        self._last_chunk = TextChunk(chunk_text)
+        self.last_sequence.items.append(self._last_chunk)
 
     def parse_sentences(self, sentences: Iterable[str]):
         """Parse multiple sentences separated by newlines."""
@@ -165,3 +178,7 @@ class HassILExpressionListener(HassILGrammarListener):
         assert marker is GROUP_MARKER, "Missing group marker"
 
         return item
+
+
+def _trim_whitespace(seq: Sequence, first_chunk=None, last_chunk=None):
+    pass
