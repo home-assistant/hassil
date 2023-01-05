@@ -7,7 +7,6 @@ from functools import cached_property
 from pathlib import Path
 from typing import IO, Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
-from dataclasses_json import dataclass_json
 from yaml import safe_load
 
 from .expression import Expression, Sentence, TextChunk
@@ -47,7 +46,6 @@ class IntentData:
         return parse_sentences(self.sentence_texts, keep_text=True)
 
 
-@dataclass_json
 @dataclass
 class Intent:
     """A named intent with sentences + slots."""
@@ -83,7 +81,6 @@ class RangeSlotList(SlotList):
         assert self.step > 0, "step must be positive"
 
 
-@dataclass_json
 @dataclass
 class TextSlotValue:
     """Single value in a text slot list."""
