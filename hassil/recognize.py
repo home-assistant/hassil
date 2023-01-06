@@ -349,7 +349,6 @@ def match_expression(
                         dataclasses.replace(context), slot_value.text_in
                     )
 
-
                     for value_context in value_contexts:
                         value_context.entities.append(
                             MatchEntity(
