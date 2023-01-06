@@ -265,3 +265,29 @@ def test_skip_prefix() -> None:
     result = recognize("run the test", intents)
     assert result is not None
     assert result.entities["test_name"].value == "test"
+
+
+def test_skip_sorted() -> None:
+    """Ensure skip words are processed longest first"""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+            - "run {test_name}"
+    lists:
+      test_name:
+        values:
+          - "test"
+    skip_words:
+      - "could"
+      - "could you"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("could you run test", intents)
+    assert result is not None
+    assert result.entities["test_name"].value == "test"

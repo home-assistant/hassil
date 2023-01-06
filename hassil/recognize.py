@@ -265,7 +265,11 @@ def is_match(
 
 
 def _remove_skip_words(text: str, skip_words: Iterable[str]) -> str:
-    for skip_word in skip_words:
+    """Remove skip words from text."""
+
+    # It's critical that skip words are processed longest first, since they may
+    # share prefixes.
+    for skip_word in sorted(skip_words, key=len, reverse=True):
         skip_word = normalize_text(skip_word)
         text = re.sub(rf"\b{re.escape(skip_word)}\b", "", text)
 
