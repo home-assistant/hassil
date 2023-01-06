@@ -265,7 +265,11 @@ def is_match(
 
 
 def _remove_skip_words(text: str, skip_words: Iterable[str]) -> str:
-    for skip_word in skip_words:
+    """Remove skip words from text."""
+
+    # It's critical that skip words are processed longest first, since they may
+    # share prefixes.
+    for skip_word in sorted(skip_words, key=len, reverse=True):
         skip_word = normalize_text(skip_word)
         text = re.sub(rf"\b{re.escape(skip_word)}\b", "", text)
 
@@ -283,7 +287,7 @@ def match_expression(
         chunk: TextChunk = expression
         chunk_text = chunk.text.lstrip()
 
-        if (not context.text.strip()) or chunk.is_empty:
+        if chunk.is_empty:
             # Skip empty chunk
             yield context
         elif context.text.startswith(chunk_text):
@@ -305,12 +309,12 @@ def match_expression(
         seq: Sequence = expression
         if seq.type == SequenceType.ALTERNATIVE:
             # Any may match (words | in | alternative)
+            # NOTE: [optional] = (optional | )
             for item in seq.items:
                 yield from match_expression(context, item)
 
         elif seq.type == SequenceType.GROUP:
             # All must match (words in group)
-            # NOTE: [optional] = (optional | )
             if seq.items:
                 group_contexts = [context]
                 for item in seq.items:
