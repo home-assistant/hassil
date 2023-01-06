@@ -287,7 +287,7 @@ def match_expression(
         chunk: TextChunk = expression
         chunk_text = chunk.text.lstrip()
 
-        if (not context.text.strip()) or chunk.is_empty:
+        if chunk.is_empty:
             # Skip empty chunk
             yield context
         elif context.text.startswith(chunk_text):
@@ -309,12 +309,12 @@ def match_expression(
         seq: Sequence = expression
         if seq.type == SequenceType.ALTERNATIVE:
             # Any may match (words | in | alternative)
+            # NOTE: [optional] = (optional | )
             for item in seq.items:
                 yield from match_expression(context, item)
 
         elif seq.type == SequenceType.GROUP:
             # All must match (words in group)
-            # NOTE: [optional] = (optional | )
             if seq.items:
                 group_contexts = [context]
                 for item in seq.items:
@@ -348,6 +348,7 @@ def match_expression(
                     value_contexts = match_expression(
                         dataclasses.replace(context), slot_value.text_in
                     )
+
 
                     for value_context in value_contexts:
                         value_context.entities.append(
