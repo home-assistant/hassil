@@ -190,11 +190,8 @@ def recognize(
                                 ):
                                     # Exact match to context value, except when context value is required and not provided
                                     continue
-                                
-                                if (
-                                    context_value is None
-                                    and actual_value is not None
-                                ):
+
+                                if context_value is None and actual_value is not None:
                                     # Any value matches, as long as it's set
                                     continue
 
