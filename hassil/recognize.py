@@ -183,8 +183,19 @@ def recognize(
                                 actual_value = maybe_match_context.intent_context.get(
                                     context_key
                                 )
-                                if actual_value == context_value:
-                                    # Exact match to context value
+
+                                if (
+                                    actual_value == context_value
+                                    and context_value is not None
+                                ):
+                                    # Exact match to context value, except when context value is required and not provided
+                                    continue
+                                
+                                if (
+                                    context_value is None
+                                    and actual_value is not None
+                                ):
+                                    # Any value matches, as long as it's set
                                     continue
 
                                 if (
