@@ -13,20 +13,20 @@ intents:
   TurnOnTV:
     data:
       - sentences:
-        - "turn on [the] TV in <area>"
-        - "turn on <area> TV"
+          - "turn on [the] TV in <area>"
+          - "turn on <area> TV"
         slots:
           domain: "media_player"
           name: "roku"
   SetBrightness:
     data:
       - sentences:
-        - "set [the] brightness in <area> to <brightness>"
+          - "set [the] brightness in <area> to <brightness>"
         slots:
           domain: "light"
           name: "all"
       - sentences:
-        - "set [the] brightness of <name> to <brightness>"
+          - "set [the] brightness of <name> to <brightness>"
         requires_context:
           domain: "light"
         slots:
@@ -34,13 +34,13 @@ intents:
   GetTemperature:
     data:
       - sentences:
-        - "<what_is> [the] temperature in <area>"
+          - "<what_is> [the] temperature in <area>"
         slots:
           domain: "climate"
   CloseCover:
     data:
       - sentences:
-        - "close <name>"
+          - "close <name>"
         requires_context:
           domain: "cover"
         slots:
@@ -228,7 +228,7 @@ def test_list_text_normalized() -> None:
       TestIntent:
         data:
           - sentences:
-            - "run {test_name}"
+              - "run {test_name}"
     lists:
       test_name:
         values:
@@ -250,7 +250,7 @@ def test_skip_prefix() -> None:
       TestIntent:
         data:
           - sentences:
-            - "run {test_name}"
+              - "run {test_name}"
     lists:
       test_name:
         values:
@@ -275,7 +275,7 @@ def test_skip_sorted() -> None:
       TestIntent:
         data:
           - sentences:
-            - "run {test_name}"
+              - "run {test_name}"
     lists:
       test_name:
         values:
@@ -291,3 +291,23 @@ def test_skip_sorted() -> None:
     result = recognize("could you run test", intents)
     assert result is not None
     assert result.entities["test_name"].value == "test"
+
+
+def test_response_key() -> None:
+    """Check response key in intent data"""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "this is a test"
+            response: "test_response"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("this is a test", intents)
+    assert result is not None
+    assert result.response == "test_response"

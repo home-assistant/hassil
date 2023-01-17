@@ -13,8 +13,6 @@ from .expression import Expression, Sentence, TextChunk
 from .parse import parse_sentence, parse_sentences
 from .util import is_template, merge_dict, normalize_text
 
-DEFAULT_RESPONSE_KEY = "default"
-
 
 class ResponseType(str, Enum):
     SUCCESS = "success"
@@ -36,7 +34,7 @@ class IntentData:
     slots: Dict[str, Any] = field(default_factory=dict)
     """Slot values that are assumed if intent is matched."""
 
-    response: str = DEFAULT_RESPONSE_KEY
+    response: Optional[str] = None
     """Key for response to intent."""
 
     requires_context: Optional[Dict[str, Any]] = None
@@ -215,6 +213,7 @@ class Intents:
                             slots=data_dict.get("slots", {}),
                             requires_context=data_dict.get("requires_context"),
                             excludes_context=data_dict.get("excludes_context"),
+                            response=data_dict.get("response"),
                         )
                         for data_dict in intent_dict["data"]
                     ],

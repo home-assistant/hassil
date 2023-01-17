@@ -91,6 +91,9 @@ class RecognizeResult:
     entities_list: List[MatchEntity] = field(default_factory=list)
     """Matched entities as a list (duplicates allowed)."""
 
+    response: Optional[str] = None
+    """Key for intent response."""
+
 
 def recognize(
     text: str,
@@ -213,12 +216,13 @@ def recognize(
 
                         # Return the first match
                         return RecognizeResult(
-                            intent,
-                            {
+                            intent=intent,
+                            entities={
                                 entity.name: entity
                                 for entity in maybe_match_context.entities
                             },
-                            maybe_match_context.entities,
+                            entities_list=maybe_match_context.entities,
+                            response=intent_data.response,
                         )
 
     return None
