@@ -102,6 +102,7 @@ def recognize(
     expansion_rules: Optional[Dict[str, Sentence]] = None,
     skip_words: Optional[Iterable[str]] = None,
     intent_context: Optional[Dict[str, Any]] = None,
+    default_response: Optional[str] = "default",
 ) -> Optional[RecognizeResult]:
     """Return the first match of input text/words against a collection of intents."""
     text = normalize_text(text)
@@ -215,6 +216,10 @@ def recognize(
                             )
 
                         # Return the first match
+                        response = default_response
+                        if intent_data.response is not None:
+                            response = intent_data.response
+
                         return RecognizeResult(
                             intent=intent,
                             entities={
@@ -222,7 +227,7 @@ def recognize(
                                 for entity in maybe_match_context.entities
                             },
                             entities_list=maybe_match_context.entities,
-                            response=intent_data.response,
+                            response=response,
                         )
 
     return None
