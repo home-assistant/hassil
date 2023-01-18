@@ -34,6 +34,9 @@ class IntentData:
     slots: Dict[str, Any] = field(default_factory=dict)
     """Slot values that are assumed if intent is matched."""
 
+    response: Optional[str] = None
+    """Key for response to intent."""
+
     requires_context: Optional[Dict[str, Any]] = None
     """Context items required before match is successful."""
 
@@ -210,6 +213,7 @@ class Intents:
                             slots=data_dict.get("slots", {}),
                             requires_context=data_dict.get("requires_context"),
                             excludes_context=data_dict.get("excludes_context"),
+                            response=data_dict.get("response"),
                         )
                         for data_dict in intent_dict["data"]
                     ],
