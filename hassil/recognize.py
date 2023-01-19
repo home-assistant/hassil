@@ -23,8 +23,6 @@ NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
 
 NON_WORD_START = re.compile(r"^\W+")
 
-NON_WORD_ALL = re.compile(r"^\W+$")
-
 
 class HassilError(Exception):
     """Base class for hassil errors"""
