@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import Optional
 
 from .expression import (
     Expression,
@@ -22,9 +22,7 @@ from .parser import (
     ParseChunk,
     ParseType,
     next_chunk,
-    peek_type,
     remove_delimiters,
-    remove_escapes,
 )
 from .util import normalize_text
 

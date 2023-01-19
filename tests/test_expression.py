@@ -1,5 +1,3 @@
-import unittest
-
 from hassil.expression import (
     ListReference,
     RuleReference,
@@ -9,7 +7,7 @@ from hassil.expression import (
     TextChunk,
 )
 from hassil.parse_expression import parse_expression, parse_sentence
-from hassil.parser import ParseChunk, ParseType, next_chunk
+from hassil.parser import next_chunk
 
 # -----------------------------------------------------------------------------
 
