@@ -48,6 +48,9 @@ class MatchEntity:
     value: Any
     """Value of the entity."""
 
+    text: str
+    """Original value text."""
+
 
 @dataclass
 class MatchContext:
@@ -212,7 +215,7 @@ def recognize(
                         # Add fixed entities
                         for slot_name, slot_value in intent_data.slots.items():
                             maybe_match_context.entities.append(
-                                MatchEntity(name=slot_name, value=slot_value)
+                                MatchEntity(name=slot_name, value=slot_value, text="")
                             )
 
                         # Return the first match
@@ -361,7 +364,9 @@ def match_expression(
                     for value_context in value_contexts:
                         value_context.entities.append(
                             MatchEntity(
-                                name=list_ref.slot_name, value=slot_value.value_out
+                                name=list_ref.slot_name,
+                                value=slot_value.value_out,
+                                text=context.text,
                             )
                         )
 
@@ -391,7 +396,11 @@ def match_expression(
 
                     if in_range:
                         context.entities.append(
-                            MatchEntity(name=list_ref.slot_name, value=word_number)
+                            MatchEntity(
+                                name=list_ref.slot_name,
+                                value=word_number,
+                                text=context.text,
+                            )
                         )
 
                         yield dataclasses.replace(
