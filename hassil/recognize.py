@@ -296,20 +296,21 @@ def match_expression(
     if isinstance(expression, TextChunk):
         chunk: TextChunk = expression
         chunk_text = chunk.text.lstrip()
+        context_text = context.text
 
         if chunk.is_empty:
             # Skip empty chunk
             yield context
-        elif context.text.startswith(chunk_text):
+        elif context_text.startswith(chunk_text):
             # Successful match for chunk
-            context_text = context.text[len(chunk_text) :]
+            context_text = context_text[len(chunk_text) :]
             context_text = context_text.lstrip()
             yield dataclasses.replace(context, text=context_text)
         else:
             # Remove non-word characters and try again
-            match = NON_WORD_START.match(context.text)
+            match = NON_WORD_START.match(context_text)
             if match is not None:
-                context_text = context.text[len(match[0]) :].lstrip()
+                context_text = context_text[len(match[0]) :].lstrip()
                 if context_text.startswith(chunk_text):
                     context_text = context_text[len(chunk_text) :]
                     context_text = context_text.lstrip()
