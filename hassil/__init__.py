@@ -9,5 +9,5 @@ from .expression import (
     TextChunk,
 )
 from .intents import Intents
-from .parse import parse_sentence, parse_sentences
+from .parse_expression import parse_sentence
 from .recognize import is_match, recognize
