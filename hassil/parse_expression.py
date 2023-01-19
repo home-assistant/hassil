@@ -1,31 +1,32 @@
 from dataclasses import dataclass
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 from .expression import (
+    Expression,
+    ListReference,
+    RuleReference,
     Sentence,
     Sequence,
     SequenceType,
-    Expression,
     TextChunk,
-    RuleReference,
-    ListReference,
 )
 from .parser import (
-    ParseChunk,
-    ParseType,
-    peek_type,
-    remove_escapes,
-    remove_delimiters,
-    GROUP_START,
     GROUP_END,
-    OPT_END,
-    OPT_START,
+    GROUP_START,
     LIST_END,
     LIST_START,
+    OPT_END,
+    OPT_START,
     RULE_END,
     RULE_START,
+    ParseChunk,
+    ParseType,
     next_chunk,
+    peek_type,
+    remove_delimiters,
+    remove_escapes,
 )
+from .util import normalize_text
 
 
 @dataclass
@@ -123,7 +124,7 @@ def parse_expression(
     chunk: ParseChunk, metadata: Optional[ParseMetadata] = None
 ) -> Expression:
     if chunk.parse_type == ParseType.WORD:
-        return TextChunk(text=chunk.text)
+        return TextChunk(text=normalize_text(chunk.text))
 
     if chunk.parse_type == ParseType.GROUP:
         return parse_group_or_alt(chunk, metadata=metadata)
