@@ -311,3 +311,53 @@ def test_response_key() -> None:
     result = recognize("this is a test", intents)
     assert result is not None
     assert result.response == "test_response"
+
+
+def test_entity_text() -> None:
+    """Ensure original text is returned as well as substituted list value"""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "run test {name}"
+    lists:
+      name:
+        values:
+          - in: "alpha"
+            out: "A"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("run test alpha", intents)
+    assert result is not None
+    assert result.entities["name"].value == "A"
+    assert result.entities["name"].text.strip() == "alpha"
+
+
+def test_number_text() -> None:
+    """Ensure original text is returned as well as substituted number"""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "set {percentage}"
+    lists:
+      percentage:
+        range:
+          from: 0
+          to: 100
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("set 50%", intents)
+    assert result is not None
+    assert result.entities["percentage"].value == 50
+    assert result.entities["percentage"].text.strip() == "50%"
