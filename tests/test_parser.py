@@ -1,6 +1,6 @@
 """Tests for Hassil parser"""
 
-from hassil.parser import next_chunk, ParseChunk, ParseType
+from hassil.parser import ParseChunk, ParseType, next_chunk
 
 
 def test_word():

@@ -1,15 +1,15 @@
 import unittest
 
-from hassil.parser import ParseChunk, ParseType, next_chunk
 from hassil.expression import (
-    TextChunk,
-    Sequence,
-    SequenceType,
     ListReference,
     RuleReference,
     Sentence,
+    Sequence,
+    SequenceType,
+    TextChunk,
 )
 from hassil.parse_expression import parse_expression, parse_sentence
+from hassil.parser import ParseChunk, ParseType, next_chunk
 
 # -----------------------------------------------------------------------------
 
