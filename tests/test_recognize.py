@@ -321,7 +321,7 @@ def test_entity_text() -> None:
       TestIntent:
         data:
           - sentences:
-              - "run test {name}"
+              - "run test {name} now"
     lists:
       name:
         values:
@@ -332,7 +332,7 @@ def test_entity_text() -> None:
     with io.StringIO(yaml_text) as test_file:
         intents = Intents.from_yaml(test_file)
 
-    result = recognize("run test alpha", intents)
+    result = recognize("run test alpha now", intents)
     assert result is not None
     assert result.entities["name"].value == "A"
     assert result.entities["name"].text.strip() == "alpha"
@@ -346,7 +346,7 @@ def test_number_text() -> None:
       TestIntent:
         data:
           - sentences:
-              - "set {percentage}"
+              - "set {percentage} now"
     lists:
       percentage:
         range:
@@ -357,7 +357,7 @@ def test_number_text() -> None:
     with io.StringIO(yaml_text) as test_file:
         intents = Intents.from_yaml(test_file)
 
-    result = recognize("set 50%", intents)
+    result = recognize("set 50% now", intents)
     assert result is not None
     assert result.entities["percentage"].value == 50
     assert result.entities["percentage"].text.strip() == "50%"

@@ -364,7 +364,7 @@ def match_expression(
                             MatchEntity(
                                 name=list_ref.slot_name,
                                 value=slot_value.value_out,
-                                text=context.text,
+                                text=context.text[: -len(value_context.text)],
                             )
                         )
 
@@ -397,7 +397,7 @@ def match_expression(
                             MatchEntity(
                                 name=list_ref.slot_name,
                                 value=word_number,
-                                text=context.text,
+                                text=context.text.split()[0],
                             )
                         )
 
