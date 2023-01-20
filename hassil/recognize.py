@@ -360,19 +360,26 @@ def match_expression(
                     )
 
                     for value_context in value_contexts:
-                        value_context.entities.append(
+                        entities = context.entities + [
                             MatchEntity(
                                 name=list_ref.slot_name,
                                 value=slot_value.value_out,
                                 text=context.text[: -len(value_context.text)],
                             )
-                        )
+                        ]
 
                         if slot_value.context:
                             # Merge context from matched list value
-                            value_context.intent_context.update(slot_value.context)
-
-                        yield value_context
+                            yield dataclasses.replace(
+                                value_context,
+                                entities=entities,
+                                intent_context={
+                                    **context.intent_context,
+                                    **slot_value.context,
+                                },
+                            )
+                        else:
+                            yield dataclasses.replace(value_context, entities=entities)
 
         elif isinstance(slot_list, RangeSlotList):
             # List that represents a number range.
@@ -393,16 +400,18 @@ def match_expression(
                         )
 
                     if in_range:
-                        context.entities.append(
+                        entities = context.entities + [
                             MatchEntity(
                                 name=list_ref.slot_name,
                                 value=word_number,
                                 text=context.text.split()[0],
                             )
-                        )
+                        ]
 
                         yield dataclasses.replace(
-                            context, text=context.text[len(number_text) :].lstrip()
+                            context,
+                            text=context.text[len(number_text) :].lstrip(),
+                            entities=entities,
                         )
 
         else:
