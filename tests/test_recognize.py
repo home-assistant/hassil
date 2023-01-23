@@ -53,6 +53,15 @@ intents:
           domain:
             - "cover"
             - "light"
+  CloseCurtains:
+    data:
+      - sentences:
+          - "close [the] curtains [in <area>]"
+        slots:
+          domain: "cover"
+          device_class: "curtain"
+        requires_context:
+          area:
 expansion_rules:
   area: "[the] {area}"
   name: "[the] {name}"
@@ -88,6 +97,15 @@ def slot_lists():
                     "garage door",
                     "cover.garage_door",
                     {"domain": "cover"},
+                ),
+                (
+                    "blue curtains",
+                    "cover.blue_curtains",
+                    {
+                        "domain": "cover",
+                        "device_class": "curtain",
+                        "area": "living_room",
+                    },
                 ),
                 (
                     "roku",
@@ -197,6 +215,29 @@ def test_play(intents, slot_lists):
 # pylint: disable=redefined-outer-name
 def test_play_no_cover(intents, slot_lists):
     result = recognize("play the garage door", intents, slot_lists=slot_lists)
+    assert result is None
+
+
+# pylint: disable=redefined-outer-name
+def test_requires_context_implicit(intents, slot_lists):
+    intent_context = {"area": "living room"}
+
+    result = recognize(
+        "close the curtains",
+        intents,
+        slot_lists=slot_lists,
+        intent_context=intent_context,
+    )
+    assert result is not None
+    assert result.intent.name == "CloseCurtains"
+
+    assert result.entities["domain"].value == "cover"
+    assert result.entities["device_class"].value == "curtain"
+
+
+# pylint: disable=redefined-outer-name
+def test_requires_context_none_provided(intents, slot_lists):
+    result = recognize("close the curtains", intents, slot_lists=slot_lists)
     assert result is None
 
 
