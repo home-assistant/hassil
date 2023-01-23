@@ -97,6 +97,7 @@ intents:
         requires_context:
           # Must be present in match context
           <name>: <value or list>
+          <name>: # Any provided value is good
         excludes_context:
           # Must NOT be present in match context
           <name>: <value or list>
