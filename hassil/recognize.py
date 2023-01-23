@@ -364,7 +364,9 @@ def match_expression(
                             MatchEntity(
                                 name=list_ref.slot_name,
                                 value=slot_value.value_out,
-                                text=context.text[: -len(value_context.text)],
+                                text=context.text[: -len(value_context.text)]
+                                if value_context.text
+                                else context.text,
                             )
                         ]
 
