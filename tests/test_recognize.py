@@ -321,7 +321,8 @@ def test_entity_text() -> None:
       TestIntent:
         data:
           - sentences:
-              - "run test {name} now"
+              - "run test {name} [now]"
+              - "{name} test"
     lists:
       name:
         values:
@@ -332,10 +333,11 @@ def test_entity_text() -> None:
     with io.StringIO(yaml_text) as test_file:
         intents = Intents.from_yaml(test_file)
 
-    result = recognize("run test alpha now", intents)
-    assert result is not None
-    assert result.entities["name"].value == "A"
-    assert result.entities["name"].text.strip() == "alpha"
+    for sentence in ("run test alpha now", "run test alpha", "alpha test"):
+        result = recognize(sentence, intents)
+        assert result is not None
+        assert result.entities["name"].value == "A"
+        assert result.entities["name"].text.strip() == "alpha"
 
 
 def test_number_text() -> None:
@@ -346,7 +348,8 @@ def test_number_text() -> None:
       TestIntent:
         data:
           - sentences:
-              - "set {percentage} now"
+              - "set {percentage} [now]"
+              - "{percentage} set"
     lists:
       percentage:
         range:
@@ -357,7 +360,8 @@ def test_number_text() -> None:
     with io.StringIO(yaml_text) as test_file:
         intents = Intents.from_yaml(test_file)
 
-    result = recognize("set 50% now", intents)
-    assert result is not None
-    assert result.entities["percentage"].value == 50
-    assert result.entities["percentage"].text.strip() == "50%"
+    for sentence in ("set 50% now", "set 50%", "50% set"):
+        result = recognize(sentence, intents)
+        assert result is not None
+        assert result.entities["percentage"].value == 50
+        assert result.entities["percentage"].text.strip() == "50%"
