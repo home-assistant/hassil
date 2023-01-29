@@ -1,11 +1,10 @@
 """Convenience methods for parsing sentences."""
 
+from functools import lru_cache
 from typing import Iterable, List
 
 from .expression import Sentence
 from .expression_listener import HassILExpressionListener
-
-from functools import lru_cache
 
 
 def parse_sentences(texts: Iterable[str], keep_text: bool = False) -> List[Sentence]:
