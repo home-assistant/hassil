@@ -5,6 +5,8 @@ from typing import Iterable, List
 from .expression import Sentence
 from .expression_listener import HassILExpressionListener
 
+from functools import lru_cache
+
 
 def parse_sentences(texts: Iterable[str], keep_text: bool = False) -> List[Sentence]:
     """Parses a list of sentences into expressions."""
@@ -17,6 +19,7 @@ def parse_sentences(texts: Iterable[str], keep_text: bool = False) -> List[Sente
     return listener.sentences
 
 
+@lru_cache(maxsize=32768)
 def parse_sentence(text: str, keep_text: bool = False) -> Sentence:
     """Parses a single sentence."""
     sentence = parse_sentences([text])[0]
