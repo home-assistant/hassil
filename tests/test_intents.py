@@ -90,3 +90,13 @@ def test_alternative_whitespace():
     sentence = parse_sentence("(start | stopp)ed")
     assert is_match("started", sentence)
     assert is_match("stopped", sentence)
+
+
+def test_no_allow_templatekj():
+    sentence = parse_sentence("turn off {name}")
+    names = TextSlotList.from_strings(["light[s]"])
+    assert is_match("turn off lights", sentence, slot_lists={"name": names})
+
+    names = TextSlotList.from_strings(["light[s]"], allow_template=False)
+    assert not is_match("turn off lights", sentence, slot_lists={"name": names})
+    assert is_match("turn off light[s]", sentence, slot_lists={"name": names})

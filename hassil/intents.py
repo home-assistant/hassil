@@ -99,7 +99,8 @@ class TextSlotValue:
 
     @staticmethod
     def from_tuple(
-        value_tuple: Union[Tuple[str, Any], Tuple[str, Any, Dict[str, Any]]]
+        value_tuple: Union[Tuple[str, Any], Tuple[str, Any, Dict[str, Any]]],
+        allow_template: bool = True,
     ) -> "TextSlotValue":
         """Construct text slot value from a tuple."""
         text_in, value_out, context = value_tuple[0], value_tuple[1], None
@@ -108,7 +109,7 @@ class TextSlotValue:
             context = cast(Tuple[str, Any, Dict[str, Any]], value_tuple)[2]
 
         return TextSlotValue(
-            text_in=_maybe_parse_template(text_in),
+            text_in=_maybe_parse_template(text_in, allow_template),
             value_out=value_out,
             context=context,
         )
@@ -121,7 +122,10 @@ class TextSlotList(SlotList):
     values: List[TextSlotValue]
 
     @staticmethod
-    def from_strings(strings: Iterable[str]) -> "TextSlotList":
+    def from_strings(
+        strings: Iterable[str],
+        allow_template: bool = True,
+    ) -> "TextSlotList":
         """
         Construct a text slot list from strings.
 
@@ -129,14 +133,17 @@ class TextSlotList(SlotList):
         """
         return TextSlotList(
             values=[
-                TextSlotValue(text_in=_maybe_parse_template(text), value_out=text)
+                TextSlotValue(
+                    text_in=_maybe_parse_template(text, allow_template), value_out=text
+                )
                 for text in strings
             ],
         )
 
     @staticmethod
     def from_tuples(
-        tuples: Iterable[Union[Tuple[str, Any], Tuple[str, Any, Dict[str, Any]]]]
+        tuples: Iterable[Union[Tuple[str, Any], Tuple[str, Any, Dict[str, Any]]]],
+        allow_template: bool = True,
     ) -> "TextSlotList":
         """
         Construct a text slot list from text/value pairs.
@@ -144,7 +151,10 @@ class TextSlotList(SlotList):
         Input values are the left (text), output values are the right (any).
         """
         return TextSlotList(
-            values=[TextSlotValue.from_tuple(value_tuple) for value_tuple in tuples],
+            values=[
+                TextSlotValue.from_tuple(value_tuple, allow_template)
+                for value_tuple in tuples
+            ],
         )
 
 
@@ -234,7 +244,10 @@ class Intents:
         )
 
 
-def _parse_list(list_dict: Dict[str, Any]) -> SlotList:
+def _parse_list(
+    list_dict: Dict[str, Any],
+    allow_template: bool = True,
+) -> SlotList:
     """Parses a slot list from a dict."""
     if "values" in list_dict:
         # Text values
@@ -243,13 +256,16 @@ def _parse_list(list_dict: Dict[str, Any]) -> SlotList:
             if isinstance(value, str):
                 # String value
                 text_values.append(
-                    TextSlotValue(text_in=_maybe_parse_template(value), value_out=value)
+                    TextSlotValue(
+                        text_in=_maybe_parse_template(value, allow_template),
+                        value_out=value,
+                    )
                 )
             else:
                 # Object with "in" and "out"
                 text_values.append(
                     TextSlotValue(
-                        text_in=_maybe_parse_template(value["in"]),
+                        text_in=_maybe_parse_template(value["in"], allow_template),
                         value_out=value["out"],
                         context=value.get("context"),
                     )
@@ -270,9 +286,9 @@ def _parse_list(list_dict: Dict[str, Any]) -> SlotList:
     raise ValueError(f"Unknown slot list type: {list_dict}")
 
 
-def _maybe_parse_template(text: str) -> Expression:
+def _maybe_parse_template(text: str, allow_template: bool = True) -> Expression:
     """Parse string as a sentence template if it has template syntax."""
-    if is_template(text):
+    if allow_template and is_template(text):
         return parse_sentence(text)
 
     return TextChunk(normalize_text(text))
