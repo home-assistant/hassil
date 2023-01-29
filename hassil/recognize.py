@@ -63,9 +63,6 @@ class MatchContext:
     expansion_rules: Dict[str, Sentence] = field(default_factory=dict)
     """Available expansion rules mapped by name."""
 
-    skip_words: List[re.Pattern] = field(default_factory=list)
-    """Words that can be skipped during recognition."""
-
     entities: List[MatchEntity] = field(default_factory=list)
     """Entities that have been found in input text."""
 
