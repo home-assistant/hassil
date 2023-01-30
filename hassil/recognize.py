@@ -1,7 +1,6 @@
 """Methods for recognizing intents from text."""
 
 import collections.abc
-import dataclasses
 import itertools
 import re
 from dataclasses import dataclass, field
@@ -309,7 +308,14 @@ def match_expression(
             # Successful match for chunk
             context_text = context.text[len(chunk_text) :]
             context_text = context_text.lstrip()
-            yield dataclasses.replace(context, text=context_text)
+            yield MatchContext(
+                text=context_text,
+                # Copy over
+                slot_lists=context.slot_lists,
+                expansion_rules=context.expansion_rules,
+                entities=context.entities,
+                intent_context=context.intent_context,
+            )
         else:
             # Remove non-word characters and try again
             match = NON_WORD_START.match(context.text)
@@ -318,7 +324,14 @@ def match_expression(
                 if context_text.startswith(chunk_text):
                     context_text = context_text[len(chunk_text) :]
                     context_text = context_text.lstrip()
-                    yield dataclasses.replace(context, text=context_text)
+                    yield MatchContext(
+                        text=context_text,
+                        # Copy over
+                        slot_lists=context.slot_lists,
+                        expansion_rules=context.expansion_rules,
+                        entities=context.entities,
+                        intent_context=context.intent_context,
+                    )
 
     elif isinstance(expression, Sequence):
         seq: Sequence = expression
@@ -361,7 +374,15 @@ def match_expression(
                 # Any value may match
                 for slot_value in text_list.values:
                     value_contexts = match_expression(
-                        dataclasses.replace(context), slot_value.text_in
+                        MatchContext(
+                            # Copy over
+                            text=context.text,
+                            slot_lists=context.slot_lists,
+                            expansion_rules=context.expansion_rules,
+                            entities=context.entities,
+                            intent_context=context.intent_context,
+                        ),
+                        slot_value.text_in,
                     )
 
                     for value_context in value_contexts:
@@ -377,16 +398,26 @@ def match_expression(
 
                         if slot_value.context:
                             # Merge context from matched list value
-                            yield dataclasses.replace(
-                                value_context,
+                            yield MatchContext(
                                 entities=entities,
                                 intent_context={
                                     **context.intent_context,
                                     **slot_value.context,
                                 },
+                                # Copy over
+                                text=value_context.text,
+                                slot_lists=value_context.slot_lists,
+                                expansion_rules=value_context.expansion_rules,
                             )
                         else:
-                            yield dataclasses.replace(value_context, entities=entities)
+                            yield MatchContext(
+                                entities=entities,
+                                # Copy over
+                                text=value_context.text,
+                                slot_lists=value_context.slot_lists,
+                                expansion_rules=value_context.expansion_rules,
+                                intent_context=value_context.intent_context,
+                            )
 
         elif isinstance(slot_list, RangeSlotList):
             # List that represents a number range.
@@ -415,10 +446,13 @@ def match_expression(
                             )
                         ]
 
-                        yield dataclasses.replace(
-                            context,
+                        yield MatchContext(
                             text=context.text[len(number_text) :].lstrip(),
                             entities=entities,
+                            # Copy over
+                            slot_lists=context.slot_lists,
+                            expansion_rules=context.expansion_rules,
+                            intent_context=context.intent_context,
                         )
 
         else:
