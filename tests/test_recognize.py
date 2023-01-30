@@ -3,7 +3,7 @@ from typing import cast
 
 import pytest
 
-from hassil import Intents, recognize
+from hassil import Intents, recognize, recognize_all
 from hassil.expression import TextChunk
 from hassil.intents import TextSlotList
 
@@ -406,3 +406,29 @@ def test_number_text() -> None:
         assert result is not None
         assert result.entities["percentage"].value == 50
         assert result.entities["percentage"].text.strip() == "50%"
+
+
+def test_recognize_all() -> None:
+    """Test recognize_all method for returning all matches."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent1:
+        data:
+          - sentences:
+              - "run test"
+      TestIntent2:
+        data:
+          - sentences:
+              - "run test"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    results = list(recognize_all("run test", intents))
+    assert len(results) == 2
+    assert {result.intent.name for result in results} == {
+        "TestIntent1",
+        "TestIntent2",
+    }
