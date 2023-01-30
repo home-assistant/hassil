@@ -102,6 +102,30 @@ def recognize(
     default_response: Optional[str] = "default",
 ) -> Optional[RecognizeResult]:
     """Return the first match of input text/words against a collection of intents."""
+    for result in recognize_all(
+        text,
+        intents,
+        slot_lists=slot_lists,
+        expansion_rules=expansion_rules,
+        skip_words=skip_words,
+        intent_context=intent_context,
+        default_response=default_response,
+    ):
+        return result
+
+    return None
+
+
+def recognize_all(
+    text: str,
+    intents: Intents,
+    slot_lists: Optional[Dict[str, SlotList]] = None,
+    expansion_rules: Optional[Dict[str, Sentence]] = None,
+    skip_words: Optional[Iterable[str]] = None,
+    intent_context: Optional[Dict[str, Any]] = None,
+    default_response: Optional[str] = "default",
+) -> Iterable[RecognizeResult]:
+    """Return all matches for input text/words against a collection of intents."""
     text = normalize_text(text)
 
     if skip_words is None:
@@ -225,7 +249,7 @@ def recognize(
                         if intent_data.response is not None:
                             response = intent_data.response
 
-                        return RecognizeResult(
+                        yield RecognizeResult(
                             intent=intent,
                             entities={
                                 entity.name: entity
@@ -234,8 +258,6 @@ def recognize(
                             entities_list=maybe_match_context.entities,
                             response=response,
                         )
-
-    return None
 
 
 def is_match(
