@@ -20,7 +20,7 @@ from .util import normalize_text, normalize_whitespace
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
 
-PUNCTUATION = re.compile(r"[.,?!;]+")
+PUNCTUATION = re.compile(r"[.,?¿!;]+")
 
 
 class HassilError(Exception):
