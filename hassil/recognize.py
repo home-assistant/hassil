@@ -108,7 +108,6 @@ def recognize(
     skip_words: Optional[Iterable[str]] = None,
     intent_context: Optional[Dict[str, Any]] = None,
     default_response: Optional[str] = "default",
-    ignore_whitespace: bool = False,
 ) -> Optional[RecognizeResult]:
     """Return the first match of input text/words against a collection of intents."""
     for result in recognize_all(
@@ -119,7 +118,6 @@ def recognize(
         skip_words=skip_words,
         intent_context=intent_context,
         default_response=default_response,
-        ignore_whitespace=ignore_whitespace,
     ):
         return result
 
@@ -134,7 +132,6 @@ def recognize_all(
     skip_words: Optional[Iterable[str]] = None,
     intent_context: Optional[Dict[str, Any]] = None,
     default_response: Optional[str] = "default",
-    ignore_whitespace: bool = False,
 ) -> Iterable[RecognizeResult]:
     """Return all matches for input text/words against a collection of intents."""
     text = normalize_text(text)
@@ -148,7 +145,7 @@ def recognize_all(
     if skip_words:
         text = _remove_skip_words(text, skip_words)
 
-    if ignore_whitespace:
+    if intents.settings.ignore_whitespace:
         text = WHITESPACE.sub("", text)
     else:
         # Artifical word boundary
@@ -175,7 +172,7 @@ def recognize_all(
     settings = MatchSettings(
         slot_lists=slot_lists,
         expansion_rules=expansion_rules,
-        ignore_whitespace=ignore_whitespace,
+        ignore_whitespace=intents.settings.ignore_whitespace,
     )
 
     # Check sentence against each intent.

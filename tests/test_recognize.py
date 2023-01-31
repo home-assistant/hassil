@@ -438,6 +438,8 @@ def test_ignore_whitespace() -> None:
     """Test option to ignore whitespace during matching."""
     yaml_text = """
     language: "en"
+    settings:
+      ignore_whitespace: true
     intents:
       TestIntent1:
         data:
@@ -449,5 +451,5 @@ def test_ignore_whitespace() -> None:
         intents = Intents.from_yaml(test_file)
 
     for sentence in ("runtest", "runthetest", "r u n t h e t e s t"):
-        result = recognize(sentence, intents, ignore_whitespace=True)
+        result = recognize(sentence, intents)
         assert result is not None, sentence
