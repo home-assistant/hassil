@@ -20,6 +20,7 @@ from .parser import (
     RULE_END,
     RULE_START,
     ParseChunk,
+    ParseError,
     ParseType,
     next_chunk,
     remove_delimiters,
@@ -36,7 +37,7 @@ class ParseMetadata:
     intent_name: Optional[str] = None
 
 
-class ParseExpressionError(Exception):
+class ParseExpressionError(ParseError):
     def __init__(self, chunk: ParseChunk, metadata: Optional[ParseMetadata] = None):
         super().__init__()
         self.chunk = chunk
@@ -161,13 +162,21 @@ def parse_sentence(
     text = f"({text})"
 
     chunk = next_chunk(text)
-    assert chunk is not None
-    assert chunk.parse_type == ParseType.GROUP
-    assert chunk.start_index == 0
-    assert chunk.end_index == len(text)
+    if chunk is None:
+        raise ParseError(f"Unexpected empty chunk in: {text}")
+
+    if chunk.parse_type != ParseType.GROUP:
+        raise ParseError(f"Expected (group) in: {text}")
+
+    if chunk.start_index != 0:
+        raise ParseError(f"Expected (group) to start at index 0 in: {text}")
+
+    if chunk.end_index != len(text):
+        raise ParseError(f"Expected chunk to end at index {chunk.end_index} in: {text}")
 
     seq = parse_expression(chunk, metadata=metadata)
-    assert isinstance(seq, Sequence)
+    if not isinstance(seq, Sequence):
+        raise ParseError(f"Expected Sequence, got: {seq}")
 
     # Unpack redundant sequence
     if len(seq.items) == 1:

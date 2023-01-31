@@ -1,5 +1,5 @@
-from hassil.intents import RangeSlotList, TextSlotList
 from hassil import parse_sentence
+from hassil.intents import RangeSlotList, TextSlotList
 from hassil.sample import sample_expression
 
 
