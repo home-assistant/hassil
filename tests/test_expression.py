@@ -9,7 +9,7 @@ from hassil.expression import (
     RuleReference,
     Sentence,
 )
-from hassil.parse_expression import parse_expression
+from hassil.parse_expression import parse_expression, parse_sentence
 
 # -----------------------------------------------------------------------------
 
@@ -18,134 +18,74 @@ def test_word():
     assert parse_expression(next_chunk("test")) == t(text="test")
 
 
-# class SequenceTestCase(unittest.TestCase):
-#     def test_group(self):
-#         self.assertEqual(
-#             parse_expression(next_chunk("(test test2)")),
-#             group(
-#                 items=[w(text="test"), w(text="test2")],
-#             ),
-#         )
-
-#     def test_group_sub_word(self):
-#         self.assertEqual(
-#             parse_expression(next_chunk("(test test2):test3")),
-#             group(items=[w(text="test"), w(text="test2")], substitution="test3"),
-#         )
-
-#     def test_group_sub_group(self):
-#         self.assertEqual(
-#             parse_expression(next_chunk("(test test2):(test3 test4)")),
-#             group(
-#                 items=[w(text="test"), w(text="test2")], substitution=["test3", "test4"]
-#             ),
-#         )
-
-#     def test_group_tag(self):
-#         self.assertEqual(
-#             parse_expression(next_chunk("(test test2){test3}")),
-#             group(items=[w(text="test"), w(text="test2")], tag=Tag(tag_text="test3")),
-#         )
-
-#     def test_group_in_group(self):
-#         self.assertEqual(
-#             parse_expression(next_chunk("((test test2))")),
-#             group(
-#                 items=[group(items=[w(text="test"), w(text="test2")])],
-#             ),
-#         )
-
-#     def test_optional(self):
-#         self.assertEqual(
-#             parse_expression(next_chunk("[test test2]")),
-#             alt(
-#                 items=[
-#                     group(
-#                         items=[Word(text="test"), Word(text="test2")],
-#                     ),
-#                     Word.empty(),
-#                 ],
-#             ),
-#         )
-
-#     def test_group_alternative(self):
-#         self.assertEqual(
-#             parse_expression(next_chunk("(test | test2)")),
-#             alt(
-#                 items=[group(items=[w(text="test")]), group(items=[w(text="test2")])],
-#             ),
-#         )
+def test_group_in_group():
+    assert parse_expression(next_chunk("((test test2))")) == group(
+        items=[group(items=[t(text="test"), t(text="test2")])],
+    )
 
 
-# # -----------------------------------------------------------------------------
+def test_optional():
+    assert parse_expression(next_chunk("[test test2]")) == alt(
+        items=[
+            group(
+                items=[t(text="test"), t(text="test2")],
+            ),
+            TextChunk.empty(),
+        ],
+    )
 
 
-# class ReferenceTestCase(unittest.TestCase):
-#     def test_slot_reference(self):
-#         self.assertEqual(
-#             parse_expression(next_chunk("$test")), SlotReference(slot_name="test")
-#         )
-
-#     def test_rule_reference(self):
-#         self.assertEqual(
-#             parse_expression(next_chunk("<test>")), RuleReference(rule_name="test")
-#         )
+def test_group_alternative():
+    assert parse_expression(next_chunk("(test | test2)")) == alt(
+        items=[group(items=[t(text="test")]), group(items=[t(text="test2")])],
+    )
 
 
-# # -----------------------------------------------------------------------------
+def test_slot_reference():
+    assert parse_expression(next_chunk("{test}")) == ListReference(list_name="test")
 
 
-# class NumberTestCase(unittest.TestCase):
-#     def test_number(self):
-#         self.assertEqual(parse_expression(next_chunk("100")), Number(number=100))
-
-#     def test_number_range(self):
-#         self.assertEqual(
-#             parse_expression(next_chunk("1..100")),
-#             NumberRange(lower_bound=1, upper_bound=100),
-#         )
-
-#     def test_number_range_with_step(self):
-#         self.assertEqual(
-#             parse_expression(next_chunk("1..100,2")),
-#             NumberRange(lower_bound=1, upper_bound=100, step=2),
-#         )
+def test_rule_reference():
+    assert parse_expression(next_chunk("<test>")) == RuleReference(rule_name="test")
 
 
-# # -----------------------------------------------------------------------------
+def test_sentence_no_group():
+    assert parse_sentence("this is a test") == Sentence(
+        items=[t(text="this"), t(text="is"), t(text="a"), t(text="test")]
+    )
 
 
-# class SentenceTestCase(unittest.TestCase):
-#     def test_no_group(self):
-#         self.assertEqual(
-#             Sentence.parse("this is a test"),
-#             Sentence(items=[w(text="this"), w(text="is"), w(text="a"), w(text="test")]),
-#         )
+def test_sentence_group():
+    assert parse_sentence("(this is a test)") == Sentence(
+        items=[t(text="this"), t(text="is"), t(text="a"), t(text="test")]
+    )
 
-#     def test_group(self):
-#         self.assertEqual(
-#             Sentence.parse("(this is a test)"),
-#             Sentence(items=[w(text="this"), w(text="is"), w(text="a"), w(text="test")]),
-#         )
 
-#     def test_optional(self):
-#         self.assertEqual(
-#             Sentence.parse("[this is a test]"),
-#             Sentence(
-#                 type=SequenceType.ALTERNATIVE,
-#                 items=[
-#                     group(
-#                         items=[
-#                             w(text="this"),
-#                             w(text="is"),
-#                             w(text="a"),
-#                             w(text="test"),
-#                         ]
-#                     ),
-#                     Word.empty(),
-#                 ],
-#             ),
-#         )
+def test_sentence_optional():
+    assert parse_sentence("[this is a test]") == Sentence(
+        type=SequenceType.ALTERNATIVE,
+        items=[
+            group(
+                items=[
+                    t(text="this"),
+                    t(text="is"),
+                    t(text="a"),
+                    t(text="test"),
+                ]
+            ),
+            TextChunk.empty(),
+        ],
+    )
+
+
+def test_sentence_optional_suffix():
+    assert parse_sentence("test[s]") == Sentence(
+        type=SequenceType.GROUP,
+        items=[
+            t(text="test"),
+            alt(items=[group(items=[t(text="s")]), TextChunk.empty()]),
+        ],
+    )
 
 
 # -----------------------------------------------------------------------------

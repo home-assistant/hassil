@@ -89,7 +89,7 @@ def find_end_word(text: str, start_index: int) -> Optional[int]:
             is_escaped = True
             continue
 
-        if (c == WORD_SEP) or (c in DELIM_END):
+        if (i > 0 and (c == WORD_SEP)) or (c in DELIM_START) or (c in DELIM_END):
             return start_index + i
 
     if text:

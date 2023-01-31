@@ -79,7 +79,7 @@ def parse_group_or_alt(
             ParseType.WORD,
             ParseType.GROUP,
             ParseType.OPT,
-            ParseType.SLOT,
+            ParseType.LIST,
             ParseType.RULE,
         }:
             item = parse_expression(item_chunk, metadata=metadata)
@@ -149,3 +149,33 @@ def parse_expression(
         return RuleReference(rule_name=rule_name)
 
     raise ParseExpressionError(chunk, metadata=metadata)
+
+
+def parse_sentence(
+    text: str, keep_text=False, metadata: Optional[ParseMetadata] = None
+) -> Sentence:
+    """Parse a single sentence."""
+    original_text = text
+    text = text.strip()
+
+    # Wrap in a group
+    text = f"({text})"
+
+    chunk = next_chunk(text)
+    assert chunk is not None
+    assert chunk.parse_type == ParseType.GROUP
+    assert chunk.start_index == 0
+    assert chunk.end_index == len(text)
+
+    seq = parse_expression(chunk, metadata=metadata)
+    assert isinstance(seq, Sequence)
+
+    # Unpack redundant sequence
+    if len(seq.items) == 1:
+        first_item = seq.items[0]
+        if isinstance(first_item, Sequence):
+            seq = first_item
+
+    return Sentence(
+        type=seq.type, items=seq.items, text=original_text if keep_text else None
+    )

@@ -10,7 +10,7 @@ from typing import IO, Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 from yaml import safe_load
 
 from .expression import Expression, Sentence, TextChunk
-from .parse import parse_sentence, parse_sentences
+from .parse_expression import parse_sentence
 from .util import is_template, merge_dict, normalize_text
 
 
@@ -46,7 +46,7 @@ class IntentData:
     @cached_property
     def sentences(self) -> List[Sentence]:
         """Sentence templates that match this intent."""
-        return parse_sentences(self.sentence_texts, keep_text=True)
+        return [parse_sentence(text, keep_text=True) for text in self.sentence_texts]
 
 
 @dataclass
@@ -235,7 +235,7 @@ class Intents:
                 for list_name, list_dict in input_dict.get("lists", {}).items()
             },
             expansion_rules={
-                rule_name: parse_sentences([rule_body], keep_text=True)[0]
+                rule_name: parse_sentence(rule_body, keep_text=True)
                 for rule_name, rule_body in input_dict.get(
                     "expansion_rules", {}
                 ).items()
