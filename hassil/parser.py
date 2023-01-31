@@ -26,6 +26,8 @@ ESCAPE_CHAR = "\\"
 
 
 class ParseType(Enum):
+    """Parse chunk types."""
+
     GROUP = auto()
     OPT = auto()
     ALT = auto()
@@ -37,6 +39,8 @@ class ParseType(Enum):
 
 @dataclass
 class ParseChunk:
+    """Block of text that means something to the parser."""
+
     text: str
     start_index: int
     end_index: int
@@ -46,6 +50,7 @@ class ParseChunk:
 def find_end_delimiter(
     text: str, start_index: int, start_char: str, end_char: str
 ) -> Optional[int]:
+    """Finds the index of an ending delimiter."""
     if start_index > 0:
         text = text[start_index:]
 
@@ -75,6 +80,7 @@ def find_end_delimiter(
 
 
 def find_end_word(text: str, start_index: int) -> Optional[int]:
+    """Finds the end index of a word."""
     if start_index > 0:
         text = text[start_index:]
 
@@ -108,6 +114,7 @@ def find_end_word(text: str, start_index: int) -> Optional[int]:
 
 
 def peek_type(text, start_index: int) -> ParseType:
+    """Gets the parse chunk type based on the next character."""
     if start_index >= len(text):
         return ParseType.END
 
@@ -131,15 +138,16 @@ def peek_type(text, start_index: int) -> ParseType:
 
 
 class ParseError(Exception):
-    pass
+    """Base class for parse errors"""
 
 
 def skip_text(text: str, start_index: int, skip: str) -> int:
+    """Skips a string in text, taking escapes into account."""
     if start_index > 0:
         text = text[start_index:]
 
     if not text:
-        raise ParseError(text)
+        raise ParseError(f"Cannot skip '{skip}' in empty text")
 
     text_index = 0
     for c_text in text:
@@ -157,19 +165,22 @@ def skip_text(text: str, start_index: int, skip: str) -> int:
             break
 
     if skip:
-        raise ParseError(text)
+        raise ParseError(f"Failed to skip '{skip}' in: {text}")
 
     return start_index + text_index
 
 
 def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
+    """Gets the next parsable chunk from text."""
     next_type = peek_type(text, start_index)
 
     if next_type == ParseType.WORD:
         # Single word
         word_end_index = find_end_word(text, start_index)
         if word_end_index is None:
-            raise ParseError(text)
+            raise ParseError(
+                f"Unable to find end of word from index {start_index} in: {text}"
+            )
 
         word_text = remove_escapes(text[start_index:word_end_index])
 
@@ -187,7 +198,9 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
             text, group_start_index, GROUP_START, GROUP_END
         )
         if group_end_index is None:
-            raise ParseError(text)
+            raise ParseError(
+                f"Unable to find end of group ')' from index {start_index} in: {text}"
+            )
 
         group_text = remove_escapes(text[start_index:group_end_index])
 
@@ -203,7 +216,9 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
         opt_start_index = skip_text(text, start_index, OPT_START)
         opt_end_index = find_end_delimiter(text, opt_start_index, OPT_START, OPT_END)
         if opt_end_index is None:
-            raise ParseError(text)
+            raise ParseError(
+                f"Unable to find end of optional ']' from index {start_index} in: {text}"
+            )
 
         opt_text = remove_escapes(text[start_index:opt_end_index])
 
@@ -221,7 +236,9 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
             text, list_start_index, LIST_START, LIST_END
         )
         if list_end_index is None:
-            raise ParseError(text)
+            raise ParseError(
+                f"Unable to find end of list '}}' from index {start_index} in: {text}"
+            )
 
         return ParseChunk(
             text=remove_escapes(text[start_index:list_end_index]),
@@ -237,7 +254,9 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
             text, rule_start_index, RULE_START, RULE_END
         )
         if rule_end_index is None:
-            raise ParseError(text)
+            raise ParseError(
+                f"Unable to find end of rule '>' from index {start_index} in: {text}"
+            )
 
         return ParseChunk(
             text=remove_escapes(text[start_index:rule_end_index]),
@@ -260,6 +279,7 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
 def remove_delimiters(
     text: str, start_char: str, end_char: Optional[str] = None
 ) -> str:
+    """Removes the surrounding delimiters in text."""
     if end_char is None:
         assert len(text) > 1, "Text is too short"
         assert text[0] == start_char, "Wrong start char"
