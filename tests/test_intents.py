@@ -92,6 +92,11 @@ def test_alternative_whitespace():
     assert is_match("stopped", sentence)
 
 
+def test_alternative_whitespace_2():
+    sentence = parse_sentence("set brightness to ( minimum | lowest)")
+    assert is_match("set brightness to lowest", sentence)
+
+
 def test_no_allow_template():
     sentence = parse_sentence("turn off {name}")
     names = TextSlotList.from_strings(["light[s]"])
@@ -100,8 +105,3 @@ def test_no_allow_template():
     names = TextSlotList.from_strings(["light[s]"], allow_template=False)
     assert not is_match("turn off lights", sentence, slot_lists={"name": names})
     assert is_match("turn off light[s]", sentence, slot_lists={"name": names})
-
-
-def test_alternative_whitespace_2():
-    sentence = parse_sentence("set brightness to ( minimum | lowest)")
-    assert is_match("set brightness to lowest", sentence)
