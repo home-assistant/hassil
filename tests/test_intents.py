@@ -20,9 +20,9 @@ def test_whitespace():
     assert is_match("  turn      on the     lights", sentence)
 
 
-def test_skip_nonword():
+def test_skip_punctuation():
     sentence = parse_sentence("turn on the lights")
-    assert is_match("turn ! on @ the # lights $", sentence)
+    assert is_match("turn ! on ? the, lights.", sentence)
 
 
 def test_skip_words():

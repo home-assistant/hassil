@@ -20,7 +20,7 @@ from .util import normalize_text, normalize_whitespace
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
 
-NON_WORD_START = re.compile(r"^\W+")
+PUNCTUATION = re.compile(r"[.,?!;]+")
 
 
 class HassilError(Exception):
@@ -70,8 +70,8 @@ class MatchContext:
 
     @property
     def is_match(self) -> bool:
-        """True if no text is left that isn't just whitespace or non-word characters"""
-        text = re.sub(r"\W+", "", self.text).strip()
+        """True if no text is left that isn't just whitespace or punctuation"""
+        text = PUNCTUATION.sub("", self.text).strip()
         return not text
 
 
@@ -242,7 +242,7 @@ def recognize_all(
                             MatchEntity(name=slot_name, value=slot_value, text="")
                         )
 
-                    # Return the first match
+                    # Return each match
                     response = default_response
                     if intent_data.response is not None:
                         response = intent_data.response
@@ -316,13 +316,13 @@ def _remove_skip_words(text: str, skip_words: Iterable[str]) -> str:
 def match_expression(
     context: MatchContext, expression: Expression
 ) -> Iterable[MatchContext]:
-    """Yield matching contexts for an expresion"""
+    """Yield matching contexts for an expression"""
     if isinstance(expression, TextChunk):
         chunk: TextChunk = expression
         chunk_text = chunk.text.lstrip()
         context_text = context.text
 
-        if chunk.is_empty:
+        if not chunk_text:
             # Skip empty chunk
             yield context
         elif context_text.startswith(chunk_text):
@@ -337,9 +337,9 @@ def match_expression(
                 entities=context.entities,
                 intent_context=context.intent_context,
             )
-        elif (match := NON_WORD_START.match(context.text)) is not None:
-            # Remove non-word characters and try again
-            context_text = context.text[len(match[0]) :].lstrip()
+        else:
+            # Remove punctuation and try again
+            context_text = PUNCTUATION.sub(" ", context.text).lstrip()
             if context_text.startswith(chunk_text):
                 context_text = context_text[len(chunk_text) :]
                 context_text = context_text.lstrip()
@@ -359,21 +359,22 @@ def match_expression(
             for item in seq.items:
                 yield from match_expression(context, item)
 
-        elif seq.type == SequenceType.GROUP and seq.items:
-            # All must match (words in group)
-            group_contexts = [context]
-            for item in seq.items:
-                # Next step
-                group_contexts = [
-                    item_context
-                    for group_context in group_contexts
-                    for item_context in match_expression(group_context, item)
-                ]
-                if not group_contexts:
-                    break
+        elif seq.type == SequenceType.GROUP:
+            if seq.items:
+                # All must match (words in group)
+                group_contexts = [context]
+                for item in seq.items:
+                    # Next step
+                    group_contexts = [
+                        item_context
+                        for group_context in group_contexts
+                        for item_context in match_expression(group_context, item)
+                    ]
+                    if not group_contexts:
+                        break
 
-            for group_context in group_contexts:
-                yield group_context
+                for group_context in group_contexts:
+                    yield group_context
         else:
             raise ValueError(f"Unexpected sequence type: {seq}")
 
@@ -384,90 +385,92 @@ def match_expression(
             raise MissingListError(f"Missing slot list {{{list_ref.list_name}}}")
 
         slot_list = context.slot_lists[list_ref.list_name]
-        if isinstance(slot_list, TextSlotList) and context.text:
-            text_list: TextSlotList = slot_list
-            # Any value may match
-            for slot_value in text_list.values:
-                value_contexts = match_expression(
-                    MatchContext(
-                        # Copy over
-                        text=context.text,
-                        slot_lists=context.slot_lists,
-                        expansion_rules=context.expansion_rules,
-                        entities=context.entities,
-                        intent_context=context.intent_context,
-                    ),
-                    slot_value.text_in,
-                )
-
-                for value_context in value_contexts:
-                    entities = context.entities + [
-                        MatchEntity(
-                            name=list_ref.slot_name,
-                            value=slot_value.value_out,
-                            text=context.text[: -len(value_context.text)]
-                            if value_context.text
-                            else context.text,
-                        )
-                    ]
-
-                    if slot_value.context:
-                        # Merge context from matched list value
-                        yield MatchContext(
-                            entities=entities,
-                            intent_context={
-                                **context.intent_context,
-                                **slot_value.context,
-                            },
+        if isinstance(slot_list, TextSlotList):
+            if context.text:
+                text_list: TextSlotList = slot_list
+                # Any value may match
+                for slot_value in text_list.values:
+                    value_contexts = match_expression(
+                        MatchContext(
                             # Copy over
-                            text=value_context.text,
-                            slot_lists=value_context.slot_lists,
-                            expansion_rules=value_context.expansion_rules,
-                        )
+                            text=context.text,
+                            slot_lists=context.slot_lists,
+                            expansion_rules=context.expansion_rules,
+                            entities=context.entities,
+                            intent_context=context.intent_context,
+                        ),
+                        slot_value.text_in,
+                    )
+
+                    for value_context in value_contexts:
+                        entities = context.entities + [
+                            MatchEntity(
+                                name=list_ref.slot_name,
+                                value=slot_value.value_out,
+                                text=context.text[: -len(value_context.text)]
+                                if value_context.text
+                                else context.text,
+                            )
+                        ]
+
+                        if slot_value.context:
+                            # Merge context from matched list value
+                            yield MatchContext(
+                                entities=entities,
+                                intent_context={
+                                    **context.intent_context,
+                                    **slot_value.context,
+                                },
+                                # Copy over
+                                text=value_context.text,
+                                slot_lists=value_context.slot_lists,
+                                expansion_rules=value_context.expansion_rules,
+                            )
+                        else:
+                            yield MatchContext(
+                                entities=entities,
+                                # Copy over
+                                text=value_context.text,
+                                slot_lists=value_context.slot_lists,
+                                expansion_rules=value_context.expansion_rules,
+                                intent_context=value_context.intent_context,
+                            )
+
+        elif isinstance(slot_list, RangeSlotList):
+            if context.text:
+                # List that represents a number range.
+                # Numbers must currently be digits ("1" not "one").
+                range_list: RangeSlotList = slot_list
+                number_match = NUMBER_START.match(context.text)
+                if number_match is not None:
+                    number_text = number_match[1]
+                    word_number = int(number_text)
+                    if range_list.step == 1:
+                        # Unit step
+                        in_range = range_list.start <= word_number <= range_list.stop
                     else:
+                        # Non-unit step
+                        in_range = word_number in range(
+                            range_list.start, range_list.stop + 1, range_list.step
+                        )
+
+                    if in_range:
+                        entities = context.entities + [
+                            MatchEntity(
+                                name=list_ref.slot_name,
+                                value=word_number,
+                                text=context.text.split()[0],
+                            )
+                        ]
+
                         yield MatchContext(
+                            text=context.text[len(number_text) :].lstrip(),
                             entities=entities,
                             # Copy over
-                            text=value_context.text,
-                            slot_lists=value_context.slot_lists,
-                            expansion_rules=value_context.expansion_rules,
-                            intent_context=value_context.intent_context,
+                            slot_lists=context.slot_lists,
+                            expansion_rules=context.expansion_rules,
+                            intent_context=context.intent_context,
                         )
-
-        elif isinstance(slot_list, RangeSlotList) and context.text:
-            # List that represents a number range.
-            # Numbers must currently be digits ("1" not "one").
-            range_list: RangeSlotList = slot_list
-            number_match = NUMBER_START.match(context.text)
-            if number_match is not None:
-                number_text = number_match[1]
-                word_number = int(number_text)
-                if range_list.step == 1:
-                    # Unit step
-                    in_range = range_list.start <= word_number <= range_list.stop
-                else:
-                    # Non-unit step
-                    in_range = word_number in range(
-                        range_list.start, range_list.stop + 1, range_list.step
-                    )
-
-                if in_range:
-                    entities = context.entities + [
-                        MatchEntity(
-                            name=list_ref.slot_name,
-                            value=word_number,
-                            text=context.text.split()[0],
-                        )
-                    ]
-
-                    yield MatchContext(
-                        text=context.text[len(number_text) :].lstrip(),
-                        entities=entities,
-                        # Copy over
-                        slot_lists=context.slot_lists,
-                        expansion_rules=context.expansion_rules,
-                        intent_context=context.intent_context,
-                    )
 
         else:
             raise ValueError(f"Unexpected slot list type: {slot_list}")

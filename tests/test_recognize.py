@@ -65,7 +65,7 @@ intents:
 expansion_rules:
   area: "[the] {area}"
   name: "[the] {name}"
-  brightness: "{brightness_pct} [percent]"
+  brightness: "{brightness_pct}[%| percent]"
   what_is: "(what's | whats | what is)"
 lists:
   brightness_pct:
@@ -389,8 +389,8 @@ def test_number_text() -> None:
       TestIntent:
         data:
           - sentences:
-              - "set {percentage} [now]"
-              - "{percentage} set"
+              - "set {percentage}[%] [now]"
+              - "{percentage}[%] set"
     lists:
       percentage:
         range:
