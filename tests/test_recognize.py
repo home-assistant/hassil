@@ -376,7 +376,7 @@ def test_entity_text() -> None:
 
     for sentence in ("run test alpha now", "run test alpha", "alpha test"):
         result = recognize(sentence, intents)
-        assert result is not None
+        assert result is not None, sentence
         assert result.entities["name"].value == "A"
         assert result.entities["name"].text.strip() == "alpha"
 
@@ -403,7 +403,7 @@ def test_number_text() -> None:
 
     for sentence in ("set 50% now", "set 50%", "50% set"):
         result = recognize(sentence, intents)
-        assert result is not None
+        assert result is not None, sentence
         assert result.entities["percentage"].value == 50
         assert result.entities["percentage"].text.strip() == "50%"
 
@@ -432,3 +432,22 @@ def test_recognize_all() -> None:
         "TestIntent1",
         "TestIntent2",
     }
+
+
+def test_ignore_whitespace() -> None:
+    """Test option to ignore whitespace during matching."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent1:
+        data:
+          - sentences:
+              - "run [the] test"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for sentence in ("runtest", "runthetest", "r u n t h e t e s t"):
+        result = recognize(sentence, intents, ignore_whitespace=True)
+        assert result is not None, sentence
