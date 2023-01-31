@@ -87,12 +87,12 @@ def test_rule_prefix_suffix():
 
 
 def test_alternative_whitespace():
-    sentence = parse_sentence("(start | stopp)ed")
+    sentence = parse_sentence("(start|stopp)ed")
     assert is_match("started", sentence)
     assert is_match("stopped", sentence)
 
 
-def test_no_allow_templatekj():
+def test_no_allow_template():
     sentence = parse_sentence("turn off {name}")
     names = TextSlotList.from_strings(["light[s]"])
     assert is_match("turn off lights", sentence, slot_lists={"name": names})
@@ -100,3 +100,8 @@ def test_no_allow_templatekj():
     names = TextSlotList.from_strings(["light[s]"], allow_template=False)
     assert not is_match("turn off lights", sentence, slot_lists={"name": names})
     assert is_match("turn off light[s]", sentence, slot_lists={"name": names})
+
+
+def test_alternative_whitespace_2():
+    sentence = parse_sentence("set brightness to ( minimum | lowest)")
+    assert is_match("set brightness to lowest", sentence)

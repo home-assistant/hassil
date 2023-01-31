@@ -18,7 +18,7 @@ def test_word():
 
 def test_group_in_group():
     assert parse_expression(next_chunk("((test test2))")) == group(
-        items=[group(items=[t(text="test"), t(text="test2")])],
+        items=[group(items=[t(text="test "), t(text="test2")])],
     )
 
 
@@ -26,7 +26,7 @@ def test_optional():
     assert parse_expression(next_chunk("[test test2]")) == alt(
         items=[
             group(
-                items=[t(text="test"), t(text="test2")],
+                items=[t(text="test "), t(text="test2")],
             ),
             TextChunk.empty(),
         ],
@@ -35,7 +35,7 @@ def test_optional():
 
 def test_group_alternative():
     assert parse_expression(next_chunk("(test | test2)")) == alt(
-        items=[group(items=[t(text="test")]), group(items=[t(text="test2")])],
+        items=[group(items=[t(text="test ")]), group(items=[t(text=" test2")])],
     )
 
 
@@ -49,13 +49,13 @@ def test_rule_reference():
 
 def test_sentence_no_group():
     assert parse_sentence("this is a test") == Sentence(
-        items=[t(text="this"), t(text="is"), t(text="a"), t(text="test")]
+        items=[t(text="this "), t(text="is "), t(text="a "), t(text="test")]
     )
 
 
 def test_sentence_group():
     assert parse_sentence("(this is a test)") == Sentence(
-        items=[t(text="this"), t(text="is"), t(text="a"), t(text="test")]
+        items=[t(text="this "), t(text="is "), t(text="a "), t(text="test")]
     )
 
 
@@ -65,9 +65,9 @@ def test_sentence_optional():
         items=[
             group(
                 items=[
-                    t(text="this"),
-                    t(text="is"),
-                    t(text="a"),
+                    t(text="this "),
+                    t(text="is "),
+                    t(text="a "),
                     t(text="test"),
                 ]
             ),
@@ -82,6 +82,16 @@ def test_sentence_optional_suffix():
         items=[
             t(text="test"),
             alt(items=[group(items=[t(text="s")]), TextChunk.empty()]),
+        ],
+    )
+
+
+def test_sentence_alternative_whitespace():
+    assert parse_sentence("test ( 1 | 2)") == Sentence(
+        type=SequenceType.GROUP,
+        items=[
+            t(text="test "),
+            alt(items=[group(items=[t(text=" 1 ")]), group(items=[t(text=" 2")])]),
         ],
     )
 

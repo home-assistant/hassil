@@ -107,9 +107,9 @@ def parse_group_or_alt(
 
         # Next chunk
         seq_text = seq_text[item_chunk.end_index :]
-        seq_text = seq_text.lstrip()
 
         if seq_text == last_seq_text:
+            # No change, unable to proceed
             raise ParseExpressionError(seq_chunk, metadata=metadata)
 
         item_chunk = next_chunk(seq_text)

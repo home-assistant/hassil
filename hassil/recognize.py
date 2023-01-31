@@ -320,13 +320,14 @@ def match_expression(
     if isinstance(expression, TextChunk):
         chunk: TextChunk = expression
         chunk_text = chunk.text.lstrip()
+        context_text = context.text
 
         if chunk.is_empty:
             # Skip empty chunk
             yield context
-        elif context.text.startswith(chunk_text):
+        elif context_text.startswith(chunk_text):
             # Successful match for chunk
-            context_text = context.text[len(chunk_text) :]
+            context_text = context_text[len(chunk_text) :]
             context_text = context_text.lstrip()
             yield MatchContext(
                 text=context_text,
@@ -350,7 +351,6 @@ def match_expression(
                     entities=context.entities,
                     intent_context=context.intent_context,
                 )
-
     elif isinstance(expression, Sequence):
         seq: Sequence = expression
         if seq.type == SequenceType.ALTERNATIVE:

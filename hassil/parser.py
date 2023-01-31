@@ -32,7 +32,6 @@ class ParseType(Enum):
     RULE = auto()
     LIST = auto()
     WORD = auto()
-    WHITESPACE = auto()
     END = auto()
 
 
@@ -80,6 +79,7 @@ def find_end_word(text: str, start_index: int) -> Optional[int]:
         text = text[start_index:]
 
     is_escaped = False
+    separator_found = False
     for i, c in enumerate(text):
         if is_escaped:
             is_escaped = False
@@ -89,7 +89,15 @@ def find_end_word(text: str, start_index: int) -> Optional[int]:
             is_escaped = True
             continue
 
-        if (i > 0 and (c == WORD_SEP)) or (c in DELIM_START) or (c in DELIM_END):
+        if (i > 0) and (c == WORD_SEP):
+            separator_found = True
+            continue
+
+        if separator_found and (c != WORD_SEP):
+            # Start of next word
+            return start_index + i
+
+        if (c == ALT_SEP) or (c in DELIM_START) or (c in DELIM_END):
             return start_index + i
 
     if text:
@@ -118,9 +126,6 @@ def peek_type(text, start_index: int) -> ParseType:
 
     if c == RULE_START:
         return ParseType.RULE
-
-    if c.isspace():
-        return ParseType.WHITESPACE
 
     return ParseType.WORD
 
