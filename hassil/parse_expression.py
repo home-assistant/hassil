@@ -158,7 +158,7 @@ def parse_sentence(
     original_text = text
     text = text.strip()
 
-    # Wrap in a group
+    # Wrap in a group because sentences need to always be sequences.
     text = f"({text})"
 
     chunk = next_chunk(text)

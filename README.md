@@ -61,7 +61,7 @@ Exclude the `-n` argument to sample all possible sentences.
 
 ## Sentence Templates
 
-Parsed using a custom [ANTLR](https://www.antlr.org) grammar (see [`HassILGrammar.g4`](HassILGrammar.g4)).
+Uses a custom parser written in Python.
 
 * Alternative words or phrases
   * `(red | green | blue)`
