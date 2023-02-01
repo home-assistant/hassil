@@ -20,9 +20,9 @@ def test_whitespace():
     assert is_match("  turn      on the     lights", sentence)
 
 
-def test_skip_nonword():
+def test_skip_punctuation():
     sentence = parse_sentence("turn on the lights")
-    assert is_match("turn ! on @ the # lights $", sentence)
+    assert is_match("turn ! on ? the, lights.", sentence)
 
 
 def test_skip_words():
@@ -87,12 +87,17 @@ def test_rule_prefix_suffix():
 
 
 def test_alternative_whitespace():
-    sentence = parse_sentence("(start | stopp)ed")
+    sentence = parse_sentence("(start|stopp)ed")
     assert is_match("started", sentence)
     assert is_match("stopped", sentence)
 
 
-def test_no_allow_templatekj():
+def test_alternative_whitespace_2():
+    sentence = parse_sentence("set brightness to ( minimum | lowest)")
+    assert is_match("set brightness to lowest", sentence)
+
+
+def test_no_allow_template():
     sentence = parse_sentence("turn off {name}")
     names = TextSlotList.from_strings(["light[s]"])
     assert is_match("turn off lights", sentence, slot_lists={"name": names})

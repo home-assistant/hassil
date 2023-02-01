@@ -1,5 +1,5 @@
+from hassil import parse_sentence
 from hassil.intents import RangeSlotList, TextSlotList
-from hassil.parse import parse_sentence
 from hassil.sample import sample_expression
 
 
@@ -19,6 +19,19 @@ def test_optional():
     assert set(sample_expression(parse_sentence("turn on [the] light[s]"))) == {
         "turn on light",
         "turn on lights",
+        "turn on the light",
+        "turn on the lights",
+    }
+
+
+def test_double_optional():
+    assert set(sample_expression(parse_sentence("turn [on] [the] light[s]"))) == {
+        "turn light",
+        "turn lights",
+        "turn on light",
+        "turn on lights",
+        "turn the light",
+        "turn the lights",
         "turn on the light",
         "turn on the lights",
     }

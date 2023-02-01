@@ -65,7 +65,7 @@ intents:
 expansion_rules:
   area: "[the] {area}"
   name: "[the] {name}"
-  brightness: "{brightness_pct} [percent]"
+  brightness: "{brightness_pct}[%| percent]"
   what_is: "(what's | whats | what is)"
 lists:
   brightness_pct:
@@ -376,7 +376,7 @@ def test_entity_text() -> None:
 
     for sentence in ("run test alpha now", "run test alpha", "alpha test"):
         result = recognize(sentence, intents)
-        assert result is not None
+        assert result is not None, sentence
         assert result.entities["name"].value == "A"
         assert result.entities["name"].text.strip() == "alpha"
 
@@ -389,8 +389,8 @@ def test_number_text() -> None:
       TestIntent:
         data:
           - sentences:
-              - "set {percentage} [now]"
-              - "{percentage} set"
+              - "set {percentage}[%] [now]"
+              - "{percentage}[%] set"
     lists:
       percentage:
         range:
@@ -403,7 +403,7 @@ def test_number_text() -> None:
 
     for sentence in ("set 50% now", "set 50%", "50% set"):
         result = recognize(sentence, intents)
-        assert result is not None
+        assert result is not None, sentence
         assert result.entities["percentage"].value == 50
         assert result.entities["percentage"].text.strip() == "50%"
 
@@ -432,3 +432,24 @@ def test_recognize_all() -> None:
         "TestIntent1",
         "TestIntent2",
     }
+
+
+def test_ignore_whitespace() -> None:
+    """Test option to ignore whitespace during matching."""
+    yaml_text = """
+    language: "en"
+    settings:
+      ignore_whitespace: true
+    intents:
+      TestIntent1:
+        data:
+          - sentences:
+              - "run [the] test"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for sentence in ("runtest", "runthetest", "r u n t h e t e s t"):
+        result = recognize(sentence, intents)
+        assert result is not None, sentence

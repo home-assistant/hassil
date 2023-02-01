@@ -10,7 +10,7 @@ from typing import IO, Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 from yaml import safe_load
 
 from .expression import Expression, Sentence, TextChunk
-from .parse import parse_sentence, parse_sentences
+from .parse_expression import parse_sentence
 from .util import is_template, merge_dict, normalize_text
 
 
@@ -46,7 +46,7 @@ class IntentData:
     @cached_property
     def sentences(self) -> List[Sentence]:
         """Sentence templates that match this intent."""
-        return parse_sentences(self.sentence_texts, keep_text=True)
+        return [parse_sentence(text, keep_text=True) for text in self.sentence_texts]
 
 
 @dataclass
@@ -159,6 +159,13 @@ class TextSlotList(SlotList):
 
 
 @dataclass
+class IntentsSettings:
+    """Settings for intents."""
+
+    ignore_whitespace: bool = False
+
+
+@dataclass
 class Intents:
     """Collection of intents, rules, and lists for a language."""
 
@@ -176,6 +183,9 @@ class Intents:
 
     skip_words: List[str] = field(default_factory=list)
     """Words that can be skipped during recognition."""
+
+    settings: IntentsSettings = field(default_factory=IntentsSettings)
+    """Settings that may change recognition."""
 
     @staticmethod
     def from_files(file_paths: Iterable[Union[str, Path]]) -> "Intents":
@@ -196,6 +206,8 @@ class Intents:
     def from_dict(input_dict: Dict[str, Any]) -> "Intents":
         """Parse intents from a dict."""
         # language: "<code>"
+        # settings:
+        #   ignore_whitespace: false
         # intents:
         #   IntentName:
         #     data:
@@ -235,12 +247,13 @@ class Intents:
                 for list_name, list_dict in input_dict.get("lists", {}).items()
             },
             expansion_rules={
-                rule_name: parse_sentences([rule_body], keep_text=True)[0]
+                rule_name: parse_sentence(rule_body, keep_text=True)
                 for rule_name, rule_body in input_dict.get(
                     "expansion_rules", {}
                 ).items()
             },
             skip_words=input_dict.get("skip_words", []),
+            settings=_parse_settings(input_dict.get("settings", {})),
         )
 
 
@@ -284,6 +297,13 @@ def _parse_list(
         )
 
     raise ValueError(f"Unknown slot list type: {list_dict}")
+
+
+def _parse_settings(settings_dict: dict[str, Any]) -> IntentsSettings:
+    """Parse intent settings."""
+    return IntentsSettings(
+        ignore_whitespace=settings_dict.get("ignore_whitespace", False)
+    )
 
 
 def _maybe_parse_template(text: str, allow_template: bool = True) -> Expression:
