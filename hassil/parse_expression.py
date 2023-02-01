@@ -75,13 +75,13 @@ def parse_group_or_alt(
     last_seq_text = seq_text
 
     while item_chunk is not None:
-        if item_chunk.parse_type in {
+        if item_chunk.parse_type in (
             ParseType.WORD,
             ParseType.GROUP,
             ParseType.OPT,
             ParseType.LIST,
             ParseType.RULE,
-        }:
+        ):
             item = parse_expression(item_chunk, metadata=metadata)
 
             if seq.type == SequenceType.ALTERNATIVE:

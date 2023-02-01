@@ -12,13 +12,14 @@ LIST_END = "}"
 RULE_START = "<"
 RULE_END = ">"
 
-DELIM_START = {
+DELIM = {
     GROUP_START: GROUP_END,
     OPT_START: OPT_END,
     LIST_START: LIST_END,
     RULE_START: RULE_END,
 }
-DELIM_END = {v: k for k, v in DELIM_START.items()}
+DELIM_START = tuple(DELIM.keys())
+DELIM_END = tuple(DELIM.values())
 
 WORD_SEP = " "
 ALT_SEP = "|"
