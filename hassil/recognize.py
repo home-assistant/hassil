@@ -134,7 +134,7 @@ def recognize_all(
     default_response: Optional[str] = "default",
 ) -> Iterable[RecognizeResult]:
     """Return all matches for input text/words against a collection of intents."""
-    text = normalize_text(text)
+    text = normalize_text(text).strip()
 
     if skip_words is None:
         skip_words = intents.skip_words
@@ -287,7 +287,7 @@ def is_match(
     ignore_whitespace: bool = False,
 ) -> Optional[MatchContext]:
     """Return the first match of input text/words against a sentence expression."""
-    text = normalize_text(text)
+    text = normalize_text(text).strip()
 
     if skip_words:
         text = _remove_skip_words(text, skip_words)
@@ -353,16 +353,24 @@ def match_expression(
             context_text = WHITESPACE.sub("", context.text)
         else:
             # Keep whitespace
-            chunk_text = chunk.text.lstrip()
+            chunk_text = chunk.text
             context_text = context.text
 
-        if not chunk_text:
+        if chunk.is_empty:
             # Skip empty chunk
             yield context
         elif context_text.startswith(chunk_text):
             # Successful match for chunk
             context_text = context_text[len(chunk_text) :]
-            context_text = context_text.lstrip()
+            yield MatchContext(
+                text=context_text,
+                # Copy over
+                entities=context.entities,
+                intent_context=context.intent_context,
+            )
+        elif f" {context_text}".startswith(chunk_text):
+            # Successful match for chunk (with additional whitespace)
+            context_text = context_text[len(chunk_text) - 1 :]
             yield MatchContext(
                 text=context_text,
                 # Copy over
@@ -374,7 +382,6 @@ def match_expression(
             context_text = PUNCTUATION.sub(" ", context.text).lstrip()
             if context_text.startswith(chunk_text):
                 context_text = context_text[len(chunk_text) :]
-                context_text = context_text.lstrip()
                 yield MatchContext(
                     text=context_text,
                     # Copy over
@@ -491,7 +498,7 @@ def match_expression(
                         ]
 
                         yield MatchContext(
-                            text=context.text[len(number_text) :].lstrip(),
+                            text=context.text[len(number_text) :],
                             entities=entities,
                             # Copy over
                             intent_context=context.intent_context,
@@ -513,3 +520,7 @@ def match_expression(
         )
     else:
         raise ValueError(f"Unexpected expression: {expression}")
+
+
+def _normalize_whitespace(text: str) -> str:
+    return WHITESPACE.sub(" ", text)
