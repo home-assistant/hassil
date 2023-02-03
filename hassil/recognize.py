@@ -360,6 +360,8 @@ def match_expression(
             context_text = context.text
 
             if context.is_start_of_word:
+                # Ignore extra whitespace at the beginning of chunk and text
+                # since we know we're at the start of a word.
                 chunk_text = chunk_text.lstrip()
                 context_text = context_text.lstrip()
 
@@ -371,10 +373,19 @@ def match_expression(
             context_text = context_text[len(chunk_text) :]
             yield MatchContext(
                 text=context_text,
+                # must use chunk.text because it hasn't been stripped
+                is_start_of_word=chunk.text.endswith(" "),
                 # Copy over
                 entities=context.entities,
                 intent_context=context.intent_context,
-                is_start_of_word=chunk_text.lstrip().endswith(" "),
+            )
+        elif chunk_text.isspace():
+            yield MatchContext(
+                is_start_of_word=True,
+                # Copy over
+                text=context_text,
+                entities=context.entities,
+                intent_context=context.intent_context,
             )
         else:
             # Remove punctuation and try again
