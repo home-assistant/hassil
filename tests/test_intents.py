@@ -47,7 +47,7 @@ def test_optional_plural():
 
 
 def test_group_plural():
-    sentence = parse_sentence("give me the penn(y | ies)")
+    sentence = parse_sentence("give me the penn(y|ies)")
     assert is_match("give me the penny", sentence)
     assert is_match("give me the pennies", sentence)
 
@@ -82,7 +82,7 @@ def test_rule_prefix_suffix():
     assert is_match(
         "turn off abc-kitchen-123",
         sentence,
-        expansion_rules={"area": parse_sentence("[the] kitchen")},
+        expansion_rules={"area": parse_sentence("[the ]kitchen")},
     )
 
 
@@ -105,3 +105,8 @@ def test_no_allow_template():
     names = TextSlotList.from_strings(["light[s]"], allow_template=False)
     assert not is_match("turn off lights", sentence, slot_lists={"name": names})
     assert is_match("turn off light[s]", sentence, slot_lists={"name": names})
+
+
+def test_no_whitespace_fails():
+    sentence = parse_sentence("this is a test")
+    assert not is_match("thisisatest", sentence)

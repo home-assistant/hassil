@@ -76,6 +76,9 @@ class MatchContext:
     intent_context: Dict[str, Any] = field(default_factory=dict)
     """Context items from outside or acquired during matching."""
 
+    is_start_of_word: bool = True
+    """True if current text is the start of a word."""
+
     @property
     def is_match(self) -> bool:
         """True if no text is left that isn't just whitespace or punctuation"""
@@ -356,6 +359,10 @@ def match_expression(
             chunk_text = chunk.text
             context_text = context.text
 
+            if context.is_start_of_word:
+                chunk_text = chunk_text.lstrip()
+                context_text = context_text.lstrip()
+
         if chunk.is_empty:
             # Skip empty chunk
             yield context
@@ -367,15 +374,7 @@ def match_expression(
                 # Copy over
                 entities=context.entities,
                 intent_context=context.intent_context,
-            )
-        elif f" {context_text}".startswith(chunk_text):
-            # Successful match for chunk (with additional whitespace)
-            context_text = context_text[len(chunk_text) - 1 :]
-            yield MatchContext(
-                text=context_text,
-                # Copy over
-                entities=context.entities,
-                intent_context=context.intent_context,
+                is_start_of_word=chunk_text.lstrip().endswith(" "),
             )
         else:
             # Remove punctuation and try again
@@ -387,6 +386,7 @@ def match_expression(
                     # Copy over
                     entities=context.entities,
                     intent_context=context.intent_context,
+                    is_start_of_word=context.is_start_of_word,
                 )
     elif isinstance(expression, Sequence):
         seq: Sequence = expression
@@ -436,6 +436,7 @@ def match_expression(
                             text=context.text,
                             entities=context.entities,
                             intent_context=context.intent_context,
+                            is_start_of_word=context.is_start_of_word,
                         ),
                         slot_value.text_in,
                     )
@@ -461,6 +462,7 @@ def match_expression(
                                 },
                                 # Copy over
                                 text=value_context.text,
+                                is_start_of_word=context.is_start_of_word,
                             )
                         else:
                             yield MatchContext(
@@ -468,6 +470,7 @@ def match_expression(
                                 # Copy over
                                 text=value_context.text,
                                 intent_context=value_context.intent_context,
+                                is_start_of_word=context.is_start_of_word,
                             )
 
         elif isinstance(slot_list, RangeSlotList):
@@ -502,6 +505,7 @@ def match_expression(
                             entities=entities,
                             # Copy over
                             intent_context=context.intent_context,
+                            is_start_of_word=context.is_start_of_word,
                         )
 
         else:
