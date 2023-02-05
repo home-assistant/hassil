@@ -453,3 +453,25 @@ def test_ignore_whitespace() -> None:
     for sentence in ("runtest", "runthetest", "r u n t h e t e s t"):
         result = recognize(sentence, intents)
         assert result is not None, sentence
+
+
+def test_skip_words_ignore_whitespace() -> None:
+    """Test option to ignore whitespace with skip words during matching."""
+    yaml_text = """
+    language: "en"
+    settings:
+      ignore_whitespace: true
+    intents:
+      TestIntent1:
+        data:
+          - sentences:
+              - "ad"
+    skip_words:
+      - "bc"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("abcd", intents)
+    assert result is not None
