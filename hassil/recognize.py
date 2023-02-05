@@ -146,7 +146,7 @@ def recognize_all(
         skip_words = itertools.chain(skip_words, intents.skip_words)
 
     if skip_words:
-        text = _remove_skip_words(text, skip_words)
+        text = _remove_skip_words(text, skip_words, intents.settings.ignore_whitespace)
 
     if intents.settings.ignore_whitespace:
         text = WHITESPACE.sub("", text)
@@ -293,7 +293,7 @@ def is_match(
     text = normalize_text(text).strip()
 
     if skip_words:
-        text = _remove_skip_words(text, skip_words)
+        text = _remove_skip_words(text, skip_words, ignore_whitespace)
 
     if ignore_whitespace:
         text = WHITESPACE.sub("", text)
@@ -328,17 +328,24 @@ def is_match(
     return None
 
 
-def _remove_skip_words(text: str, skip_words: Iterable[str]) -> str:
+def _remove_skip_words(
+    text: str, skip_words: Iterable[str], ignore_whitespace: bool
+) -> str:
     """Remove skip words from text."""
 
     # It's critical that skip words are processed longest first, since they may
     # share prefixes.
     for skip_word in sorted(skip_words, key=len, reverse=True):
         skip_word = normalize_text(skip_word)
-        text = re.sub(rf"\b{re.escape(skip_word)}\b", "", text)
+        if ignore_whitespace:
+            text = text.replace(skip_word, "")
+        else:
+            # Use word boundaries
+            text = re.sub(rf"\b{re.escape(skip_word)}\b", "", text)
 
-    text = normalize_whitespace(text)
-    text = text.strip()
+    if not ignore_whitespace:
+        text = normalize_whitespace(text)
+        text = text.strip()
 
     return text
 
