@@ -110,3 +110,28 @@ def test_no_allow_template():
 def test_no_whitespace_fails():
     sentence = parse_sentence("this is a test")
     assert not is_match("thisisatest", sentence)
+
+
+def test_nl_optional_whitespace():
+    sentence = parse_sentence(
+        "[<doe>] (alle|in) <area>[ ]<lamp> aan [willen | kunnen] [<doe>]"
+    )
+    slot_lists = {
+        "area": TextSlotList.from_strings(["Keuken", "Woonkamer"], allow_template=False)
+    }
+    expansion_rules = {
+        "area": parse_sentence("[de|het] {area}"),
+        "doe": parse_sentence("(zet|mag|mogen|doe|verander|maak|schakel)"),
+        "lamp": parse_sentence("[de|het] (lamp[en]|licht[en]|verlichting)"),
+    }
+
+    for text in [
+        "Mogen in de keuken de lampen aan?",
+        "Mogen in de keukenlampen aan?",
+    ]:
+        assert is_match(
+            text,
+            sentence,
+            slot_lists=slot_lists,
+            expansion_rules=expansion_rules,
+        )

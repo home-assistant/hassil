@@ -396,8 +396,14 @@ def match_expression(
             )
         else:
             # Remove punctuation and try again
-            context_text = PUNCTUATION.sub(" ", context.text).lstrip()
-            if context_text.startswith(chunk_text):
+            context_text = PUNCTUATION.sub("", context.text)
+            context_starts_with = context_text.startswith(chunk_text)
+            if (not context_starts_with) and context.is_start_of_word:
+                # Try stripping whitespace
+                context_text = context_text.lstrip()
+                context_starts_with = context_text.startswith(chunk_text)
+
+            if context_starts_with:
                 context_text = context_text[len(chunk_text) :]
                 yield MatchContext(
                     text=context_text,
