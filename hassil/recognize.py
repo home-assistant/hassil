@@ -263,6 +263,15 @@ def recognize_all(
                             MatchEntity(name=slot_name, value=slot_value, text="")
                         )
 
+                    # Add entities from context
+                    for (
+                        context_key,
+                        context_value,
+                    ) in maybe_match_context.intent_context.items():
+                        maybe_match_context.entities.append(
+                            MatchEntity(name=context_key, value=context_value, text="")
+                        )
+
                     # Return each match
                     response = default_response
                     if intent_data.response is not None:
