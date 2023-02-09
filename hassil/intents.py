@@ -37,10 +37,10 @@ class IntentData:
     response: Optional[str] = None
     """Key for response to intent."""
 
-    requires_context: Optional[Dict[str, Any]] = None
+    requires_context: Dict[str, Any] = field(default_factory=dict)
     """Context items required before match is successful."""
 
-    excludes_context: Optional[Dict[str, Any]] = None
+    excludes_context: Dict[str, Any] = field(default_factory=dict)
     """Context items that must not be present for match to be successful."""
 
     @cached_property
@@ -233,8 +233,8 @@ class Intents:
                         IntentData(
                             sentence_texts=data_dict["sentences"],
                             slots=data_dict.get("slots", {}),
-                            requires_context=data_dict.get("requires_context"),
-                            excludes_context=data_dict.get("excludes_context"),
+                            requires_context=data_dict.get("requires_context", {}),
+                            excludes_context=data_dict.get("excludes_context", {}),
                             response=data_dict.get("response"),
                         )
                         for data_dict in intent_dict["data"]
