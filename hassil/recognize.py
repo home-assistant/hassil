@@ -102,6 +102,9 @@ class RecognizeResult:
     response: Optional[str] = None
     """Key for intent response."""
 
+    context: Dict[str, Any] = field(default_factory=dict)
+    """Context values acquired during matching."""
+
 
 def recognize(
     text: str,
@@ -263,15 +266,6 @@ def recognize_all(
                             MatchEntity(name=slot_name, value=slot_value, text="")
                         )
 
-                    # Add entities from context
-                    for (
-                        context_key,
-                        context_value,
-                    ) in maybe_match_context.intent_context.items():
-                        maybe_match_context.entities.append(
-                            MatchEntity(name=context_key, value=context_value, text="")
-                        )
-
                     # Return each match
                     response = default_response
                     if intent_data.response is not None:
@@ -285,6 +279,7 @@ def recognize_all(
                         },
                         entities_list=maybe_match_context.entities,
                         response=response,
+                        context=maybe_match_context.intent_context,
                     )
 
 

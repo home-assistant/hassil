@@ -211,6 +211,9 @@ def test_play(intents, slot_lists):
 
     assert result.entities["name"].value == "media_player.roku"
 
+    # From context
+    assert result.context["domain"] == "media_player"
+
 
 # pylint: disable=redefined-outer-name
 def test_play_no_cover(intents, slot_lists):
