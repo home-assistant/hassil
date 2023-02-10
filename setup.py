@@ -37,7 +37,7 @@ setup(
     author="Michael Hansen",
     author_email="mike@rhasspy.org",
     license="Apache-2.0",
-    packages=setuptools.find_packages(exclude=['tests','tests.*'),
+    packages=setuptools.find_packages(exclude=["tests", "tests.*"]),
     package_data={
         "hassil": ["VERSION", "py.typed"],
     },
