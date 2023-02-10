@@ -123,7 +123,7 @@ def parse_expression(
     chunk: ParseChunk, metadata: Optional[ParseMetadata] = None
 ) -> Expression:
     if chunk.parse_type == ParseType.WORD:
-        return TextChunk(text=normalize_text(chunk.text))
+        return TextChunk(text=normalize_text(chunk.text), original_text=chunk.text)
 
     if chunk.parse_type == ParseType.GROUP:
         return parse_group_or_alt(chunk, metadata=metadata)

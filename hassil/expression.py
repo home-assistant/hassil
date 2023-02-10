@@ -14,8 +14,15 @@ class Expression(ABC):
 class TextChunk(Expression):
     """Contiguous chunk of text (with whitespace)."""
 
-    # Text representation expression
+    # Text with casing/whitespace normalized
     text: str = ""
+
+    # Set in __post_init__
+    original_text: str = None  # type: ignore
+
+    def __post_init__(self):
+        if self.original_text is None:
+            self.original_text = self.text
 
     @property
     def is_empty(self) -> bool:

@@ -89,7 +89,7 @@ def sample_expression(
     """Sample possible text strings from an expression."""
     if isinstance(expression, TextChunk):
         chunk: TextChunk = expression
-        yield chunk.text
+        yield chunk.original_text
     elif isinstance(expression, Sequence):
         seq: Sequence = expression
         if seq.type == SequenceType.ALTERNATIVE:
