@@ -370,18 +370,18 @@ def test_entity_text() -> None:
     lists:
       name:
         values:
-          - in: "alpha"
+          - in: "alpha "
             out: "A"
     """
 
     with io.StringIO(yaml_text) as test_file:
         intents = Intents.from_yaml(test_file)
 
-    for sentence in ("run test alpha now", "run test alpha", "alpha test"):
+    for sentence in ("run test alpha, now", "run test alpha!", "alpha test"):
         result = recognize(sentence, intents)
         assert result is not None, sentence
         assert result.entities["name"].value == "A"
-        assert result.entities["name"].text.strip() == "alpha"
+        assert result.entities["name"].text_clean == "alpha"
 
 
 def test_number_text() -> None:

@@ -48,6 +48,11 @@ class MatchEntity:
     text: str
     """Original value text."""
 
+    @property
+    def text_clean(self) -> str:
+        """Trimmed text with punctuation removed."""
+        return PUNCTUATION.sub("", self.text.strip())
+
 
 @dataclass
 class MatchSettings:
