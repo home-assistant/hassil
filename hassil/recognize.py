@@ -376,8 +376,17 @@ def match_expression(
                 chunk_text = chunk_text.lstrip()
                 context_text = context_text.lstrip()
 
+        # True if remaining text to be matched is empty or whitespace.
+        #
+        # If so, we can't say this is a successful match yet because the
+        # sentence template may have remaining non-optional expressions.
+        #
+        # So we have to continue matching, skipping over empty or whitespace
+        # chunks until the template is exhausted.
+        is_context_text_empty = len(context_text.strip()) == 0
+
         if chunk.is_empty:
-            # Skip empty chunk
+            # Skip empty chunk (NOT whitespace)
             yield context
         elif context_text.startswith(chunk_text):
             # Successful match for chunk
@@ -390,14 +399,9 @@ def match_expression(
                 entities=context.entities,
                 intent_context=context.intent_context,
             )
-        elif chunk_text.isspace():
-            yield MatchContext(
-                is_start_of_word=True,
-                # Copy over
-                text=context_text,
-                entities=context.entities,
-                intent_context=context.intent_context,
-            )
+        elif is_context_text_empty and chunk_text.isspace():
+            # No text left to match, so extra whitespace is OK to skip
+            yield context
         else:
             # Remove punctuation and try again
             context_text = PUNCTUATION.sub("", context.text)
