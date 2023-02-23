@@ -190,6 +190,57 @@ def recognize_all(
     # This should eventually be done in parallel.
     for intent in intents.intents.values():
         for intent_data in intent.data:
+            if intent_context:
+                # Skip sentence templates that can't possible be matched due to
+                # requires/excludes context.
+                #
+                # Additional context can be added during matching, so we can
+                # only be sure about keys that exist right now.
+                skip_data = False
+                if intent_data.requires_context:
+                    for (
+                        required_key,
+                        required_value,
+                    ) in intent_data.requires_context.items():
+                        if (required_value is None) or (
+                            required_key not in intent_context
+                        ):
+                            # None is wildcard
+                            continue
+
+                        actual_value = intent_context[required_key]
+                        if (
+                            isinstance(required_value, collections.abc.Collection)
+                            and (actual_value not in required_value)
+                        ) or (actual_value != required_value):
+                            # Required value does not match
+                            skip_data = True
+                            break
+
+                if skip_data:
+                    continue
+
+                if intent_data.excludes_context:
+                    for (
+                        excluded_key,
+                        excluded_value,
+                    ) in intent_data.requires_context.items():
+                        if excluded_key not in intent_context:
+                            continue
+
+                        actual_value = intent_context[excluded_key]
+                        if (
+                            isinstance(excluded_value, collections.abc.Collection)
+                            and (actual_value in excluded_value)
+                        ) or (actual_value == excluded_value):
+                            # Excluded value matches
+                            skip_data = True
+                            break
+
+                if skip_data:
+                    continue
+
+            # Check each sentence template
             for intent_sentence in intent_data.sentences:
                 # Create initial context
                 match_context = MatchContext(
@@ -201,6 +252,7 @@ def recognize_all(
                 )
                 for maybe_match_context in maybe_match_contexts:
                     if not maybe_match_context.is_match:
+                        # Incomplete match with text still left at the end
                         continue
 
                     skip_match = False
@@ -245,7 +297,7 @@ def recognize_all(
                                 # Exact match to context value, except when context value is required and not provided
                                 continue
 
-                            if context_value is None and actual_value is not None:
+                            if (context_value is None) and (actual_value is not None):
                                 # Any value matches, as long as it's set
                                 continue
 

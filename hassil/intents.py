@@ -163,6 +163,7 @@ class IntentsSettings:
     """Settings for intents."""
 
     ignore_whitespace: bool = False
+    """True if whitespace should be ignored during matching."""
 
 
 @dataclass
