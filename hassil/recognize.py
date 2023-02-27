@@ -15,7 +15,7 @@ from .expression import (
     SequenceType,
     TextChunk,
 )
-from .intents import Intent, Intents, RangeSlotList, SlotList, TextSlotList
+from .intents import Intent, IntentData, Intents, RangeSlotList, SlotList, TextSlotList
 from .util import normalize_text, normalize_whitespace
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
@@ -97,6 +97,9 @@ class RecognizeResult:
 
     intent: Intent
     """Matched intent"""
+
+    intent_data: IntentData
+    """Matched intent data"""
 
     entities: Dict[str, MatchEntity] = field(default_factory=dict)
     """Matched entities mapped by name."""
@@ -208,12 +211,13 @@ def recognize_all(
                             # None is wildcard
                             continue
 
+                        # Ensure value matches
                         actual_value = intent_context[required_key]
-                        if (
-                            isinstance(required_value, collections.abc.Collection)
-                            and (actual_value not in required_value)
-                        ) or (actual_value != required_value):
-                            # Required value does not match
+                        if isinstance(required_value, collections.abc.Collection):
+                            if actual_value not in required_value:
+                                skip_data = True
+                                break
+                        elif actual_value != required_value:
                             skip_data = True
                             break
 
@@ -228,12 +232,13 @@ def recognize_all(
                         if excluded_key not in intent_context:
                             continue
 
+                        # Ensure value does not match
                         actual_value = intent_context[excluded_key]
-                        if (
-                            isinstance(excluded_value, collections.abc.Collection)
-                            and (actual_value in excluded_value)
-                        ) or (actual_value == excluded_value):
-                            # Excluded value matches
+                        if isinstance(excluded_value, collections.abc.Collection):
+                            if actual_value in excluded_value:
+                                skip_data = True
+                                break
+                        elif actual_value == excluded_value:
                             skip_data = True
                             break
 
@@ -330,6 +335,7 @@ def recognize_all(
 
                     yield RecognizeResult(
                         intent=intent,
+                        intent_data=intent_data,
                         entities={
                             entity.name: entity
                             for entity in maybe_match_context.entities
