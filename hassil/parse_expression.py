@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Optional
+from itertools import permutations
+from typing import List, Optional
 
 from .expression import (
     Expression,
@@ -60,7 +61,20 @@ def ensure_alternative(seq: Sequence):
         ]
 
 
-def parse_group_or_alt(
+def ensure_permutation(seq: Sequence):
+    if seq.type != SequenceType.PERMUTATION:
+        seq.type = SequenceType.PERMUTATION
+
+        # Collapse items into a single group
+        seq.items = [
+            Sequence(
+                type=SequenceType.GROUP,
+                items=seq.items,
+            )
+        ]
+
+
+def parse_group_or_alt_or_perm(
     seq_chunk: ParseChunk, metadata: Optional[ParseMetadata] = None
 ) -> Sequence:
     seq = Sequence(type=SequenceType.GROUP)
@@ -84,7 +98,7 @@ def parse_group_or_alt(
         ):
             item = parse_expression(item_chunk, metadata=metadata)
 
-            if seq.type == SequenceType.ALTERNATIVE:
+            if seq.type in (SequenceType.ALTERNATIVE, SequenceType.PERMUTATION):
                 # Add to most recent group
                 if not seq.items:
                     seq.items.append(Sequence(type=SequenceType.GROUP))
@@ -103,6 +117,11 @@ def parse_group_or_alt(
 
             # Begin new group
             seq.items.append(Sequence(type=SequenceType.GROUP))
+        elif item_chunk.parse_type == ParseType.PERM:
+            ensure_permutation(seq)
+
+            # Begin new group
+            seq.items.append(Sequence(type=SequenceType.GROUP))
         else:
             raise ParseExpressionError(seq_chunk, metadata=metadata)
 
@@ -116,6 +135,17 @@ def parse_group_or_alt(
         item_chunk = next_chunk(seq_text)
         last_seq_text = seq_text
 
+    if seq.type == SequenceType.PERMUTATION:
+
+        permuted_items: List[Expression] = []
+
+        for permutation in permutations(seq.items):
+            permuted_items.append(
+                Sequence(type=SequenceType.GROUP, items=list(permutation))
+            )
+
+        seq = Sequence(type=SequenceType.ALTERNATIVE, items=permuted_items)
+
     return seq
 
 
@@ -126,10 +156,10 @@ def parse_expression(
         return TextChunk(text=normalize_text(chunk.text), original_text=chunk.text)
 
     if chunk.parse_type == ParseType.GROUP:
-        return parse_group_or_alt(chunk, metadata=metadata)
+        return parse_group_or_alt_or_perm(chunk, metadata=metadata)
 
     if chunk.parse_type == ParseType.OPT:
-        seq = parse_group_or_alt(chunk, metadata=metadata)
+        seq = parse_group_or_alt_or_perm(chunk, metadata=metadata)
         ensure_alternative(seq)
         seq.items.append(TextChunk(text=""))
         return seq
