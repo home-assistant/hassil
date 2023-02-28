@@ -136,7 +136,6 @@ def parse_group_or_alt_or_perm(
         last_seq_text = seq_text
 
     if seq.type == SequenceType.PERMUTATION:
-
         permuted_items: List[Expression] = []
 
         for permutation in permutations(seq.items):
