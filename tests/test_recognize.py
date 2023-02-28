@@ -478,3 +478,38 @@ def test_skip_words_ignore_whitespace() -> None:
 
     result = recognize("abcd", intents)
     assert result is not None
+
+
+def test_local_expansion_rules() -> None:
+    """Test local expansion rules, defined at the intent level"""
+    yaml_text = """
+    language: "en"
+    intents:
+      GetSmokeState:
+        data:
+          - expansion_rules:
+              verb: "(are|is)"
+              subject: "[all] [the] light[s]"
+              state: "on"
+              location: "[in <area>]"
+            sentences:
+              - "<verb> <subject> <state> <location>"
+              - "<verb> <subject> <location> <state>"
+    expansion_rules:
+      area: "[the] {area}"
+    lists:
+      area:
+        values:
+          - kitchen
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for sentence in (
+        "are the lights on in the kitchen",
+        "are the lights in the kitchen on",
+    ):
+        result = recognize(sentence, intents)
+        assert result is not None, sentence
+        assert result.intent.name == "GetSmokeState"
