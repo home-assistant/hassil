@@ -140,8 +140,9 @@ def parse_group_or_alt_or_perm(
         permuted_items: List[Expression] = []
 
         for permutation in permutations(seq.items):
+            permutation_with_spaces = add_spaces_between_items(list(permutation))
             permuted_items.append(
-                Sequence(type=SequenceType.GROUP, items=list(permutation))
+                Sequence(type=SequenceType.GROUP, items=permutation_with_spaces)
             )
 
         seq = Sequence(type=SequenceType.ALTERNATIVE, items=permuted_items)
@@ -217,3 +218,17 @@ def parse_sentence(
     return Sentence(
         type=seq.type, items=seq.items, text=original_text if keep_text else None
     )
+
+
+def add_spaces_between_items(items: List[Expression]) -> List[Expression]:
+    """Add spaces between each 2 items of a sequence, used for permutations"""
+
+    spaced_items: List[Expression] = []
+
+    for item in items:
+        spaced_items = spaced_items + [TextChunk(text=" ")] + [item]
+
+    spaced_items.append(TextChunk(text=" "))
+    items = spaced_items
+
+    return items

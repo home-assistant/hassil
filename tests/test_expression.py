@@ -43,10 +43,22 @@ def test_group_permutation():
     assert parse_expression(next_chunk("(test; test2)")) == alt(
         items=[
             group(
-                items=[group(items=[t(text="test")]), group(items=[t(text=" test2")])]
+                items=[
+                    t(text=" "),
+                    group(items=[t(text="test")]),
+                    t(text=" "),
+                    group(items=[t(text=" test2")]),
+                    t(text=" "),
+                ]
             ),
             group(
-                items=[group(items=[t(text=" test2")]), group(items=[t(text="test")])]
+                items=[
+                    t(text=" "),
+                    group(items=[t(text=" test2")]),
+                    t(text=" "),
+                    group(items=[t(text="test")]),
+                    t(text=" "),
+                ]
             ),
         ],
     )

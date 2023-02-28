@@ -113,9 +113,9 @@ def test_no_whitespace_fails():
 
 
 def test_permutations():
-    sentence = parse_sentence("( in the kitchen ; is there smoke )")
-    assert is_match(" in the kitchen is there smoke ", sentence)
-    assert is_match(" is there smoke in the kitchen ", sentence)
+    sentence = parse_sentence("(in the kitchen;is there smoke)")
+    assert is_match("in the kitchen is there smoke", sentence)
+    assert is_match("is there smoke in the kitchen", sentence)
 
 
 def test_nl_optional_whitespace():
