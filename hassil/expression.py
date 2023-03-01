@@ -2,7 +2,7 @@
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -92,3 +92,23 @@ class Sentence(Sequence):
     """Sequence representing a complete sentence template."""
 
     text: Optional[str] = None
+
+
+@dataclass
+class SentenceTemplate:
+    """A sentence template with placeholders which act as local expansion rules"""
+
+    sentence: Sentence
+    """The sentence that results from this template"""
+
+    defaults: Dict[str, Sentence] = field(default_factory=dict)
+    """The default values for the expansion rules in the sentence"""
+
+
+@dataclass
+class SentenceTemplateInstance:
+    """An instance of a sentence template used as a sentence for an intent"""
+
+    template: SentenceTemplate
+
+    data: Dict[str, Sentence] = field(default_factory=dict)

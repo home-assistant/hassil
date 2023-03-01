@@ -478,3 +478,53 @@ def test_skip_words_ignore_whitespace() -> None:
 
     result = recognize("abcd", intents)
     assert result is not None
+
+
+def test_templates() -> None:
+    """Test template sentences"""
+    yaml_text = """
+    language: "en"
+    intents:
+      GetBatteryState:
+        data:
+          - sentences:
+              - template: is_name_in_area_state
+                data:
+                  name: "<name> [battery]"
+                  state: "{bs_battery_states:state}"
+    expansion_rules:
+      area: "[the] {area}"
+    lists:
+      area:
+        values:
+          - "kitchen"
+      name:
+        values:
+          - "phone battery"
+      state:
+        values:
+          - "on"
+          - "off"
+      bs_battery_states:
+        values:
+          - in: "low"
+            out: "on"
+          - in: "normal"
+            out: "off"
+    sentence_templates:
+      is_name_in_area_state:
+        sentence: "(<is>|are) [the] {name} <state> <in_area>"
+        defaults:
+          is: "is [the state of]"
+          state: "{state}"
+          in_area: "[in {area}]"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("is the phone battery low?", intents)
+    assert result is not None
+    assert result.intent.name == "GetBatteryState"
+    assert result.entities["name"].value == "phone battery"
+    assert result.entities["state"].value == "on"

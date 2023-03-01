@@ -9,8 +9,14 @@ from typing import IO, Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 from yaml import safe_load
 
-from .expression import Expression, Sentence, TextChunk
-from .parse_expression import parse_sentence
+from .expression import (
+    Expression,
+    Sentence,
+    SentenceTemplate,
+    SentenceTemplateInstance,
+    TextChunk,
+)
+from .parse_expression import compose_sentence_template_instance, parse_sentence
 from .util import is_template, merge_dict, normalize_text
 
 
@@ -28,7 +34,7 @@ class ResponseType(str, Enum):
 class IntentData:
     """Block of sentences and known slots for an intent."""
 
-    sentence_texts: List[str]
+    sentence_data: List[Any]
     """Sentence templates that match this intent."""
 
     slots: Dict[str, Any] = field(default_factory=dict)
@@ -46,7 +52,7 @@ class IntentData:
     @cached_property
     def sentences(self) -> List[Sentence]:
         """Sentence templates that match this intent."""
-        return [parse_sentence(text, keep_text=True) for text in self.sentence_texts]
+        return [parse_sentence(text, keep_text=True) for text in self.sentence_data]
 
 
 @dataclass
@@ -182,6 +188,9 @@ class Intents:
     expansion_rules: Dict[str, Sentence] = field(default_factory=dict)
     """Expansion rules mapped by name."""
 
+    sentence_templates: Dict[str, SentenceTemplate] = field(default_factory=dict)
+    """Sentence templates mapped by name"""
+
     skip_words: List[str] = field(default_factory=list)
     """Words that can be skipped during recognition."""
 
@@ -225,6 +234,27 @@ class Intents:
         #     values:
         #       - "<value>"
         #
+
+        sentence_templates = {
+            template_name: SentenceTemplate(
+                sentence=parse_sentence(template_body["sentence"], keep_text=True),
+                defaults={
+                    default_key: parse_sentence(default_value, keep_text=True)
+                    for default_key, default_value in template_body.get(
+                        "defaults", {}
+                    ).items()
+                },
+            )
+            for template_name, template_body in input_dict.get(
+                "sentence_templates", {}
+            ).items()
+        }
+
+        expansion_rules = {
+            rule_name: parse_sentence(rule_body, keep_text=True)
+            for rule_name, rule_body in input_dict.get("expansion_rules", {}).items()
+        }
+
         return Intents(
             language=input_dict["language"],
             intents={
@@ -232,7 +262,32 @@ class Intents:
                     name=intent_name,
                     data=[
                         IntentData(
-                            sentence_texts=data_dict["sentences"],
+                            sentence_data=[
+                                sentence
+                                if isinstance(sentence, str)
+                                else compose_sentence_template_instance(
+                                    SentenceTemplateInstance(
+                                        template=sentence_templates[
+                                            sentence["template"]
+                                        ],
+                                        data={
+                                            **expansion_rules,
+                                            **sentence_templates[
+                                                sentence["template"]
+                                            ].defaults,
+                                            **{
+                                                local_key: parse_sentence(
+                                                    local_value, keep_text=True
+                                                )
+                                                for local_key, local_value in sentence.get(
+                                                    "data", {}
+                                                ).items()
+                                            },
+                                        },
+                                    )
+                                )
+                                for sentence in data_dict.get("sentences", [])
+                            ],
                             slots=data_dict.get("slots", {}),
                             requires_context=data_dict.get("requires_context", {}),
                             excludes_context=data_dict.get("excludes_context", {}),
@@ -247,12 +302,8 @@ class Intents:
                 list_name: _parse_list(list_dict)
                 for list_name, list_dict in input_dict.get("lists", {}).items()
             },
-            expansion_rules={
-                rule_name: parse_sentence(rule_body, keep_text=True)
-                for rule_name, rule_body in input_dict.get(
-                    "expansion_rules", {}
-                ).items()
-            },
+            expansion_rules=expansion_rules,
+            sentence_templates=sentence_templates,
             skip_words=input_dict.get("skip_words", []),
             settings=_parse_settings(input_dict.get("settings", {})),
         )
