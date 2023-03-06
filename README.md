@@ -5,9 +5,7 @@ The Home Assistant Intent Language (HassIL) parser for [intents](https://github.
 
 ## Dependencies
 
-* antlr4-python3-runtime
 * PyYAML
-* dataclasses-json
 
 
 ## Installation
