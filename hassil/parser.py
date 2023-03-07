@@ -23,6 +23,7 @@ DELIM_END = tuple(DELIM.values())
 
 WORD_SEP = " "
 ALT_SEP = "|"
+PERM_SEP = ";"
 ESCAPE_CHAR = "\\"
 
 
@@ -32,6 +33,7 @@ class ParseType(Enum):
     GROUP = auto()
     OPT = auto()
     ALT = auto()
+    PERM = auto()
     RULE = auto()
     LIST = auto()
     WORD = auto()
@@ -104,7 +106,7 @@ def find_end_word(text: str, start_index: int) -> Optional[int]:
             # Start of next word
             return start_index + i
 
-        if (c == ALT_SEP) or (c in DELIM_START) or (c in DELIM_END):
+        if (c == ALT_SEP) or (c == PERM_SEP) or (c in DELIM_START) or (c in DELIM_END):
             return start_index + i
 
     if text:
@@ -128,6 +130,9 @@ def peek_type(text, start_index: int) -> ParseType:
 
     if c == ALT_SEP:
         return ParseType.ALT
+
+    if c == PERM_SEP:
+        return ParseType.PERM
 
     if c == LIST_START:
         return ParseType.LIST
@@ -272,6 +277,14 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
             start_index=start_index,
             end_index=start_index + 1,
             parse_type=ParseType.ALT,
+        )
+
+    if next_type == ParseType.PERM:
+        return ParseChunk(
+            text=text[start_index : start_index + 1],
+            start_index=start_index,
+            end_index=start_index + 1,
+            parse_type=ParseType.PERM,
         )
 
     return None

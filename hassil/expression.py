@@ -44,6 +44,9 @@ class SequenceType(str, Enum):
     # Expressions where only one will be recognized
     ALTERNATIVE = "alternative"
 
+    # Permutations of a set of expressions
+    PERMUTATION = "permutation"
+
 
 @dataclass
 class Sequence(Expression):
