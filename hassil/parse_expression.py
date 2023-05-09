@@ -1,16 +1,18 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, List, Optional
 
 from .expression import (
     Expression,
     ListReference,
     RuleReference,
     Sentence,
+    SentenceTemplateInstance,
     Sequence,
     SequenceType,
     TextChunk,
 )
 from .parser import (
+    ALT_SEP,
     GROUP_END,
     GROUP_START,
     LIST_END,
@@ -187,3 +189,40 @@ def parse_sentence(
     return Sentence(
         type=seq.type, items=seq.items, text=original_text if keep_text else None
     )
+
+
+def compose_sentence_template_instance(instance: SentenceTemplateInstance) -> str:
+    return compose_items(sequence=instance.template.sentence, data=instance.data)
+
+
+def compose_items(sequence: Sequence, data: Dict[str, Sentence]) -> str:
+    string_items: List[str] = []
+
+    for chunk in sequence.items:
+        if isinstance(chunk, RuleReference):
+            if data[chunk.rule_name] is None:
+                raise ParseError(f"Missing expansion rule <{chunk.rule_name}>")
+
+            string_items.append(data[chunk.rule_name].text or "")
+        elif isinstance(chunk, TextChunk):
+            string_items.append(chunk.text)
+        elif isinstance(chunk, ListReference):
+            if chunk.list_name == chunk.slot_name:
+                string_items.append(f"{{{chunk.list_name}}}")
+            else:
+                string_items.append(f"{{{chunk.list_name}:{chunk.slot_name}}}")
+        elif isinstance(chunk, Sequence):
+            string_items.append(compose_items(sequence=chunk, data=data))
+        else:
+            raise ParseError(f"Invalid item <{chunk}>")
+
+    separator = {SequenceType.ALTERNATIVE: ALT_SEP}.get(sequence.type, "")
+    output = separator.join(string_items)
+    if (
+        sequence.type in (SequenceType.GROUP, SequenceType.ALTERNATIVE)
+        and len(sequence.items) > 1
+        and not isinstance(sequence, Sentence)
+    ):
+        output = f"({output})"
+
+    return output
