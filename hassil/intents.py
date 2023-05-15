@@ -43,6 +43,9 @@ class IntentData:
     excludes_context: Dict[str, Any] = field(default_factory=dict)
     """Context items that must not be present for match to be successful."""
 
+    expansion_rules: Dict[str, Sentence] = field(default_factory=dict)
+    """Local expansion rules in the context of a single intent."""
+
     @cached_property
     def sentences(self) -> List[Sentence]:
         """Sentence templates that match this intent."""
@@ -236,6 +239,12 @@ class Intents:
                             slots=data_dict.get("slots", {}),
                             requires_context=data_dict.get("requires_context", {}),
                             excludes_context=data_dict.get("excludes_context", {}),
+                            expansion_rules={
+                                rule_name: parse_sentence(rule_body, keep_text=True)
+                                for rule_name, rule_body in data_dict.get(
+                                    "expansion_rules", {}
+                                ).items()
+                            },
                             response=data_dict.get("response"),
                         )
                         for data_dict in intent_dict["data"]

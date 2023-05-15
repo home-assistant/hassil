@@ -76,7 +76,7 @@ Uses a custom parser written in Python.
   * Refers to a pre-defined list of values in YAML (`lists`)
 * Expansion Rules
   * `<rule_name>`
-  * Refers to a pre-defined expansion rule in YAML (`expansion_rules`)
+  * Refers to a pre-defined expansion rule in YAML (`expansion_rules`), either global or local (particular to the intent to which the sentence refers)
 
 
 ## YAML Format
@@ -100,6 +100,9 @@ intents:
         excludes_context:
           # Must NOT be present in match context
           <name>: <value or list>
+        expansion_rules:
+          # Expansion rules which only apply to the intent, referenced as <rule_name>
+          <rule_name>: <sentence template>
 
 # Optional lists of items that become alternatives in sentence templates
 lists:

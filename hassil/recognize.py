@@ -245,6 +245,15 @@ def recognize_all(
                 if skip_data:
                     continue
 
+            local_settings = MatchSettings(
+                slot_lists=settings.slot_lists,
+                expansion_rules={
+                    **settings.expansion_rules,
+                    **intent_data.expansion_rules,
+                },
+                ignore_whitespace=settings.ignore_whitespace,
+            )
+
             # Check each sentence template
             for intent_sentence in intent_data.sentences:
                 # Create initial context
@@ -253,7 +262,7 @@ def recognize_all(
                     intent_context=intent_context,
                 )
                 maybe_match_contexts = match_expression(
-                    settings, match_context, intent_sentence
+                    local_settings, match_context, intent_sentence
                 )
                 for maybe_match_context in maybe_match_contexts:
                     if not maybe_match_context.is_match:
