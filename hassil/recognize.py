@@ -15,7 +15,7 @@ from .expression import (
     SequenceType,
     TextChunk,
 )
-from .intents import Intent, IntentData, Intents, RangeSlotList, SlotList, TextSlotList
+from .intents import Intent, IntentData, IntentFilter, Intents, RangeSlotList, SlotList, TextSlotList
 from .util import normalize_text, normalize_whitespace
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
@@ -80,6 +80,9 @@ class MatchContext:
 
     intent_context: Dict[str, Any] = field(default_factory=dict)
     """Context items from outside or acquired during matching."""
+
+    matched_intent_filters: List[IntentFilter] = field(default_factory=list)
+    """The filters (slots and required/excluded context) that have produced a match"""
 
     is_start_of_word: bool = True
     """True if current text is the start of a word."""
@@ -199,50 +202,58 @@ def recognize_all(
                 #
                 # Additional context can be added during matching, so we can
                 # only be sure about keys that exist right now.
-                skip_data = False
-                if intent_data.requires_context:
-                    for (
-                        required_key,
-                        required_value,
-                    ) in intent_data.requires_context.items():
-                        if (required_value is None) or (
-                            required_key not in intent_context
-                        ):
-                            # None is wildcard
-                            continue
+                any_filter_matches = len(intent_data.filters) == 0
+                for intent_filter in intent_data.filters:
+                    filter_matches = True
+                    if intent_filter.requires_context:
+                        for (
+                            required_key,
+                            required_value,
+                        ) in intent_filter.requires_context.items():
+                            if (required_value is None) or (
+                                required_key not in intent_context
+                            ):
+                                # None is wildcard
+                                continue
 
-                        # Ensure value matches
-                        actual_value = intent_context[required_key]
-                        if isinstance(required_value, collections.abc.Collection):
-                            if actual_value not in required_value:
-                                skip_data = True
+                            # Ensure value matches
+                            actual_value = intent_context[required_key]
+                            if isinstance(required_value, collections.abc.Collection):
+                                if actual_value not in required_value:
+                                    filter_matches = False
+                                    break
+                            elif actual_value != required_value:
+                                filter_matches = False
                                 break
-                        elif actual_value != required_value:
-                            skip_data = True
-                            break
+                    
+                    if filter_matches:
+                        any_filter_matches = True
+                        break
 
-                if skip_data:
-                    continue
+                    filter_matches = True
+                    if intent_filter.excludes_context:
+                        for (
+                            excluded_key,
+                            excluded_value,
+                        ) in intent_filter.excludes_context.items():
+                            if excluded_key not in intent_context:
+                                continue
 
-                if intent_data.excludes_context:
-                    for (
-                        excluded_key,
-                        excluded_value,
-                    ) in intent_data.requires_context.items():
-                        if excluded_key not in intent_context:
-                            continue
-
-                        # Ensure value does not match
-                        actual_value = intent_context[excluded_key]
-                        if isinstance(excluded_value, collections.abc.Collection):
-                            if actual_value in excluded_value:
-                                skip_data = True
+                            # Ensure value does not match
+                            actual_value = intent_context[excluded_key]
+                            if isinstance(excluded_value, collections.abc.Collection):
+                                if actual_value in excluded_value:
+                                    filter_matches = False
+                                    break
+                            elif actual_value == excluded_value:
+                                filter_matches = False
                                 break
-                        elif actual_value == excluded_value:
-                            skip_data = True
-                            break
+                    
+                    if filter_matches:
+                        any_filter_matches = True
+                        break
 
-                if skip_data:
+                if not any_filter_matches:
                     continue
 
             local_settings = MatchSettings(
@@ -269,73 +280,82 @@ def recognize_all(
                         # Incomplete match with text still left at the end
                         continue
 
-                    skip_match = False
+                    skip_match = True
 
-                    # Verify excluded context
-                    if intent_data.excludes_context:
-                        for (
-                            context_key,
-                            context_value,
-                        ) in intent_data.excludes_context.items():
-                            actual_value = maybe_match_context.intent_context.get(
-                                context_key
-                            )
-                            if actual_value == context_value:
-                                # Exact match to context value
-                                skip_match = True
+                    for intent_filter in intent_data.filters:
+                        
+                        filter_matches = True
+                        
+                        # Verify excluded context
+                        if intent_filter.excludes_context:
+                            for (
+                                context_key,
+                                context_value,
+                            ) in intent_filter.excludes_context.items():
+                                actual_value = maybe_match_context.intent_context.get(
+                                    context_key
+                                )
+                                if actual_value == context_value:
+                                    # Exact match to context value
+                                    filter_matches = False
+                                    break
+
+                                if (
+                                    isinstance(context_value, collections.abc.Collection)
+                                    and not isinstance(context_value, str)
+                                    and (actual_value in context_value)
+                                ):
+                                    # Actual value was in context value list
+                                    filter_matches = False
+                                    break
+
+                        # Verify required context
+                        if (filter_matches) and intent_filter.requires_context:
+                            for (
+                                context_key,
+                                context_value,
+                            ) in intent_filter.requires_context.items():
+                                actual_value = maybe_match_context.intent_context.get(
+                                    context_key
+                                )
+
+                                if (
+                                    actual_value == context_value
+                                    and context_value is not None
+                                ):
+                                    # Exact match to context value, except when context value is required and not provided
+                                    continue
+
+                                if (context_value is None) and (actual_value is not None):
+                                    # Any value matches, as long as it's set
+                                    continue
+
+                                if (
+                                    isinstance(context_value, collections.abc.Collection)
+                                    and not isinstance(context_value, str)
+                                    and (actual_value in context_value)
+                                ):
+                                    # Actual value was in context value list
+                                    continue
+
+                                # Did not match required context
+                                filter_matches = False
                                 break
-
-                            if (
-                                isinstance(context_value, collections.abc.Collection)
-                                and not isinstance(context_value, str)
-                                and (actual_value in context_value)
-                            ):
-                                # Actual value was in context value list
-                                skip_match = True
-                                break
-
-                    # Verify required context
-                    if (not skip_match) and intent_data.requires_context:
-                        for (
-                            context_key,
-                            context_value,
-                        ) in intent_data.requires_context.items():
-                            actual_value = maybe_match_context.intent_context.get(
-                                context_key
-                            )
-
-                            if (
-                                actual_value == context_value
-                                and context_value is not None
-                            ):
-                                # Exact match to context value, except when context value is required and not provided
-                                continue
-
-                            if (context_value is None) and (actual_value is not None):
-                                # Any value matches, as long as it's set
-                                continue
-
-                            if (
-                                isinstance(context_value, collections.abc.Collection)
-                                and not isinstance(context_value, str)
-                                and (actual_value in context_value)
-                            ):
-                                # Actual value was in context value list
-                                continue
-
-                            # Did not match required context
-                            skip_match = True
-                            break
+                        
+                        if filter_matches:
+                            maybe_match_context.matched_intent_filters.append(intent_filter)
+                            skip_match = False
 
                     if skip_match:
                         # Intent context did not match
                         continue
 
                     # Add fixed entities
-                    for slot_name, slot_value in intent_data.slots.items():
-                        maybe_match_context.entities.append(
-                            MatchEntity(name=slot_name, value=slot_value, text="")
-                        )
+                    for maybe_matched_filter in maybe_match_context.matched_intent_filters:
+                        for slot_name, slot_value in maybe_matched_filter.slots.items():
+                            maybe_match_context.entities.append(
+                                MatchEntity(name=slot_name, value=slot_value, text="")
+                            )
 
                     # Return each match
                     response = default_response

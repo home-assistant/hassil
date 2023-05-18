@@ -23,25 +23,31 @@ class ResponseType(str, Enum):
     NO_ENTITY = "no_entity"
     HANDLE_ERROR = "handle_error"
 
-
 @dataclass(frozen=True)
-class IntentData:
-    """Block of sentences and known slots for an intent."""
-
-    sentence_texts: List[str]
-    """Sentence templates that match this intent."""
+class IntentFilter:
+    """A single match filter consisting of required and excluded context and slots."""
 
     slots: Dict[str, Any] = field(default_factory=dict)
     """Slot values that are assumed if intent is matched."""
-
-    response: Optional[str] = None
-    """Key for response to intent."""
 
     requires_context: Dict[str, Any] = field(default_factory=dict)
     """Context items required before match is successful."""
 
     excludes_context: Dict[str, Any] = field(default_factory=dict)
     """Context items that must not be present for match to be successful."""
+
+@dataclass(frozen=True)
+class IntentData:
+    """Block of sentences and filters for an intent."""
+
+    sentence_texts: List[str]
+    """Sentence templates that match this intent."""
+
+    response: Optional[str] = None
+    """Key for response to intent."""
+
+    filters: List[IntentFilter] = field(default_factory=list)
+    """A list of filters, any of which can be matched."""
 
     expansion_rules: Dict[str, Sentence] = field(default_factory=dict)
     """Local expansion rules in the context of a single intent."""
@@ -236,9 +242,20 @@ class Intents:
                     data=[
                         IntentData(
                             sentence_texts=data_dict["sentences"],
-                            slots=data_dict.get("slots", {}),
-                            requires_context=data_dict.get("requires_context", {}),
-                            excludes_context=data_dict.get("excludes_context", {}),
+                            filters=[
+                                IntentFilter(
+                                    slots=intent_filter.get("slots", {}),
+                                    requires_context=intent_filter.get("requires_context", {}),
+                                    excludes_context=intent_filter.get("excludes_context", {}),
+                                )
+                                for intent_filter in data_dict.get("filters", [])
+                            ] if data_dict.get("filters") else [
+                                IntentFilter(
+                                    slots=data_dict.get("slots", {}),
+                                    requires_context=data_dict.get("requires_context", {}),
+                                    excludes_context=data_dict.get("excludes_context", {}),
+                                )
+                            ],
                             expansion_rules={
                                 rule_name: parse_sentence(rule_body, keep_text=True)
                                 for rule_name, rule_body in data_dict.get(

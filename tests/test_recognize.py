@@ -45,6 +45,19 @@ intents:
           domain: "cover"
         slots:
           domain: "cover"
+  OpenDoors:
+    data:
+      - sentences:
+          - "how many doors are open"
+        filters:
+          - slots:
+              domain: "cover"
+              device_class: "door"
+              state: "open"
+          - slots:
+              domain: "binary_sensor"
+              device_class: "door"
+              state: "on"
   Play:
     data:
       - sentences:
@@ -202,6 +215,20 @@ def test_close_not_light(intents, slot_lists):
     result = recognize("close the hue", intents, slot_lists=slot_lists)
     assert result is None
 
+
+# pylint: disable=redefined-outer-name
+def test_open_door(intents, slot_lists):
+    result = recognize("how many doors are open", intents, slot_lists=slot_lists)
+
+    assert result is not None
+    assert result.intent.name == "OpenDoors"
+
+    assert result.entities["device_class"].value == "door"
+
+    matched_domains = [entity.value for entity in result.entities_list if entity.name == "domain"]
+    assert "cover" in matched_domains
+    assert "binary_sensor" in matched_domains
+    
 
 # pylint: disable=redefined-outer-name
 def test_play(intents, slot_lists):
