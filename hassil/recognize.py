@@ -15,7 +15,15 @@ from .expression import (
     SequenceType,
     TextChunk,
 )
-from .intents import Intent, IntentData, IntentFilter, Intents, RangeSlotList, SlotList, TextSlotList
+from .intents import (
+    Intent,
+    IntentData,
+    IntentFilter,
+    Intents,
+    RangeSlotList,
+    SlotList,
+    TextSlotList,
+)
 from .util import normalize_text, normalize_whitespace
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
@@ -225,7 +233,7 @@ def recognize_all(
                             elif actual_value != required_value:
                                 filter_matches = False
                                 break
-                    
+
                     if filter_matches:
                         any_filter_matches = True
                         break
@@ -248,7 +256,7 @@ def recognize_all(
                             elif actual_value == excluded_value:
                                 filter_matches = False
                                 break
-                    
+
                     if filter_matches:
                         any_filter_matches = True
                         break
@@ -283,9 +291,9 @@ def recognize_all(
                     skip_match = True
 
                     for intent_filter in intent_data.filters:
-                        
+
                         filter_matches = True
-                        
+
                         # Verify excluded context
                         if intent_filter.excludes_context:
                             for (
@@ -301,7 +309,9 @@ def recognize_all(
                                     break
 
                                 if (
-                                    isinstance(context_value, collections.abc.Collection)
+                                    isinstance(
+                                        context_value, collections.abc.Collection
+                                    )
                                     and not isinstance(context_value, str)
                                     and (actual_value in context_value)
                                 ):
@@ -326,12 +336,16 @@ def recognize_all(
                                     # Exact match to context value, except when context value is required and not provided
                                     continue
 
-                                if (context_value is None) and (actual_value is not None):
+                                if (context_value is None) and (
+                                    actual_value is not None
+                                ):
                                     # Any value matches, as long as it's set
                                     continue
 
                                 if (
-                                    isinstance(context_value, collections.abc.Collection)
+                                    isinstance(
+                                        context_value, collections.abc.Collection
+                                    )
                                     and not isinstance(context_value, str)
                                     and (actual_value in context_value)
                                 ):
@@ -341,9 +355,11 @@ def recognize_all(
                                 # Did not match required context
                                 filter_matches = False
                                 break
-                        
+
                         if filter_matches:
-                            maybe_match_context.matched_intent_filters.append(intent_filter)
+                            maybe_match_context.matched_intent_filters.append(
+                                intent_filter
+                            )
                             skip_match = False
 
                     if skip_match:
@@ -351,7 +367,9 @@ def recognize_all(
                         continue
 
                     # Add fixed entities
-                    for maybe_matched_filter in maybe_match_context.matched_intent_filters:
+                    for (
+                        maybe_matched_filter
+                    ) in maybe_match_context.matched_intent_filters:
                         for slot_name, slot_value in maybe_matched_filter.slots.items():
                             maybe_match_context.entities.append(
                                 MatchEntity(name=slot_name, value=slot_value, text="")

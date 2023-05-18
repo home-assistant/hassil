@@ -225,10 +225,12 @@ def test_open_door(intents, slot_lists):
 
     assert result.entities["device_class"].value == "door"
 
-    matched_domains = [entity.value for entity in result.entities_list if entity.name == "domain"]
+    matched_domains = [
+        entity.value for entity in result.entities_list if entity.name == "domain"
+    ]
     assert "cover" in matched_domains
     assert "binary_sensor" in matched_domains
-    
+
 
 # pylint: disable=redefined-outer-name
 def test_play(intents, slot_lists):

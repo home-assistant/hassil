@@ -23,6 +23,7 @@ class ResponseType(str, Enum):
     NO_ENTITY = "no_entity"
     HANDLE_ERROR = "handle_error"
 
+
 @dataclass(frozen=True)
 class IntentFilter:
     """A single match filter consisting of required and excluded context and slots."""
@@ -35,6 +36,7 @@ class IntentFilter:
 
     excludes_context: Dict[str, Any] = field(default_factory=dict)
     """Context items that must not be present for match to be successful."""
+
 
 @dataclass(frozen=True)
 class IntentData:
@@ -245,15 +247,25 @@ class Intents:
                             filters=[
                                 IntentFilter(
                                     slots=intent_filter.get("slots", {}),
-                                    requires_context=intent_filter.get("requires_context", {}),
-                                    excludes_context=intent_filter.get("excludes_context", {}),
+                                    requires_context=intent_filter.get(
+                                        "requires_context", {}
+                                    ),
+                                    excludes_context=intent_filter.get(
+                                        "excludes_context", {}
+                                    ),
                                 )
                                 for intent_filter in data_dict.get("filters", [])
-                            ] if data_dict.get("filters") else [
+                            ]
+                            if data_dict.get("filters")
+                            else [
                                 IntentFilter(
                                     slots=data_dict.get("slots", {}),
-                                    requires_context=data_dict.get("requires_context", {}),
-                                    excludes_context=data_dict.get("excludes_context", {}),
+                                    requires_context=data_dict.get(
+                                        "requires_context", {}
+                                    ),
+                                    excludes_context=data_dict.get(
+                                        "excludes_context", {}
+                                    ),
                                 )
                             ],
                             expansion_rules={
