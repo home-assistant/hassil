@@ -291,7 +291,6 @@ def recognize_all(
                     skip_match = True
 
                     for intent_filter in intent_data.filters:
-
                         filter_matches = True
 
                         # Verify excluded context
