@@ -101,6 +101,13 @@ class MatchContext:
         text = PUNCTUATION.sub("", self.text).strip()
         return not text
 
+@dataclass
+class RecognizeResultEntities:
+    entities: Dict[str, MatchEntity] = field(default_factory=dict)
+    """Matched entities mapped by name."""
+
+    entities_list: List[MatchEntity] = field(default_factory=list)
+    """Matched entities as a list (duplicates allowed)."""
 
 @dataclass
 class RecognizeResult:
@@ -112,11 +119,11 @@ class RecognizeResult:
     intent_data: IntentData
     """Matched intent data"""
 
-    entities: Dict[str, MatchEntity] = field(default_factory=dict)
-    """Matched entities mapped by name."""
+    entities: Dict[str, List[str]] = field(default_factory=dict)
+    """All matched entity values by entity name."""
 
-    entities_list: List[MatchEntity] = field(default_factory=list)
-    """Matched entities as a list (duplicates allowed)."""
+    entities_per_filter: Dict[str, RecognizeResultEntities] = field(default_factory=dict)
+    """Matched entities for each matched filter."""
 
     response: Optional[str] = None
     """Key for intent response."""
