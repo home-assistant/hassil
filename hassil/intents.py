@@ -28,9 +28,6 @@ class ResponseType(str, Enum):
 class IntentFilter:
     """A single match filter consisting of required and excluded context and slots."""
 
-    id: str
-    """A unique indentifier of a filter."""
-
     slots: Dict[str, Any] = field(default_factory=dict)
     """Slot values that are assumed if intent is matched."""
 
@@ -249,7 +246,6 @@ class Intents:
                             sentence_texts=data_dict["sentences"],
                             filters=[
                                 IntentFilter(
-                                    id=f"{intent_name}:{data_idx}:{filter_idx}",
                                     slots=intent_filter.get("slots", {}),
                                     requires_context=intent_filter.get(
                                         "requires_context", {}
@@ -258,14 +254,11 @@ class Intents:
                                         "excludes_context", {}
                                     ),
                                 )
-                                for filter_idx, intent_filter in enumerate(
-                                    data_dict.get("filters")
-                                )
+                                for intent_filter in data_dict.get("filters")
                             ]
                             if data_dict.get("filters")
                             else [
                                 IntentFilter(
-                                    id=f"{intent_name}:{data_idx}:0",
                                     slots=data_dict.get("slots", {}),
                                     requires_context=data_dict.get(
                                         "requires_context", {}
@@ -283,7 +276,7 @@ class Intents:
                             },
                             response=data_dict.get("response"),
                         )
-                        for data_idx, data_dict in enumerate(intent_dict["data"])
+                        for data_dict in intent_dict["data"]
                     ],
                 )
                 for intent_name, intent_dict in input_dict["intents"].items()
