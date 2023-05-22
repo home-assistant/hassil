@@ -109,6 +109,9 @@ class RecognizeResultEntities:
     entities_list: List[MatchEntity] = field(default_factory=list)
     """Matched entities as a list (duplicates allowed)."""
 
+    context: Dict[str, Any] = field(default_factory=dict)
+    """Context values acquired during matching."""
+
 @dataclass
 class RecognizeResult:
     """Result of recognition."""
@@ -119,17 +122,14 @@ class RecognizeResult:
     intent_data: IntentData
     """Matched intent data"""
 
-    entities: Dict[str, List[str]] = field(default_factory=dict)
+    entities: Dict[str, List[Any]] = field(default_factory=dict)
     """All matched entity values by entity name."""
 
-    entities_per_filter: Dict[str, RecognizeResultEntities] = field(default_factory=dict)
+    entities_per_filter: List[RecognizeResultEntities] = field(default_factory=list)
     """Matched entities for each matched filter."""
 
     response: Optional[str] = None
     """Key for intent response."""
-
-    context: Dict[str, Any] = field(default_factory=dict)
-    """Context values acquired during matching."""
 
 
 def recognize(
@@ -282,23 +282,24 @@ def recognize_all(
 
             # Check each sentence template
             for intent_sentence in intent_data.sentences:
-                # Create initial context
-                match_context = MatchContext(
-                    text=text,
-                    intent_context=intent_context,
-                )
-                maybe_match_contexts = match_expression(
-                    local_settings, match_context, intent_sentence
-                )
-                for maybe_match_context in maybe_match_contexts:
-                    if not maybe_match_context.is_match:
-                        # Incomplete match with text still left at the end
-                        continue
+                per_filter_result_entities: List[RecognizeResultEntities] = []
+                any_filter_matches = False
 
-                    skip_match = True
+                for intent_filter in intent_data.filters:
+                    # Create initial context
+                    match_context = MatchContext(
+                        text=text,
+                        intent_context=intent_context,
+                    )
+                    maybe_match_contexts = match_expression(
+                        local_settings, match_context, intent_sentence
+                    )
+                    for maybe_match_context in maybe_match_contexts:
+                        if not maybe_match_context.is_match:
+                            # Incomplete match with text still left at the end
+                            continue
 
-                    for intent_filter in intent_data.filters:
-                        filter_matches = True
+                        skip_match = False
 
                         # Verify excluded context
                         if intent_filter.excludes_context:
@@ -311,22 +312,20 @@ def recognize_all(
                                 )
                                 if actual_value == context_value:
                                     # Exact match to context value
-                                    filter_matches = False
+                                    skip_match = True
                                     break
 
                                 if (
-                                    isinstance(
-                                        context_value, collections.abc.Collection
-                                    )
+                                    isinstance(context_value, collections.abc.Collection)
                                     and not isinstance(context_value, str)
                                     and (actual_value in context_value)
                                 ):
                                     # Actual value was in context value list
-                                    filter_matches = False
+                                    skip_match = True
                                     break
 
                         # Verify required context
-                        if (filter_matches) and intent_filter.requires_context:
+                        if (not skip_match) and intent_filter.requires_context:
                             for (
                                 context_key,
                                 context_value,
@@ -342,16 +341,12 @@ def recognize_all(
                                     # Exact match to context value, except when context value is required and not provided
                                     continue
 
-                                if (context_value is None) and (
-                                    actual_value is not None
-                                ):
+                                if (context_value is None) and (actual_value is not None):
                                     # Any value matches, as long as it's set
                                     continue
 
                                 if (
-                                    isinstance(
-                                        context_value, collections.abc.Collection
-                                    )
+                                    isinstance(context_value, collections.abc.Collection)
                                     and not isinstance(context_value, str)
                                     and (actual_value in context_value)
                                 ):
@@ -359,44 +354,57 @@ def recognize_all(
                                     continue
 
                                 # Did not match required context
-                                filter_matches = False
+                                skip_match = True
                                 break
 
-                        if filter_matches:
-                            maybe_match_context.matched_intent_filters.append(
-                                intent_filter
-                            )
-                            skip_match = False
+                        if skip_match:
+                            # No intent context matched, from any filter
+                            continue
+                        
+                        any_filter_matches = True
 
-                    if skip_match:
-                        # Intent context did not match
-                        continue
-
-                    # Add fixed entities
-                    for (
-                        maybe_matched_filter
-                    ) in maybe_match_context.matched_intent_filters:
-                        for slot_name, slot_value in maybe_matched_filter.slots.items():
+                        # Add fixed entities
+                        for slot_name, slot_value in intent_filter.slots.items():
                             maybe_match_context.entities.append(
                                 MatchEntity(name=slot_name, value=slot_value, text="")
                             )
+                        
+                        # Store a new result
+                        per_filter_result_entities.append(
+                            RecognizeResultEntities(
+                                entities={
+                                    entity.name: entity
+                                    for entity in maybe_match_context.entities
+                                },
+                                entities_list=maybe_match_context.entities,
+                                context=maybe_match_context.intent_context
+                            )
+                        )
 
-                    # Return each match
-                    response = default_response
-                    if intent_data.response is not None:
-                        response = intent_data.response
+                if not any_filter_matches:
+                    continue
+                        
+                # Return each match
+                response = default_response
+                if intent_data.response is not None:
+                    response = intent_data.response
 
-                    yield RecognizeResult(
-                        intent=intent,
-                        intent_data=intent_data,
-                        entities={
-                            entity.name: entity
-                            for entity in maybe_match_context.entities
-                        },
-                        entities_list=maybe_match_context.entities,
-                        response=response,
-                        context=maybe_match_context.intent_context,
-                    )
+                yield RecognizeResult(
+                    intent=intent,
+                    intent_data=intent_data,
+                    entities={
+                        entity.name: [
+                            entity_instance.value
+                            for each_filter in per_filter_result_entities
+                            for entity_instance in each_filter.entities.values()
+                            if entity_instance.name == entity.name
+                        ]
+                        for intent_filter in per_filter_result_entities
+                        for entity in intent_filter.entities.values()
+                    },
+                    entities_per_filter=per_filter_result_entities,
+                    response=response,
+                )
 
 
 def is_match(

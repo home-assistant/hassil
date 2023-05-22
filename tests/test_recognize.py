@@ -136,13 +136,14 @@ def test_turn_on(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "TurnOnTV"
 
-    area = result.entities["area"]
-    assert area.name == "area"
-    assert area.value == "area.kitchen"
+    assert "area" in result.entities
+    assert len(result.entities["area"]) > 0
+    
+    assert "area.kitchen" in result.entities["area"]
 
     # From YAML
-    assert result.entities["domain"].value == "media_player"
-    assert result.entities["name"].value == "roku"
+    assert "media_player" in result.entities["domain"]
+    assert "roku" in result.entities["name"]
 
 
 # pylint: disable=redefined-outer-name
@@ -153,12 +154,12 @@ def test_brightness_area(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "SetBrightness"
 
-    assert result.entities["area"].value == "area.living_room"
-    assert result.entities["brightness_pct"].value == 75
+    assert "area.living_room" in result.entities["area"]
+    assert 75 in result.entities["brightness_pct"]
 
     # From YAML
-    assert result.entities["domain"].value == "light"
-    assert result.entities["name"].value == "all"
+    assert "light" in result.entities["domain"]
+    assert "all" in result.entities["name"]
 
 
 # pylint: disable=redefined-outer-name
@@ -169,11 +170,11 @@ def test_brightness_name(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "SetBrightness"
 
-    assert result.entities["name"].value == "light.hue"
-    assert result.entities["brightness_pct"].value == 50
+    assert "light.hue" in result.entities["name"]
+    assert 50 in result.entities["brightness_pct"]
 
     # From YAML
-    assert result.entities["domain"].value == "light"
+    assert "light" in result.entities["domain"]
 
 
 # pylint: disable=redefined-outer-name
@@ -192,10 +193,10 @@ def test_temperature(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "GetTemperature"
 
-    assert result.entities["area"].value == "area.living_room"
+    assert "area.living_room" in result.entities["area"]
 
     # From YAML
-    assert result.entities["domain"].value == "climate"
+    assert "climate" in result.entities["domain"]
 
 
 # pylint: disable=redefined-outer-name
@@ -204,10 +205,10 @@ def test_close_name(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "CloseCover"
 
-    assert result.entities["name"].value == "cover.garage_door"
+    assert "cover.garage_door" in result.entities["name"]
 
     # From YAML
-    assert result.entities["domain"].value == "cover"
+    assert "cover" in result.entities["domain"]
 
 
 # pylint: disable=redefined-outer-name
@@ -223,14 +224,18 @@ def test_open_door(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "OpenDoors"
 
-    assert result.entities["device_class"].value == "door"
+    assert "door" in result.entities["device_class"]
 
-    matched_domains = [
-        entity.value for entity in result.entities_list if entity.name == "domain"
-    ]
-    assert "cover" in matched_domains
-    assert "binary_sensor" in matched_domains
+    assert "cover" in result.entities["domain"]
+    assert "binary_sensor" in result.entities["domain"]
 
+    for matched_filters in result.entities_per_filter:
+        assert matched_filters.entities["domain"] is not None
+        assert matched_filters.entities["state"] is not None
+        if matched_filters.entities["domain"].value == "cover":
+            assert matched_filters.entities["state"].value == "open"
+        elif matched_filters.entities["domain"].value == "binary_sensor":
+            assert matched_filters.entities["state"].value == "on"
 
 # pylint: disable=redefined-outer-name
 def test_play(intents, slot_lists):
@@ -238,10 +243,10 @@ def test_play(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "Play"
 
-    assert result.entities["name"].value == "media_player.roku"
+    assert "media_player.roku" in result.entities["name"]
 
     # From context
-    assert result.context["domain"] == "media_player"
+    assert "media_player" in result.entities_per_filter[0].context["domain"]
 
 
 # pylint: disable=redefined-outer-name
@@ -263,8 +268,8 @@ def test_requires_context_implicit(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "CloseCurtains"
 
-    assert result.entities["domain"].value == "cover"
-    assert result.entities["device_class"].value == "curtain"
+    assert "cover" in result.entities["domain"]
+    assert "curtain" in result.entities["device_class"]
 
 
 # pylint: disable=redefined-outer-name
@@ -313,7 +318,7 @@ def test_list_text_normalized() -> None:
 
     result = recognize("run test 1", intents)
     assert result is not None
-    assert result.entities["test_name"].value == "tEsT    1"
+    assert "tEsT    1" in result.entities["test_name"]
 
 
 def test_skip_prefix() -> None:
@@ -337,7 +342,7 @@ def test_skip_prefix() -> None:
 
     result = recognize("run the test", intents)
     assert result is not None
-    assert result.entities["test_name"].value == "test"
+    assert "test" in result.entities["test_name"]
 
 
 def test_skip_sorted() -> None:
@@ -363,7 +368,7 @@ def test_skip_sorted() -> None:
 
     result = recognize("could you run test", intents)
     assert result is not None
-    assert result.entities["test_name"].value == "test"
+    assert "test" in result.entities["test_name"]
 
 
 def test_response_key() -> None:
@@ -409,8 +414,8 @@ def test_entity_text() -> None:
     for sentence in ("run test alpha, now", "run test alpha!", "alpha test"):
         result = recognize(sentence, intents)
         assert result is not None, sentence
-        assert result.entities["name"].value == "A"
-        assert result.entities["name"].text_clean == "alpha"
+        assert "A" in result.entities["name"]
+        assert result.entities_per_filter[0].entities["name"].text_clean == "alpha"
 
 
 def test_number_text() -> None:
@@ -436,8 +441,8 @@ def test_number_text() -> None:
     for sentence in ("set 50% now", "set 50%", "50% set"):
         result = recognize(sentence, intents)
         assert result is not None, sentence
-        assert result.entities["percentage"].value == 50
-        assert result.entities["percentage"].text.strip() == "50%"
+        assert result.entities_per_filter[0].entities["percentage"].value == 50
+        assert result.entities_per_filter[0].entities["percentage"].text.strip() == "50%"
 
 
 def test_recognize_all() -> None:
