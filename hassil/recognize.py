@@ -18,7 +18,6 @@ from .expression import (
 from .intents import (
     Intent,
     IntentData,
-    IntentFilter,
     Intents,
     RangeSlotList,
     SlotList,
@@ -88,9 +87,6 @@ class MatchContext:
 
     intent_context: Dict[str, Any] = field(default_factory=dict)
     """Context items from outside or acquired during matching."""
-
-    matched_intent_filters: List[IntentFilter] = field(default_factory=list)
-    """The filters (slots and required/excluded context) that have produced a match"""
 
     is_start_of_word: bool = True
     """True if current text is the start of a word."""
