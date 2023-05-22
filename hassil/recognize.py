@@ -101,6 +101,7 @@ class MatchContext:
         text = PUNCTUATION.sub("", self.text).strip()
         return not text
 
+
 @dataclass
 class RecognizeResultEntities:
     entities: Dict[str, MatchEntity] = field(default_factory=dict)
@@ -111,6 +112,7 @@ class RecognizeResultEntities:
 
     context: Dict[str, Any] = field(default_factory=dict)
     """Context values acquired during matching."""
+
 
 @dataclass
 class RecognizeResult:
@@ -316,7 +318,9 @@ def recognize_all(
                                     break
 
                                 if (
-                                    isinstance(context_value, collections.abc.Collection)
+                                    isinstance(
+                                        context_value, collections.abc.Collection
+                                    )
                                     and not isinstance(context_value, str)
                                     and (actual_value in context_value)
                                 ):
@@ -341,12 +345,16 @@ def recognize_all(
                                     # Exact match to context value, except when context value is required and not provided
                                     continue
 
-                                if (context_value is None) and (actual_value is not None):
+                                if (context_value is None) and (
+                                    actual_value is not None
+                                ):
                                     # Any value matches, as long as it's set
                                     continue
 
                                 if (
-                                    isinstance(context_value, collections.abc.Collection)
+                                    isinstance(
+                                        context_value, collections.abc.Collection
+                                    )
                                     and not isinstance(context_value, str)
                                     and (actual_value in context_value)
                                 ):
@@ -360,7 +368,7 @@ def recognize_all(
                         if skip_match:
                             # No intent context matched, from any filter
                             continue
-                        
+
                         any_filter_matches = True
 
                         # Add fixed entities
@@ -368,7 +376,7 @@ def recognize_all(
                             maybe_match_context.entities.append(
                                 MatchEntity(name=slot_name, value=slot_value, text="")
                             )
-                        
+
                         # Store a new result
                         per_filter_result_entities.append(
                             RecognizeResultEntities(
@@ -377,13 +385,13 @@ def recognize_all(
                                     for entity in maybe_match_context.entities
                                 },
                                 entities_list=maybe_match_context.entities,
-                                context=maybe_match_context.intent_context
+                                context=maybe_match_context.intent_context,
                             )
                         )
 
                 if not any_filter_matches:
                     continue
-                        
+
                 # Return each match
                 response = default_response
                 if intent_data.response is not None:

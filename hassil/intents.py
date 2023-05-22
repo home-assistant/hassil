@@ -258,7 +258,9 @@ class Intents:
                                         "excludes_context", {}
                                     ),
                                 )
-                                for filter_idx, intent_filter in enumerate(data_dict.get("filters"))
+                                for filter_idx, intent_filter in enumerate(
+                                    data_dict.get("filters")
+                                )
                             ]
                             if data_dict.get("filters")
                             else [

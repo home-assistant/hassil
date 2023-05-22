@@ -138,7 +138,7 @@ def test_turn_on(intents, slot_lists):
 
     assert "area" in result.entities
     assert len(result.entities["area"]) > 0
-    
+
     assert "area.kitchen" in result.entities["area"]
 
     # From YAML
@@ -236,6 +236,7 @@ def test_open_door(intents, slot_lists):
             assert matched_filters.entities["state"].value == "open"
         elif matched_filters.entities["domain"].value == "binary_sensor":
             assert matched_filters.entities["state"].value == "on"
+
 
 # pylint: disable=redefined-outer-name
 def test_play(intents, slot_lists):
@@ -442,7 +443,9 @@ def test_number_text() -> None:
         result = recognize(sentence, intents)
         assert result is not None, sentence
         assert result.entities_per_filter[0].entities["percentage"].value == 50
-        assert result.entities_per_filter[0].entities["percentage"].text.strip() == "50%"
+        assert (
+            result.entities_per_filter[0].entities["percentage"].text.strip() == "50%"
+        )
 
 
 def test_recognize_all() -> None:
