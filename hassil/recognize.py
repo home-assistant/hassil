@@ -15,14 +15,7 @@ from .expression import (
     SequenceType,
     TextChunk,
 )
-from .intents import (
-    Intent,
-    IntentData,
-    Intents,
-    RangeSlotList,
-    SlotList,
-    TextSlotList,
-)
+from .intents import Intent, IntentData, Intents, RangeSlotList, SlotList, TextSlotList
 from .util import normalize_text, normalize_whitespace
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
