@@ -4,7 +4,7 @@ import collections.abc
 import itertools
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .expression import (
     Expression,
@@ -83,6 +83,8 @@ class MatchContext:
 
     is_start_of_word: bool = True
     """True if current text is the start of a word."""
+
+    unmatched_lists: List[Tuple[str, List[str]]] = field(default_factory=list)
 
     @property
     def is_match(self) -> bool:
@@ -470,6 +472,7 @@ def match_expression(
                 # Copy over
                 entities=context.entities,
                 intent_context=context.intent_context,
+                unmatched_lists=context.unmatched_lists,
             )
         elif is_context_text_empty and chunk_text.isspace():
             # No text left to match, so extra whitespace is OK to skip
@@ -491,7 +494,21 @@ def match_expression(
                     entities=context.entities,
                     intent_context=context.intent_context,
                     is_start_of_word=context.is_start_of_word,
+                    unmatched_lists=context.unmatched_lists,
                 )
+            elif context.unmatched_lists:
+                # TODO: Ignore whitespace option
+                skip_idx = context_text.find(chunk_text)
+                if skip_idx >= 0:
+                    context.unmatched_lists[-1][1].append(context_text[:skip_idx])
+                    yield MatchContext(
+                        text=context.text[skip_idx + len(chunk_text) :],
+                        # Copy over
+                        entities=context.entities,
+                        intent_context=context.intent_context,
+                        is_start_of_word=True,
+                        unmatched_lists=context.unmatched_lists,
+                    )
     elif isinstance(expression, Sequence):
         seq: Sequence = expression
         if seq.type == SequenceType.ALTERNATIVE:
@@ -528,6 +545,7 @@ def match_expression(
             raise MissingListError(f"Missing slot list {{{list_ref.list_name}}}")
 
         slot_list = settings.slot_lists[list_ref.list_name]
+        list_has_matches = False
         if isinstance(slot_list, TextSlotList):
             if context.text:
                 text_list: TextSlotList = slot_list
@@ -541,11 +559,13 @@ def match_expression(
                             entities=context.entities,
                             intent_context=context.intent_context,
                             is_start_of_word=context.is_start_of_word,
+                            unmatched_lists=context.unmatched_lists,
                         ),
                         slot_value.text_in,
                     )
 
                     for value_context in value_contexts:
+                        list_has_matches = True
                         entities = context.entities + [
                             MatchEntity(
                                 name=list_ref.slot_name,
@@ -567,6 +587,7 @@ def match_expression(
                                 # Copy over
                                 text=value_context.text,
                                 is_start_of_word=context.is_start_of_word,
+                                unmatched_lists=context.unmatched_lists,
                             )
                         else:
                             yield MatchContext(
@@ -575,6 +596,7 @@ def match_expression(
                                 text=value_context.text,
                                 intent_context=value_context.intent_context,
                                 is_start_of_word=context.is_start_of_word,
+                                unmatched_lists=context.unmatched_lists,
                             )
 
         elif isinstance(slot_list, RangeSlotList):
@@ -610,10 +632,24 @@ def match_expression(
                             # Copy over
                             intent_context=context.intent_context,
                             is_start_of_word=context.is_start_of_word,
+                            unmatched_lists=context.unmatched_lists,
                         )
+
+                        # TODO: Catch out of range
+                        list_has_matches = True
 
         else:
             raise ValueError(f"Unexpected slot list type: {slot_list}")
+
+        if not list_has_matches:
+            yield MatchContext(
+                # Copy over
+                text=context.text,
+                entities=context.entities,
+                intent_context=context.intent_context,
+                is_start_of_word=context.is_start_of_word,
+                unmatched_lists=context.unmatched_lists + [(list_ref.list_name, [])],
+            )
 
     elif isinstance(expression, RuleReference):
         # <rule>

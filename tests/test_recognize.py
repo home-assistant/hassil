@@ -513,3 +513,31 @@ def test_local_expansion_rules() -> None:
         result = recognize(sentence, intents)
         assert result is not None, sentence
         assert result.intent.name == "GetSmokeState"
+
+
+def test_unmatched_entity() -> None:
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "turn on {domain} in {area} now"
+    lists:
+      area:
+        values:
+          - kitchen
+          - bedroom
+      domain:
+        values:
+          - lights
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for sentence in (
+        "turn on fans in living room now",
+    ):
+        result = recognize(sentence, intents)
+        assert result is not None, sentence
