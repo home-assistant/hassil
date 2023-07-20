@@ -6,6 +6,7 @@ import pytest
 from hassil import Intents, recognize, recognize_all
 from hassil.expression import TextChunk
 from hassil.intents import TextSlotList
+from hassil.recognize import UnmatchedTextEntity, UnmatchedRangeEntity
 
 TEST_YAML = """
 language: "en"
@@ -522,7 +523,7 @@ def test_unmatched_entity() -> None:
       Test:
         data:
           - sentences:
-              - "turn on {domain} in {area} now"
+              - "set [all] {domain} in {area} to {percent}% now"
     lists:
       area:
         values:
@@ -531,13 +532,26 @@ def test_unmatched_entity() -> None:
       domain:
         values:
           - lights
+      percent:
+        range:
+          type: percentage
+          from: 0
+          to: 100
     """
 
     with io.StringIO(yaml_text) as test_file:
         intents = Intents.from_yaml(test_file)
 
-    for sentence in (
-        "turn on fans in living room now",
-    ):
-        result = recognize(sentence, intents)
-        assert result is not None, sentence
+    for sentence in ("set fans in living room to 101% now",):
+        # Should fail without unmatched entities enabled
+        result = recognize(sentence, intents, allow_unmatched_entities=False)
+        assert result is None, f"{sentence} should not match"
+
+        # Should succeed now
+        result = recognize(sentence, intents, allow_unmatched_entities=True)
+        assert result is not None, f"{sentence} should match"
+        assert result.unmatched_entities == {
+            "domain": UnmatchedTextEntity("domain", "fans "),
+            "area": UnmatchedTextEntity("area", "living room "),
+            "percent": UnmatchedRangeEntity("percent", value=101),
+        }
