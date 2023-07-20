@@ -523,7 +523,7 @@ def test_unmatched_entity() -> None:
       Test:
         data:
           - sentences:
-              - "set [all] {domain} in {area} to {percent}% now"
+              - "set [all] {domain} in {area} to {percent}[%] now"
     lists:
       area:
         values:
@@ -542,16 +542,24 @@ def test_unmatched_entity() -> None:
     with io.StringIO(yaml_text) as test_file:
         intents = Intents.from_yaml(test_file)
 
-    for sentence in ("set fans in living room to 101% now",):
-        # Should fail without unmatched entities enabled
-        result = recognize(sentence, intents, allow_unmatched_entities=False)
-        assert result is None, f"{sentence} should not match"
+    sentence = "set fans in living room to 101% now"
 
-        # Should succeed now
-        result = recognize(sentence, intents, allow_unmatched_entities=True)
-        assert result is not None, f"{sentence} should match"
-        assert result.unmatched_entities == {
-            "domain": UnmatchedTextEntity("domain", "fans "),
-            "area": UnmatchedTextEntity("area", "living room "),
-            "percent": UnmatchedRangeEntity("percent", value=101),
-        }
+    # Should fail without unmatched entities enabled
+    result = recognize(sentence, intents, allow_unmatched_entities=False)
+    assert result is None, f"{sentence} should not match"
+
+    # Should succeed now
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert result.unmatched_entities == {
+        "domain": UnmatchedTextEntity("domain", "fans "),
+        "area": UnmatchedTextEntity("area", "living room "),
+        "percent": UnmatchedRangeEntity("percent", value=101),
+    }
+
+    sentence = "set all lights in kitchen to blah blah blah now"
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert result.unmatched_entities == {
+        "percent": UnmatchedTextEntity("percent", text="blah blah blah "),
+    }

@@ -5,7 +5,7 @@ import itertools
 import re
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import cast, Any, Dict, Iterable, List, Optional, Tuple
+from typing import cast, Any, Dict, Iterable, List, Optional, Union
 
 from .expression import (
     Expression,
@@ -57,17 +57,26 @@ class MatchEntity:
 
 @dataclass
 class UnmatchedEntity(ABC):
+    """Base class for unmatched entities."""
+
     name: str
+    """Name of entity that should have matched."""
 
 
 @dataclass
 class UnmatchedTextEntity(UnmatchedEntity):
+    """Text entity that should have matched."""
+
     text: str
+    """Text that failed to match slot values."""
 
 
 @dataclass
 class UnmatchedRangeEntity(UnmatchedEntity):
+    """Range entity that should have matched."""
+
     value: int
+    """Value of entity that was out of range."""
 
 
 @dataclass
@@ -704,6 +713,18 @@ def match_expression(
                                 )
                             ],
                         )
+                elif settings.allow_unmatched_entities:
+                    # Report not a number
+                    yield MatchContext(
+                        # Copy over
+                        text=context.text,
+                        entities=context.entities,
+                        intent_context=context.intent_context,
+                        is_start_of_word=context.is_start_of_word,
+                        #
+                        unmatched_entities=context.unmatched_entities
+                        + [UnmatchedTextEntity(name=list_ref.list_name, text="")],
+                    )
         else:
             raise ValueError(f"Unexpected slot list type: {slot_list}")
 
