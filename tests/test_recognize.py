@@ -6,7 +6,7 @@ import pytest
 from hassil import Intents, recognize, recognize_all
 from hassil.expression import TextChunk
 from hassil.intents import TextSlotList
-from hassil.recognize import UnmatchedTextEntity, UnmatchedRangeEntity
+from hassil.recognize import UnmatchedRangeEntity, UnmatchedTextEntity
 
 TEST_YAML = """
 language: "en"
@@ -517,6 +517,7 @@ def test_local_expansion_rules() -> None:
 
 
 def test_unmatched_entity() -> None:
+    """Test allow_unmatched_entities option to provide better feedback."""
     yaml_text = """
     language: "en"
     intents:
@@ -563,3 +564,29 @@ def test_unmatched_entity() -> None:
     assert result.unmatched_entities == {
         "percent": UnmatchedTextEntity("percent", text="blah blah blah "),
     }
+
+
+def test_wildcard() -> None:
+    """Test wildcard slot lists/entities."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "play {album} by {artist} [please] now"
+    lists:
+      album:
+        wildcard: true
+      artist:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "play the white album by the beatles please now"
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert result.entities["album"].value == "the white album "
+    assert result.entities["artist"].value == "the beatles "
