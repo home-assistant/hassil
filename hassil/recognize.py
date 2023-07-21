@@ -132,7 +132,10 @@ class MatchContext:
     """Entities that failed to match (requires allow_unmatched_entities=True)."""
 
     close_wildcards: bool = False
+    """True if open wildcards should be closed during init."""
+
     close_unmatched: bool = False
+    """True if open unmatched entities should be closed during init."""
 
     def __post_init__(self):
         if self.close_wildcards:
@@ -148,7 +151,15 @@ class MatchContext:
     def is_match(self) -> bool:
         """True if no text is left that isn't just whitespace or punctuation"""
         text = PUNCTUATION.sub("", self.text).strip()
-        return not text
+        if text:
+            return False
+
+        # Wildcards cannot be empty
+        for entity in self.entities:
+            if entity.is_wildcard and (not entity.text):
+                return False
+
+        return True
 
 
 @dataclass
@@ -581,43 +592,49 @@ def match_expression(
                 and context.entities[-1].is_wildcard
                 and context.entities[-1].is_wildcard_open
             ):
-                # Add to wildcard
-                # TODO: Consider ignore whitespace option
+                # Add to wildcard by skipping ahead in the text until we find
+                # the current chunk text.
                 skip_idx = context_text.find(chunk_text)
                 if skip_idx >= 0:
                     wildcard = context.entities[-1]
                     wildcard.text += context_text[:skip_idx]
-                    wildcard.value = wildcard.text
-                    yield MatchContext(
-                        text=context.text[skip_idx + len(chunk_text) :],
-                        # Copy over
-                        entities=context.entities,
-                        intent_context=context.intent_context,
-                        is_start_of_word=True,
-                        unmatched_entities=context.unmatched_entities,
-                    )
+
+                    # Wildcards cannot be empty
+                    if wildcard.text:
+                        wildcard.value = wildcard.text
+                        yield MatchContext(
+                            text=context.text[skip_idx + len(chunk_text) :],
+                            # Copy over
+                            entities=context.entities,
+                            intent_context=context.intent_context,
+                            is_start_of_word=True,
+                            unmatched_entities=context.unmatched_entities,
+                        )
             elif (
                 settings.allow_unmatched_entities
                 and context.unmatched_entities
                 and isinstance(context.unmatched_entities[-1], UnmatchedTextEntity)
                 and context.unmatched_entities[-1].is_open
             ):
-                # Add to the most recent unmatched entity
-                # TODO: Consider ignore whitespace option
+                # Add to the most recent unmatched entity by skipping ahead in
+                # the text until we find the current chunk text.
                 skip_idx = context_text.find(chunk_text)
                 if skip_idx >= 0:
                     unmatched_entity = cast(
                         UnmatchedTextEntity, context.unmatched_entities[-1]
                     )
                     unmatched_entity.text += context_text[:skip_idx]
-                    yield MatchContext(
-                        text=context.text[skip_idx + len(chunk_text) :],
-                        # Copy over
-                        entities=context.entities,
-                        intent_context=context.intent_context,
-                        is_start_of_word=True,
-                        unmatched_entities=context.unmatched_entities,
-                    )
+
+                    # Unmatched entities cannot be empty
+                    if unmatched_entity.text:
+                        yield MatchContext(
+                            text=context.text[skip_idx + len(chunk_text) :],
+                            # Copy over
+                            entities=context.entities,
+                            intent_context=context.intent_context,
+                            is_start_of_word=True,
+                            unmatched_entities=context.unmatched_entities,
+                        )
             else:
                 # Match failed
                 pass
