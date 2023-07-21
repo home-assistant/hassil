@@ -119,6 +119,8 @@ lists:
       type: "number"
       from: 0
       to: 100  # inclusive
+  <wildcard_name>
+    wildcard: true
 
 # Optional rules that are expanded in sentence templates
 expansion_rules:
