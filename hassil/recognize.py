@@ -3,8 +3,9 @@
 import collections.abc
 import itertools
 import re
+from abc import ABC
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, cast
 
 from .expression import (
     Expression,
@@ -15,7 +16,15 @@ from .expression import (
     SequenceType,
     TextChunk,
 )
-from .intents import Intent, IntentData, Intents, RangeSlotList, SlotList, TextSlotList
+from .intents import (
+    Intent,
+    IntentData,
+    Intents,
+    RangeSlotList,
+    SlotList,
+    TextSlotList,
+    WildcardSlotList,
+)
 from .util import normalize_text, normalize_whitespace
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
@@ -48,10 +57,43 @@ class MatchEntity:
     text: str
     """Original value text."""
 
+    is_wildcard: bool = False
+    """True if entity is a wildcard."""
+
+    is_wildcard_open: bool = True
+    """While True, wildcard can continue matching."""
+
     @property
     def text_clean(self) -> str:
         """Trimmed text with punctuation removed."""
         return PUNCTUATION.sub("", self.text.strip())
+
+
+@dataclass
+class UnmatchedEntity(ABC):
+    """Base class for unmatched entities."""
+
+    name: str
+    """Name of entity that should have matched."""
+
+
+@dataclass
+class UnmatchedTextEntity(UnmatchedEntity):
+    """Text entity that should have matched."""
+
+    text: str
+    """Text that failed to match slot values."""
+
+    is_open: bool = True
+    """While True, entity can continue matching."""
+
+
+@dataclass
+class UnmatchedRangeEntity(UnmatchedEntity):
+    """Range entity that should have matched."""
+
+    value: int
+    """Value of entity that was out of range."""
 
 
 @dataclass
@@ -66,6 +108,8 @@ class MatchSettings:
 
     ignore_whitespace: bool = False
     """True if whitespace should be ignored during matching."""
+
+    allow_unmatched_entities: bool = False
 
 
 @dataclass
@@ -84,11 +128,38 @@ class MatchContext:
     is_start_of_word: bool = True
     """True if current text is the start of a word."""
 
+    unmatched_entities: List[UnmatchedEntity] = field(default_factory=list)
+    """Entities that failed to match (requires allow_unmatched_entities=True)."""
+
+    close_wildcards: bool = False
+    """True if open wildcards should be closed during init."""
+
+    close_unmatched: bool = False
+    """True if open unmatched entities should be closed during init."""
+
+    def __post_init__(self):
+        if self.close_wildcards:
+            for entity in self.entities:
+                entity.is_wildcard_open = False
+
+        if self.close_unmatched:
+            for unmatched_entity in self.unmatched_entities:
+                if isinstance(unmatched_entity, UnmatchedTextEntity):
+                    unmatched_entity.is_open = False
+
     @property
     def is_match(self) -> bool:
         """True if no text is left that isn't just whitespace or punctuation"""
         text = PUNCTUATION.sub("", self.text).strip()
-        return not text
+        if text:
+            return False
+
+        # Wildcards cannot be empty
+        for entity in self.entities:
+            if entity.is_wildcard and (not entity.text):
+                return False
+
+        return True
 
 
 @dataclass
@@ -113,6 +184,12 @@ class RecognizeResult:
     context: Dict[str, Any] = field(default_factory=dict)
     """Context values acquired during matching."""
 
+    unmatched_entities: Dict[str, UnmatchedEntity] = field(default_factory=dict)
+    """Unmatched entities mapped by name."""
+
+    unmatched_entities_list: List[UnmatchedEntity] = field(default_factory=list)
+    """Unmatched entities as a list (duplicates allowed)."""
+
 
 def recognize(
     text: str,
@@ -122,8 +199,22 @@ def recognize(
     skip_words: Optional[Iterable[str]] = None,
     intent_context: Optional[Dict[str, Any]] = None,
     default_response: Optional[str] = "default",
+    allow_unmatched_entities: bool = False,
 ) -> Optional[RecognizeResult]:
-    """Return the first match of input text/words against a collection of intents."""
+    """Return the first match of input text/words against a collection of intents.
+
+    text: Text to recognize
+    intents: Compiled intents
+    slot_lists: Pre-defined text lists, ranges, or wildcards
+    expansion_rules: Named template snippets
+    skip_words: Strings to ignore in text
+    intent_context: Slot values to use when not found in text
+    default_response: Response key to use if not set in intent
+    allow_unmatched_entities: True if entity values outside slot lists are allowed (slower)
+
+    Returns the first result.
+    If allow_unmatched_entities is True, you should check for unmatched entities.
+    """
     for result in recognize_all(
         text,
         intents,
@@ -132,6 +223,7 @@ def recognize(
         skip_words=skip_words,
         intent_context=intent_context,
         default_response=default_response,
+        allow_unmatched_entities=allow_unmatched_entities,
     ):
         return result
 
@@ -146,8 +238,22 @@ def recognize_all(
     skip_words: Optional[Iterable[str]] = None,
     intent_context: Optional[Dict[str, Any]] = None,
     default_response: Optional[str] = "default",
+    allow_unmatched_entities: bool = False,
 ) -> Iterable[RecognizeResult]:
-    """Return all matches for input text/words against a collection of intents."""
+    """Return all matches for input text/words against a collection of intents.
+
+    text: Text to recognize
+    intents: Compiled intents
+    slot_lists: Pre-defined text lists, ranges, or wildcards
+    expansion_rules: Named template snippets
+    skip_words: Strings to ignore in text
+    intent_context: Slot values to use when not found in text
+    default_response: Response key to use if not set in intent
+    allow_unmatched_entities: True if entity values outside slot lists are allowed (slower)
+
+    Yields results as they're matched.
+    If allow_unmatched_entities is True, you should check for unmatched entities.
+    """
     text = normalize_text(text).strip()
 
     if skip_words is None:
@@ -187,6 +293,7 @@ def recognize_all(
         slot_lists=slot_lists,
         expansion_rules=expansion_rules,
         ignore_whitespace=intents.settings.ignore_whitespace,
+        allow_unmatched_entities=allow_unmatched_entities,
     )
 
     # Check sentence against each intent.
@@ -252,6 +359,7 @@ def recognize_all(
                     **intent_data.expansion_rules,
                 },
                 ignore_whitespace=settings.ignore_whitespace,
+                allow_unmatched_entities=allow_unmatched_entities,
             )
 
             # Check each sentence template
@@ -352,6 +460,11 @@ def recognize_all(
                         entities_list=maybe_match_context.entities,
                         response=response,
                         context=maybe_match_context.intent_context,
+                        unmatched_entities={
+                            entity.name: entity
+                            for entity in maybe_match_context.unmatched_entities
+                        },
+                        unmatched_entities_list=maybe_match_context.unmatched_entities,
                     )
 
 
@@ -364,6 +477,7 @@ def is_match(
     entities: Optional[Dict[str, Any]] = None,
     intent_context: Optional[Dict[str, Any]] = None,
     ignore_whitespace: bool = False,
+    allow_unmatched_entities: bool = False,
 ) -> Optional[MatchContext]:
     """Return the first match of input text/words against a sentence expression."""
     text = normalize_text(text).strip()
@@ -390,6 +504,7 @@ def is_match(
         slot_lists=slot_lists,
         expansion_rules=expansion_rules,
         ignore_whitespace=ignore_whitespace,
+        allow_unmatched_entities=allow_unmatched_entities,
     )
 
     match_context = MatchContext(
@@ -463,6 +578,7 @@ def match_expression(
         elif context_text.startswith(chunk_text):
             # Successful match for chunk
             context_text = context_text[len(chunk_text) :]
+            is_chunk_word = bool(chunk_text) and (not chunk_text.isspace())
             yield MatchContext(
                 text=context_text,
                 # must use chunk.text because it hasn't been stripped
@@ -470,6 +586,10 @@ def match_expression(
                 # Copy over
                 entities=context.entities,
                 intent_context=context.intent_context,
+                unmatched_entities=context.unmatched_entities,
+                #
+                close_wildcards=is_chunk_word,
+                close_unmatched=is_chunk_word,
             )
         elif is_context_text_empty and chunk_text.isspace():
             # No text left to match, so extra whitespace is OK to skip
@@ -491,7 +611,59 @@ def match_expression(
                     entities=context.entities,
                     intent_context=context.intent_context,
                     is_start_of_word=context.is_start_of_word,
+                    unmatched_entities=context.unmatched_entities,
                 )
+            elif (
+                context.entities
+                and context.entities[-1].is_wildcard
+                and context.entities[-1].is_wildcard_open
+            ):
+                # Add to wildcard by skipping ahead in the text until we find
+                # the current chunk text.
+                skip_idx = context_text.find(chunk_text)
+                if skip_idx >= 0:
+                    wildcard = context.entities[-1]
+                    wildcard.text += context_text[:skip_idx]
+
+                    # Wildcards cannot be empty
+                    if wildcard.text:
+                        wildcard.value = wildcard.text
+                        yield MatchContext(
+                            text=context.text[skip_idx + len(chunk_text) :],
+                            # Copy over
+                            entities=context.entities,
+                            intent_context=context.intent_context,
+                            is_start_of_word=True,
+                            unmatched_entities=context.unmatched_entities,
+                        )
+            elif (
+                settings.allow_unmatched_entities
+                and context.unmatched_entities
+                and isinstance(context.unmatched_entities[-1], UnmatchedTextEntity)
+                and context.unmatched_entities[-1].is_open
+            ):
+                # Add to the most recent unmatched entity by skipping ahead in
+                # the text until we find the current chunk text.
+                skip_idx = context_text.find(chunk_text)
+                if skip_idx >= 0:
+                    unmatched_entity = cast(
+                        UnmatchedTextEntity, context.unmatched_entities[-1]
+                    )
+                    unmatched_entity.text += context_text[:skip_idx]
+
+                    # Unmatched entities cannot be empty
+                    if unmatched_entity.text:
+                        yield MatchContext(
+                            text=context.text[skip_idx + len(chunk_text) :],
+                            # Copy over
+                            entities=context.entities,
+                            intent_context=context.intent_context,
+                            is_start_of_word=True,
+                            unmatched_entities=context.unmatched_entities,
+                        )
+            else:
+                # Match failed
+                pass
     elif isinstance(expression, Sequence):
         seq: Sequence = expression
         if seq.type == SequenceType.ALTERNATIVE:
@@ -541,11 +713,14 @@ def match_expression(
                             entities=context.entities,
                             intent_context=context.intent_context,
                             is_start_of_word=context.is_start_of_word,
+                            unmatched_entities=context.unmatched_entities,
                         ),
                         slot_value.text_in,
                     )
 
+                    has_matches = False
                     for value_context in value_contexts:
+                        has_matches = True
                         entities = context.entities + [
                             MatchEntity(
                                 name=list_ref.slot_name,
@@ -567,6 +742,7 @@ def match_expression(
                                 # Copy over
                                 text=value_context.text,
                                 is_start_of_word=context.is_start_of_word,
+                                unmatched_entities=context.unmatched_entities,
                             )
                         else:
                             yield MatchContext(
@@ -575,7 +751,22 @@ def match_expression(
                                 text=value_context.text,
                                 intent_context=value_context.intent_context,
                                 is_start_of_word=context.is_start_of_word,
+                                unmatched_entities=context.unmatched_entities,
                             )
+
+                    if (not has_matches) and settings.allow_unmatched_entities:
+                        # Report mismatch
+                        yield MatchContext(
+                            # Copy over
+                            text=context.text,
+                            entities=context.entities,
+                            intent_context=context.intent_context,
+                            is_start_of_word=context.is_start_of_word,
+                            #
+                            unmatched_entities=context.unmatched_entities
+                            + [UnmatchedTextEntity(name=list_ref.list_name, text="")],
+                            close_wildcards=True,
+                        )
 
         elif isinstance(slot_list, RangeSlotList):
             if context.text:
@@ -610,8 +801,55 @@ def match_expression(
                             # Copy over
                             intent_context=context.intent_context,
                             is_start_of_word=context.is_start_of_word,
+                            unmatched_entities=context.unmatched_entities,
                         )
-
+                    elif settings.allow_unmatched_entities:
+                        # Report out of range
+                        yield MatchContext(
+                            # Copy over
+                            text=context.text[len(number_text) :],
+                            entities=context.entities,
+                            intent_context=context.intent_context,
+                            is_start_of_word=context.is_start_of_word,
+                            #
+                            unmatched_entities=context.unmatched_entities
+                            + [
+                                UnmatchedRangeEntity(
+                                    name=list_ref.list_name, value=word_number
+                                )
+                            ],
+                        )
+                elif settings.allow_unmatched_entities:
+                    # Report not a number
+                    yield MatchContext(
+                        # Copy over
+                        text=context.text,
+                        entities=context.entities,
+                        intent_context=context.intent_context,
+                        is_start_of_word=context.is_start_of_word,
+                        #
+                        unmatched_entities=context.unmatched_entities
+                        + [UnmatchedTextEntity(name=list_ref.list_name, text="")],
+                        close_wildcards=True,
+                    )
+        elif isinstance(slot_list, WildcardSlotList):
+            if context.text:
+                # Start wildcard entities
+                yield MatchContext(
+                    # Copy over
+                    text=context.text,
+                    intent_context=context.intent_context,
+                    is_start_of_word=context.is_start_of_word,
+                    unmatched_entities=context.unmatched_entities,
+                    #
+                    entities=context.entities
+                    + [
+                        MatchEntity(
+                            name=list_ref.list_name, value="", text="", is_wildcard=True
+                        )
+                    ],
+                    close_unmatched=True,
+                )
         else:
             raise ValueError(f"Unexpected slot list type: {slot_list}")
 

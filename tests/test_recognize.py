@@ -6,6 +6,7 @@ import pytest
 from hassil import Intents, recognize, recognize_all
 from hassil.expression import TextChunk
 from hassil.intents import TextSlotList
+from hassil.recognize import UnmatchedRangeEntity, UnmatchedTextEntity
 
 TEST_YAML = """
 language: "en"
@@ -513,3 +514,93 @@ def test_local_expansion_rules() -> None:
         result = recognize(sentence, intents)
         assert result is not None, sentence
         assert result.intent.name == "GetSmokeState"
+
+
+def test_unmatched_entity() -> None:
+    """Test allow_unmatched_entities option to provide better feedback."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "set [all] {domain} in {area} to {percent}[%] now"
+    lists:
+      area:
+        values:
+          - kitchen
+          - bedroom
+      domain:
+        values:
+          - lights
+      percent:
+        range:
+          type: percentage
+          from: 0
+          to: 100
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "set fans in living room to 101% now"
+
+    # Should fail without unmatched entities enabled
+    result = recognize(sentence, intents, allow_unmatched_entities=False)
+    assert result is None, f"{sentence} should not match"
+
+    # Should succeed now
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.unmatched_entities.keys()) == {"domain", "area", "percent"}
+    domain = result.unmatched_entities["domain"]
+    assert isinstance(domain, UnmatchedTextEntity)
+    assert domain.text == "fans "
+
+    area = result.unmatched_entities["area"]
+    assert isinstance(area, UnmatchedTextEntity)
+    assert area.text == "living room "
+
+    percent = result.unmatched_entities["percent"]
+    assert isinstance(percent, UnmatchedRangeEntity)
+    assert percent.value == 101
+
+    sentence = "set all lights in kitchen to blah blah blah now"
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.unmatched_entities.keys()) == {"percent"}
+
+    percent = result.unmatched_entities["percent"]
+    assert isinstance(percent, UnmatchedTextEntity)
+    assert percent.text == "blah blah blah "
+
+
+def test_wildcard() -> None:
+    """Test wildcard slot lists/entities."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "play {album} by {artist} [please] now"
+    lists:
+      album:
+        wildcard: true
+      artist:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "play the white album by the beatles please now"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert result.entities["album"].value == "the white album "
+    assert result.entities["artist"].value == "the beatles "
+
+    # Wildcards cannot be empty
+    sentence = "play by please now"
+    result = recognize(sentence, intents)
+    assert result is None, f"{sentence} should not match"

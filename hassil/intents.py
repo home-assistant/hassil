@@ -162,6 +162,11 @@ class TextSlotList(SlotList):
 
 
 @dataclass
+class WildcardSlotList(SlotList):
+    """Matches as much text as possible."""
+
+
+@dataclass
 class IntentsSettings:
     """Settings for intents."""
 
@@ -305,6 +310,10 @@ def _parse_list(
             stop=int(range_dict["to"]),
             step=int(range_dict.get("step", 1)),
         )
+
+    if list_dict.get("wildcard", False):
+        # Wildcard
+        return WildcardSlotList()
 
     raise ValueError(f"Unknown slot list type: {list_dict}")
 
