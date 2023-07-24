@@ -373,6 +373,37 @@ def recognize_all(
                     local_settings, match_context, intent_sentence
                 )
                 for maybe_match_context in maybe_match_contexts:
+                    # Close any open wildcards or unmatched entities
+                    final_text = maybe_match_context.text.strip()
+                    if final_text:
+                        if (
+                            maybe_match_context.unmatched_entities
+                            and isinstance(
+                                maybe_match_context.unmatched_entities[-1],
+                                UnmatchedTextEntity,
+                            )
+                            and maybe_match_context.unmatched_entities[-1].is_open
+                        ):
+                            # Consume the rest of the text (unmatched entity)
+                            unmatched_entity = cast(
+                                UnmatchedTextEntity,
+                                maybe_match_context.unmatched_entities[-1],
+                            )
+                            unmatched_entity.text += final_text
+                            unmatched_entity.is_open = False
+                            maybe_match_context.text = ""
+                        elif (
+                            maybe_match_context.entities
+                            and maybe_match_context.entities[-1].is_wildcard
+                            and maybe_match_context.entities[-1].is_wildcard_open
+                        ):
+                            # Consume the rest of the text (wildcard)
+                            wildcard = maybe_match_context.entities[-1]
+                            wildcard.text += final_text
+                            wildcard.value = wildcard.text
+                            wildcard.is_wildcard_open = False
+                            maybe_match_context.text = ""
+
                     if not maybe_match_context.is_match:
                         # Incomplete match with text still left at the end
                         continue

@@ -525,6 +525,7 @@ def test_unmatched_entity() -> None:
         data:
           - sentences:
               - "set [all] {domain} in {area} to {percent}[%] now"
+              - "set {area} {domain} to {percent}"
     lists:
       area:
         values:
@@ -574,6 +575,16 @@ def test_unmatched_entity() -> None:
     assert isinstance(percent, UnmatchedTextEntity)
     assert percent.text == "blah blah blah "
 
+    # Test with unmatched entity at end of sentence
+    sentence = "set kitchen lights to fifty"
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.unmatched_entities.keys()) == {"percent"}
+
+    percent = result.unmatched_entities["percent"]
+    assert isinstance(percent, UnmatchedTextEntity)
+    assert percent.text == "fifty"
+
 
 def test_wildcard() -> None:
     """Test wildcard slot lists/entities."""
@@ -584,6 +595,7 @@ def test_wildcard() -> None:
         data:
           - sentences:
               - "play {album} by {artist} [please] now"
+              - "start {album} by {artist}"
     lists:
       album:
         wildcard: true
@@ -604,3 +616,10 @@ def test_wildcard() -> None:
     sentence = "play by please now"
     result = recognize(sentence, intents)
     assert result is None, f"{sentence} should not match"
+
+    # Test without text at the end
+    sentence = "start the white album by the beatles"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert result.entities["album"].value == "the white album "
+    assert result.entities["artist"].value == "the beatles"
