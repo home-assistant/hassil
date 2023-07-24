@@ -201,7 +201,20 @@ def recognize(
     default_response: Optional[str] = "default",
     allow_unmatched_entities: bool = False,
 ) -> Optional[RecognizeResult]:
-    """Return the first match of input text/words against a collection of intents."""
+    """Return the first match of input text/words against a collection of intents.
+
+    text: Text to recognize
+    intents: Compiled intents
+    slot_lists: Pre-defined text lists, ranges, or wildcards
+    expansion_rules: Named template snippets
+    skip_words: Strings to ignore in text
+    intent_context: Slot values to use when not found in text
+    default_response: Response key to use if not set in intent
+    allow_unmatched_entities: True if entity values outside slot lists are allowed (slower)
+
+    Returns the first result.
+    If allow_unmatched_entities is True, you should check for unmatched entities.
+    """
     for result in recognize_all(
         text,
         intents,
@@ -227,7 +240,20 @@ def recognize_all(
     default_response: Optional[str] = "default",
     allow_unmatched_entities: bool = False,
 ) -> Iterable[RecognizeResult]:
-    """Return all matches for input text/words against a collection of intents."""
+    """Return all matches for input text/words against a collection of intents.
+
+    text: Text to recognize
+    intents: Compiled intents
+    slot_lists: Pre-defined text lists, ranges, or wildcards
+    expansion_rules: Named template snippets
+    skip_words: Strings to ignore in text
+    intent_context: Slot values to use when not found in text
+    default_response: Response key to use if not set in intent
+    allow_unmatched_entities: True if entity values outside slot lists are allowed (slower)
+
+    Yields results as they're matched.
+    If allow_unmatched_entities is True, you should check for unmatched entities.
+    """
     text = normalize_text(text).strip()
 
     if skip_words is None:
