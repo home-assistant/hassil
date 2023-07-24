@@ -68,6 +68,9 @@ Uses a custom parser written in Python.
   * `[the]`
   * `[this | that]`
   * `light[s]`
+* Permutations of words or phrases
+  * `(patience; you must have) my young Padawan`
+  * `is [the] light (on; in <area>)`
 * Slot Lists
   * `{list_name}`
   * `{list_name:slot_name}`

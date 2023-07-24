@@ -39,6 +39,31 @@ def test_group_alternative():
     )
 
 
+def test_group_permutation():
+    assert parse_expression(next_chunk("(test; test2)")) == alt(
+        items=[
+            group(
+                items=[
+                    t(text=" "),
+                    group(items=[t(text="test")]),
+                    t(text=" "),
+                    group(items=[t(text=" test2")]),
+                    t(text=" "),
+                ]
+            ),
+            group(
+                items=[
+                    t(text=" "),
+                    group(items=[t(text=" test2")]),
+                    t(text=" "),
+                    group(items=[t(text="test")]),
+                    t(text=" "),
+                ]
+            ),
+        ],
+    )
+
+
 def test_slot_reference():
     assert parse_expression(next_chunk("{test}")) == ListReference(list_name="test")
 
