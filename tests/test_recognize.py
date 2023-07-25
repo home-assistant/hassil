@@ -678,6 +678,46 @@ def test_unmatched_entity_context() -> None:
     assert name.text == "back door"
 
 
+def test_unmatched_slot_name() -> None:
+    """Test that unmatched entities use slot name instead of list name."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "run {script_name:name}"
+              - "execute script {script_number:number}"
+    lists:
+      script_name:
+        values:
+          - stealth mode
+      script_number:
+        range:
+          from: 1
+          to: 100
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "run missing name"
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.unmatched_entities.keys()) == {"name"}
+
+    sentence = "execute script wrong number"
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.unmatched_entities.keys()) == {"number"}
+
+    # Outside range
+    sentence = "execute script 0"
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.unmatched_entities.keys()) == {"number"}
+
+
 def test_wildcard() -> None:
     """Test wildcard slot lists/entities."""
     yaml_text = """
@@ -752,3 +792,27 @@ def test_optional_wildcard() -> None:
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album"}
     assert result.entities["album"].value == "the white album"
+
+
+def test_wildcard_slot_name() -> None:
+    """Test wildcard uses slot instead of list name."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "run {script_name:name}"
+    lists:
+      script_name:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "run script 1"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"name"}
+    assert result.entities["name"].value == "script 1"

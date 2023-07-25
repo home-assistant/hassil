@@ -835,7 +835,7 @@ def match_expression(
                             is_start_of_word=context.is_start_of_word,
                             #
                             unmatched_entities=context.unmatched_entities
-                            + [UnmatchedTextEntity(name=list_ref.list_name, text="")],
+                            + [UnmatchedTextEntity(name=list_ref.slot_name, text="")],
                             close_wildcards=True,
                         )
 
@@ -886,7 +886,7 @@ def match_expression(
                             unmatched_entities=context.unmatched_entities
                             + [
                                 UnmatchedRangeEntity(
-                                    name=list_ref.list_name, value=word_number
+                                    name=list_ref.slot_name, value=word_number
                                 )
                             ],
                         )
@@ -900,7 +900,7 @@ def match_expression(
                         is_start_of_word=context.is_start_of_word,
                         #
                         unmatched_entities=context.unmatched_entities
-                        + [UnmatchedTextEntity(name=list_ref.list_name, text="")],
+                        + [UnmatchedTextEntity(name=list_ref.slot_name, text="")],
                         close_wildcards=True,
                     )
         elif isinstance(slot_list, WildcardSlotList):
@@ -916,7 +916,7 @@ def match_expression(
                     entities=context.entities
                     + [
                         MatchEntity(
-                            name=list_ref.list_name, value="", text="", is_wildcard=True
+                            name=list_ref.slot_name, value="", text="", is_wildcard=True
                         )
                     ],
                     close_unmatched=True,
