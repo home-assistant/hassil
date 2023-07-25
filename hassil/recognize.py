@@ -518,10 +518,14 @@ def recognize_all(
                         continue
 
                     # Add fixed entities
+                    entity_names = set(
+                        entity.name for entity in maybe_match_context.entities
+                    )
                     for slot_name, slot_value in intent_data.slots.items():
-                        maybe_match_context.entities.append(
-                            MatchEntity(name=slot_name, value=slot_value, text="")
-                        )
+                        if slot_name not in entity_names:
+                            maybe_match_context.entities.append(
+                                MatchEntity(name=slot_name, value=slot_value, text="")
+                            )
 
                     # Return each match
                     response = default_response
