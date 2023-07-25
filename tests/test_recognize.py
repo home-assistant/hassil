@@ -586,6 +586,49 @@ def test_unmatched_entity() -> None:
     assert percent.text == "fifty"
 
 
+def test_no_empty_unmatched_entity() -> None:
+    """Test that unmatched entities are not empty."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "turn on {name}"
+              - "illuminate all[ {area}] lights"
+    lists:
+      name:
+        values:
+          - light
+      area:
+        values:
+          - bedroom
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "turn on "
+    results = list(recognize_all(sentence, intents, allow_unmatched_entities=True))
+    assert not results, f"{sentence} should not match"
+
+    sentence = "illuminate all lights"
+    results = list(recognize_all(sentence, intents, allow_unmatched_entities=True))
+    assert results, f"{sentence} should match"
+    assert len(results) == 1, "Only 1 result expected"
+    assert not results[0].unmatched_entities, "No unmatched entities expected"
+
+    sentence = "illuminate all kitchen lights"
+    results = list(recognize_all(sentence, intents, allow_unmatched_entities=True))
+    assert results, f"{sentence} should match"
+    assert len(results) == 1, "Only 1 result expected"
+    result = results[0]
+    assert set(result.unmatched_entities.keys()) == {"area"}
+    area = result.unmatched_entities["area"]
+    assert isinstance(area, UnmatchedTextEntity)
+    assert area.text == "kitchen "
+
+
 def test_wildcard() -> None:
     """Test wildcard slot lists/entities."""
     yaml_text = """
@@ -609,6 +652,7 @@ def test_wildcard() -> None:
     sentence = "play the white album by the beatles please now"
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"album", "artist"}
     assert result.entities["album"].value == "the white album "
     assert result.entities["artist"].value == "the beatles "
 
@@ -621,5 +665,41 @@ def test_wildcard() -> None:
     sentence = "start the white album by the beatles"
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"album", "artist"}
     assert result.entities["album"].value == "the white album "
     assert result.entities["artist"].value == "the beatles"
+
+
+def test_optional_wildcard() -> None:
+    """Test optional wildcard slot list."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "play {album}[by {artist}]"
+    lists:
+      album:
+        wildcard: true
+      artist:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    # With all wildcards
+    sentence = "play the white album by the beatles"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"album", "artist"}
+    assert result.entities["album"].value == "the white album "
+    assert result.entities["artist"].value == "the beatles"
+
+    # Missing one wildcard
+    sentence = "play the white album"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"album"}
+    assert result.entities["album"].value == "the white album"

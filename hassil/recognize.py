@@ -5,7 +5,7 @@ import itertools
 import re
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, cast
+from typing import Any, Dict, Iterable, List, Optional
 
 from .expression import (
     Expression,
@@ -156,10 +156,39 @@ class MatchContext:
 
         # Wildcards cannot be empty
         for entity in self.entities:
-            if entity.is_wildcard and (not entity.text):
+            if entity.is_wildcard and (not entity.text.strip()):
+                return False
+
+        # Unmatched entities cannot be empty
+        for unmatched_entity in self.unmatched_entities:
+            if isinstance(unmatched_entity, UnmatchedTextEntity) and (
+                not unmatched_entity.text.strip()
+            ):
                 return False
 
         return True
+
+    def get_open_wildcard(self) -> Optional[MatchEntity]:
+        """Get the last open wildcard or None."""
+        if not self.entities:
+            return None
+
+        last_entity = self.entities[-1]
+        if last_entity.is_wildcard and last_entity.is_wildcard_open:
+            return last_entity
+
+        return None
+
+    def get_open_entity(self) -> Optional[UnmatchedTextEntity]:
+        """Get the last open unmatched text entity or None."""
+        if not self.unmatched_entities:
+            return None
+
+        last_entity = self.unmatched_entities[-1]
+        if isinstance(last_entity, UnmatchedTextEntity) and last_entity.is_open:
+            return last_entity
+
+        return None
 
 
 @dataclass
@@ -376,29 +405,13 @@ def recognize_all(
                     # Close any open wildcards or unmatched entities
                     final_text = maybe_match_context.text.strip()
                     if final_text:
-                        if (
-                            maybe_match_context.unmatched_entities
-                            and isinstance(
-                                maybe_match_context.unmatched_entities[-1],
-                                UnmatchedTextEntity,
-                            )
-                            and maybe_match_context.unmatched_entities[-1].is_open
-                        ):
+                        if unmatched_entity := maybe_match_context.get_open_entity():
                             # Consume the rest of the text (unmatched entity)
-                            unmatched_entity = cast(
-                                UnmatchedTextEntity,
-                                maybe_match_context.unmatched_entities[-1],
-                            )
                             unmatched_entity.text += final_text
                             unmatched_entity.is_open = False
                             maybe_match_context.text = ""
-                        elif (
-                            maybe_match_context.entities
-                            and maybe_match_context.entities[-1].is_wildcard
-                            and maybe_match_context.entities[-1].is_wildcard_open
-                        ):
+                        elif wildcard := maybe_match_context.get_open_wildcard():
                             # Consume the rest of the text (wildcard)
-                            wildcard = maybe_match_context.entities[-1]
                             wildcard.text += final_text
                             wildcard.value = wildcard.text
                             wildcard.is_wildcard_open = False
@@ -644,16 +657,11 @@ def match_expression(
                     is_start_of_word=context.is_start_of_word,
                     unmatched_entities=context.unmatched_entities,
                 )
-            elif (
-                context.entities
-                and context.entities[-1].is_wildcard
-                and context.entities[-1].is_wildcard_open
-            ):
+            elif wildcard := context.get_open_wildcard():
                 # Add to wildcard by skipping ahead in the text until we find
                 # the current chunk text.
                 skip_idx = context_text.find(chunk_text)
                 if skip_idx >= 0:
-                    wildcard = context.entities[-1]
                     wildcard.text += context_text[:skip_idx]
 
                     # Wildcards cannot be empty
@@ -667,19 +675,13 @@ def match_expression(
                             is_start_of_word=True,
                             unmatched_entities=context.unmatched_entities,
                         )
-            elif (
-                settings.allow_unmatched_entities
-                and context.unmatched_entities
-                and isinstance(context.unmatched_entities[-1], UnmatchedTextEntity)
-                and context.unmatched_entities[-1].is_open
+            elif settings.allow_unmatched_entities and (
+                unmatched_entity := context.get_open_entity()
             ):
                 # Add to the most recent unmatched entity by skipping ahead in
                 # the text until we find the current chunk text.
                 skip_idx = context_text.find(chunk_text)
                 if skip_idx >= 0:
-                    unmatched_entity = cast(
-                        UnmatchedTextEntity, context.unmatched_entities[-1]
-                    )
                     unmatched_entity.text += context_text[:skip_idx]
 
                     # Unmatched entities cannot be empty
