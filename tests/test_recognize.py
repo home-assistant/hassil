@@ -6,7 +6,7 @@ import pytest
 from hassil import Intents, recognize, recognize_all
 from hassil.expression import TextChunk
 from hassil.intents import TextSlotList
-from hassil.recognize import UnmatchedRangeEntity, UnmatchedTextEntity
+from hassil.recognize import MISSING_ENTITY, UnmatchedRangeEntity, UnmatchedTextEntity
 
 TEST_YAML = """
 language: "en"
@@ -627,6 +627,55 @@ def test_no_empty_unmatched_entity() -> None:
     area = result.unmatched_entities["area"]
     assert isinstance(area, UnmatchedTextEntity)
     assert area.text == "kitchen "
+
+
+def test_unmatched_entity_context() -> None:
+    """Test that unmatched entities work with requires/excludes context."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "open {name}"
+            requires_context:
+              domain: cover
+    lists:
+      name:
+        values:
+          - garage door
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "open garage door"
+
+    # Should fail when unmatched entities aren't allowed
+    result = recognize(sentence, intents, allow_unmatched_entities=False)
+    assert result is None, f"{sentence} should not match"
+
+    # Should succeed now with an unmatched domain entity
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.unmatched_entities.keys()) == {"domain"}
+    domain = result.unmatched_entities["domain"]
+    assert isinstance(domain, UnmatchedTextEntity)
+    assert domain.text == MISSING_ENTITY
+
+    # Now both entities are unmatched
+    sentence = "open back door"
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.unmatched_entities.keys()) == {"domain", "name"}
+
+    domain = result.unmatched_entities["domain"]
+    assert isinstance(domain, UnmatchedTextEntity)
+    assert domain.text == MISSING_ENTITY
+
+    name = result.unmatched_entities["name"]
+    assert isinstance(name, UnmatchedTextEntity)
+    assert name.text == "back door"
 
 
 def test_wildcard() -> None:

@@ -31,6 +31,8 @@ NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
 PUNCTUATION = re.compile(r"[.。,，?¿？؟!！;；:：]+")
 WHITESPACE = re.compile(r"\s+")
 
+MISSING_ENTITY = "<missing>"
+
 
 class HassilError(Exception):
     """Base class for hassil errors"""
@@ -330,7 +332,7 @@ def recognize_all(
     for intent in intents.intents.values():
         for intent_data in intent.data:
             if intent_context:
-                # Skip sentence templates that can't possible be matched due to
+                # Skip sentence templates that can't possibly be matched due to
                 # requires/excludes context.
                 #
                 # Additional context can be added during matching, so we can
@@ -456,6 +458,19 @@ def recognize_all(
                                 context_key
                             )
 
+                            if allow_unmatched_entities and (actual_value is None):
+                                # Look in unmatched entities
+                                for (
+                                    unmatched_context_entity
+                                ) in maybe_match_context.unmatched_entities:
+                                    if (
+                                        unmatched_context_entity.name == context_key
+                                    ) and isinstance(
+                                        unmatched_context_entity, UnmatchedTextEntity
+                                    ):
+                                        actual_value = unmatched_context_entity.text
+                                        break
+
                             if (
                                 actual_value == context_value
                                 and context_value is not None
@@ -475,9 +490,28 @@ def recognize_all(
                                 # Actual value was in context value list
                                 continue
 
-                            # Did not match required context
-                            skip_match = True
-                            break
+                            if allow_unmatched_entities:
+                                # Create missing entity as unmatched
+                                has_unmatched_entity = False
+                                for (
+                                    unmatched_context_entity
+                                ) in maybe_match_context.unmatched_entities:
+                                    if unmatched_context_entity.name == context_key:
+                                        has_unmatched_entity = True
+                                        break
+
+                                if not has_unmatched_entity:
+                                    maybe_match_context.unmatched_entities.append(
+                                        UnmatchedTextEntity(
+                                            name=context_key,
+                                            text=MISSING_ENTITY,
+                                            is_open=False,
+                                        )
+                                    )
+                            else:
+                                # Did not match required context
+                                skip_match = True
+                                break
 
                     if skip_match:
                         # Intent context did not match
