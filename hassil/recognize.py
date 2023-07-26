@@ -660,8 +660,19 @@ def match_expression(
         else:
             wildcard = context.get_open_wildcard()
             if (wildcard is not None) and (not wildcard.text.strip()):
+                if not chunk_text.strip():
+                    yield MatchContext(
+                        text=context_text,
+                        is_start_of_word=True,
+                        # Copy over
+                        entities=context.entities,
+                        intent_context=context.intent_context,
+                        unmatched_entities=context.unmatched_entities,
+                    )
+                    return
+
                 # Wildcard cannot be empty
-                end_idx = context_text.find(chunk_text, 1)
+                end_idx = context_text.rfind(chunk_text)
                 if end_idx < 1:
                     # Cannot possibly match
                     return

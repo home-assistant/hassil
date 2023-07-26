@@ -770,12 +770,12 @@ def test_wildcard() -> None:
     assert result.entities["artist"].value == "the beatles"
 
     # Test use of next word in wildcard
-    sentence = "play by by by now now"
+    sentence = "play by by by now now now"
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "by "
-    assert result.entities["artist"].value == "by now"
+    assert result.entities["album"].value == "by by "
+    assert result.entities["artist"].value == "now now "
 
 
 def test_optional_wildcard() -> None:
