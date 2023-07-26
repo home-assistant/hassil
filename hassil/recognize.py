@@ -712,7 +712,7 @@ def match_expression(
                         is_start_of_word=context.is_start_of_word,
                         unmatched_entities=context.unmatched_entities,
                     )
-                elif (wildcard is not None):
+                elif wildcard is not None:
                     # Add to wildcard by skipping ahead in the text until we find
                     # the current chunk text.
                     skip_idx = context_text.find(chunk_text)

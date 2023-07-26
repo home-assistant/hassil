@@ -594,8 +594,9 @@ def test_no_empty_unmatched_entity() -> None:
       Test:
         data:
           - sentences:
-              - "turn on {name}"
+              - "turn on {name}[ please]"
               - "illuminate all[ {area}] lights"
+              - "activate {name} now"
     lists:
       name:
         values:
@@ -609,6 +610,11 @@ def test_no_empty_unmatched_entity() -> None:
         intents = Intents.from_yaml(test_file)
 
     sentence = "turn on "
+    results = list(recognize_all(sentence, intents, allow_unmatched_entities=True))
+    assert not results, f"{sentence} should not match"
+
+    # With optional word at end
+    sentence = "turn on please"
     results = list(recognize_all(sentence, intents, allow_unmatched_entities=True))
     assert not results, f"{sentence} should not match"
 
@@ -627,6 +633,11 @@ def test_no_empty_unmatched_entity() -> None:
     area = result.unmatched_entities["area"]
     assert isinstance(area, UnmatchedTextEntity)
     assert area.text == "kitchen "
+
+    # With required word at end
+    sentence = "activate now"
+    results = list(recognize_all(sentence, intents, allow_unmatched_entities=True))
+    assert not results, f"{sentence} should not match"
 
 
 def test_unmatched_entity_context() -> None:
@@ -759,12 +770,12 @@ def test_wildcard() -> None:
     assert result.entities["artist"].value == "the beatles"
 
     # Test use of next word in wildcard
-    sentence = "play by by by by now"
+    sentence = "play by by by now now"
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
     assert result.entities["album"].value == "by "
-    assert result.entities["artist"].value == "by by "
+    assert result.entities["artist"].value == "by now"
 
 
 def test_optional_wildcard() -> None:
