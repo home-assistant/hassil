@@ -737,8 +737,9 @@ def test_wildcard() -> None:
       Test:
         data:
           - sentences:
-              - "play {album} by {artist} [please] now"
+              - "play {album} by {artist}[ please] now"
               - "start {album} by {artist}"
+              - "begin {album} by artist {artist}"
     lists:
       album:
         wildcard: true
@@ -770,12 +771,29 @@ def test_wildcard() -> None:
     assert result.entities["artist"].value == "the beatles"
 
     # Test use of next word in wildcard
-    sentence = "play by by by now now now"
+    sentence = "play day by day by taken by trees now"
+    results = list(recognize_all(sentence, intents))
+    assert results, f"{sentence} should match"
+    assert len(results) == 3  # 3 "by" words
+
+    # Verify each combination of album/artist is present
+    album_artist = {
+        (result.entities["album"].value, result.entities["artist"].value)
+        for result in results
+    }
+    assert album_artist == {
+        ("day ", "day by taken by trees "),
+        ("day by day ", "taken by trees "),
+        ("day by day by taken ", "trees "),
+    }
+
+    # Add "artist" word
+    sentence = "begin day by day by artist taken by trees"
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "by by "
-    assert result.entities["artist"].value == "now now "
+    assert result.entities["album"].value == "day by day "
+    assert result.entities["artist"].value == "taken by trees"
 
 
 def test_optional_wildcard() -> None:

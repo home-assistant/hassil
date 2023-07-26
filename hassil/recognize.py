@@ -661,6 +661,7 @@ def match_expression(
             wildcard = context.get_open_wildcard()
             if (wildcard is not None) and (not wildcard.text.strip()):
                 if not chunk_text.strip():
+                    # Skip space
                     yield MatchContext(
                         text=context_text,
                         is_start_of_word=True,
@@ -672,18 +673,36 @@ def match_expression(
                     return
 
                 # Wildcard cannot be empty
-                end_idx = context_text.rfind(chunk_text)
-                if end_idx < 1:
+                start_idx = context_text.find(chunk_text)
+                if start_idx <= 0:
                     # Cannot possibly match
                     return
 
-                # Consume text until chunk is found later
-                wildcard.text += context_text[:end_idx]
-                wildcard.value = wildcard.text
+                while start_idx > 0:
+                    wildcard_text = context_text[:start_idx]
+                    yield from match_expression(
+                        settings,
+                        MatchContext(
+                            text=context_text[start_idx:],
+                            is_start_of_word=True,
+                            entities=context.entities[:-1]
+                            + [
+                                MatchEntity(
+                                    name=wildcard.name,
+                                    text=wildcard_text,
+                                    value=wildcard_text,
+                                )
+                            ],
+                            # Copy over
+                            intent_context=context.intent_context,
+                            unmatched_entities=context.unmatched_entities,
+                        ),
+                        expression,
+                    )
+                    start_idx = context_text.find(chunk_text, start_idx + 1)
 
-                # Continue matching with the wildcard started
-                context_text = context_text[end_idx:]
-                is_context_text_empty = len(context_text.strip()) == 0
+                # Do not continue with matching
+                return
 
             if context_text.startswith(chunk_text):
                 # Successful match for chunk
