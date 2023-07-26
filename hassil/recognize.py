@@ -657,84 +657,101 @@ def match_expression(
         if chunk.is_empty:
             # Skip empty chunk (NOT whitespace)
             yield context
-        elif context_text.startswith(chunk_text):
-            # Successful match for chunk
-            context_text = context_text[len(chunk_text) :]
-            is_chunk_word = bool(chunk_text) and (not chunk_text.isspace())
-            yield MatchContext(
-                text=context_text,
-                # must use chunk.text because it hasn't been stripped
-                is_start_of_word=chunk.text.endswith(" "),
-                # Copy over
-                entities=context.entities,
-                intent_context=context.intent_context,
-                unmatched_entities=context.unmatched_entities,
-                #
-                close_wildcards=is_chunk_word,
-                close_unmatched=is_chunk_word,
-            )
-        elif is_context_text_empty and chunk_text.isspace():
-            # No text left to match, so extra whitespace is OK to skip
-            yield context
         else:
-            # Remove punctuation and try again
-            context_text = PUNCTUATION.sub("", context.text)
-            context_starts_with = context_text.startswith(chunk_text)
-            if (not context_starts_with) and context.is_start_of_word:
-                # Try stripping whitespace
-                context_text = context_text.lstrip()
-                context_starts_with = context_text.startswith(chunk_text)
+            wildcard = context.get_open_wildcard()
+            if (wildcard is not None) and (not wildcard.text.strip()):
+                # Wildcard cannot be empty
+                end_idx = context_text.find(chunk_text, 1)
+                if end_idx < 1:
+                    # Cannot possibly match
+                    return
 
-            if context_starts_with:
+                # Consume text until chunk is found later
+                wildcard.text += context_text[:end_idx]
+                wildcard.value = wildcard.text
+
+                # Continue matching with the wildcard started
+                context_text = context_text[end_idx:]
+                is_context_text_empty = len(context_text.strip()) == 0
+
+            if context_text.startswith(chunk_text):
+                # Successful match for chunk
                 context_text = context_text[len(chunk_text) :]
+                is_chunk_word = bool(chunk_text) and (not chunk_text.isspace())
                 yield MatchContext(
                     text=context_text,
+                    # must use chunk.text because it hasn't been stripped
+                    is_start_of_word=chunk.text.endswith(" "),
                     # Copy over
                     entities=context.entities,
                     intent_context=context.intent_context,
-                    is_start_of_word=context.is_start_of_word,
                     unmatched_entities=context.unmatched_entities,
+                    #
+                    close_wildcards=is_chunk_word,
+                    close_unmatched=is_chunk_word,
                 )
-            elif wildcard := context.get_open_wildcard():
-                # Add to wildcard by skipping ahead in the text until we find
-                # the current chunk text.
-                skip_idx = context_text.find(chunk_text)
-                if skip_idx >= 0:
-                    wildcard.text += context_text[:skip_idx]
-
-                    # Wildcards cannot be empty
-                    if wildcard.text:
-                        wildcard.value = wildcard.text
-                        yield MatchContext(
-                            text=context.text[skip_idx + len(chunk_text) :],
-                            # Copy over
-                            entities=context.entities,
-                            intent_context=context.intent_context,
-                            is_start_of_word=True,
-                            unmatched_entities=context.unmatched_entities,
-                        )
-            elif settings.allow_unmatched_entities and (
-                unmatched_entity := context.get_open_entity()
-            ):
-                # Add to the most recent unmatched entity by skipping ahead in
-                # the text until we find the current chunk text.
-                skip_idx = context_text.find(chunk_text)
-                if skip_idx >= 0:
-                    unmatched_entity.text += context_text[:skip_idx]
-
-                    # Unmatched entities cannot be empty
-                    if unmatched_entity.text:
-                        yield MatchContext(
-                            text=context.text[skip_idx + len(chunk_text) :],
-                            # Copy over
-                            entities=context.entities,
-                            intent_context=context.intent_context,
-                            is_start_of_word=True,
-                            unmatched_entities=context.unmatched_entities,
-                        )
+            elif is_context_text_empty and chunk_text.isspace():
+                # No text left to match, so extra whitespace is OK to skip
+                yield context
             else:
-                # Match failed
-                pass
+                # Remove punctuation and try again
+                context_text = PUNCTUATION.sub("", context.text)
+                context_starts_with = context_text.startswith(chunk_text)
+                if (not context_starts_with) and context.is_start_of_word:
+                    # Try stripping whitespace
+                    context_text = context_text.lstrip()
+                    context_starts_with = context_text.startswith(chunk_text)
+
+                if context_starts_with:
+                    context_text = context_text[len(chunk_text) :]
+                    yield MatchContext(
+                        text=context_text,
+                        # Copy over
+                        entities=context.entities,
+                        intent_context=context.intent_context,
+                        is_start_of_word=context.is_start_of_word,
+                        unmatched_entities=context.unmatched_entities,
+                    )
+                elif (wildcard is not None):
+                    # Add to wildcard by skipping ahead in the text until we find
+                    # the current chunk text.
+                    skip_idx = context_text.find(chunk_text)
+                    if skip_idx >= 0:
+                        wildcard.text += context_text[:skip_idx]
+
+                        # Wildcards cannot be empty
+                        if wildcard.text:
+                            wildcard.value = wildcard.text
+                            yield MatchContext(
+                                text=context.text[skip_idx + len(chunk_text) :],
+                                # Copy over
+                                entities=context.entities,
+                                intent_context=context.intent_context,
+                                is_start_of_word=True,
+                                unmatched_entities=context.unmatched_entities,
+                            )
+                elif settings.allow_unmatched_entities and (
+                    unmatched_entity := context.get_open_entity()
+                ):
+                    # Add to the most recent unmatched entity by skipping ahead in
+                    # the text until we find the current chunk text.
+                    skip_idx = context_text.find(chunk_text)
+                    if skip_idx >= 0:
+                        unmatched_entity.text += context_text[:skip_idx]
+
+                        # Unmatched entities cannot be empty
+                        if unmatched_entity.text:
+                            yield MatchContext(
+                                text=context.text[skip_idx + len(chunk_text) :],
+                                # Copy over
+                                entities=context.entities,
+                                intent_context=context.intent_context,
+                                is_start_of_word=True,
+                                unmatched_entities=context.unmatched_entities,
+                            )
+                else:
+                    # Match failed
+                    pass
     elif isinstance(expression, Sequence):
         seq: Sequence = expression
         if seq.type == SequenceType.ALTERNATIVE:

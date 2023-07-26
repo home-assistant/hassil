@@ -758,6 +758,14 @@ def test_wildcard() -> None:
     assert result.entities["album"].value == "the white album "
     assert result.entities["artist"].value == "the beatles"
 
+    # Test use of next word in wildcard
+    sentence = "play by by by by now"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"album", "artist"}
+    assert result.entities["album"].value == "by "
+    assert result.entities["artist"].value == "by by "
+
 
 def test_optional_wildcard() -> None:
     """Test optional wildcard slot list."""
