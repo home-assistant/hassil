@@ -674,9 +674,17 @@ def match_expression(
 
                 # Wildcard cannot be empty
                 start_idx = context_text.find(chunk_text)
-                if start_idx <= 0:
+                if start_idx < 0:
                     # Cannot possibly match
                     return
+
+                if start_idx == 0:
+                    # Possible degenerate case where the next word in the
+                    # template duplicates.
+                    start_idx = context_text.find(chunk_text, 1)
+                    if start_idx < 0:
+                        # Cannot possibly match
+                        return
 
                 while start_idx > 0:
                     wildcard_text = context_text[:start_idx]

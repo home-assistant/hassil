@@ -796,6 +796,42 @@ def test_wildcard() -> None:
     assert result.entities["artist"].value == "taken by trees"
 
 
+def test_wildcard_degenerate() -> None:
+    """Test degenerate case for wildcards."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "play {album} by {artist}"
+    lists:
+      album:
+        wildcard: true
+      artist:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "play by by by by by"
+    results = list(recognize_all(sentence, intents))
+    assert results, f"{sentence} should match"
+    assert len(results) == 3  # 3 valid splits
+
+    # Verify each combination
+    album_artist = {
+        (result.entities["album"].value, result.entities["artist"].value)
+        for result in results
+    }
+    assert album_artist == {
+        ("by ", "by by by"),
+        ("by by ", "by by"),
+        ("by by by ", "by"),
+    }
+
+
 def test_optional_wildcard() -> None:
     """Test optional wildcard slot list."""
     yaml_text = """
