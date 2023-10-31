@@ -150,6 +150,25 @@ def test_brightness_area(intents, slot_lists):
 
 
 # pylint: disable=redefined-outer-name
+def test_brightness_area_words(intents, slot_lists):
+    result = recognize(
+        "set brightness in the living room to forty-two percent",
+        intents,
+        slot_lists=slot_lists,
+        language="en",
+    )
+    assert result is not None
+    assert result.intent.name == "SetBrightness"
+
+    assert result.entities["area"].value == "area.living_room"
+    assert result.entities["brightness_pct"].value == 42
+
+    # From YAML
+    assert result.entities["domain"].value == "light"
+    assert result.entities["name"].value == "all"
+
+
+# pylint: disable=redefined-outer-name
 def test_brightness_name(intents, slot_lists):
     result = recognize(
         "set brightness of the hue to 50%", intents, slot_lists=slot_lists

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, Iterable, Optional, Set, Tuple
 
 import yaml
+from unicode_rbnf import RbnfEngine
 
 from .expression import (
     Expression,
@@ -25,6 +26,9 @@ from .util import merge_dict, normalize_whitespace
 
 _LOGGER = logging.getLogger("hassil.sample")
 
+# lang -> engine
+_ENGINE_CACHE: Dict[str, RbnfEngine] = {}
+
 
 def sample_intents(
     intents: Intents,
@@ -32,6 +36,7 @@ def sample_intents(
     expansion_rules: Optional[Dict[str, Sentence]] = None,
     max_sentences_per_intent: Optional[int] = None,
     intent_names: Optional[Set[str]] = None,
+    language: Optional[str] = None,
 ) -> Iterable[Tuple[str, str]]:
     """Sample text strings for sentences from intents."""
     if slot_lists is None:
@@ -63,6 +68,7 @@ def sample_intents(
                     intent_sentence,
                     slot_lists,
                     expansion_rules,
+                    language=language,
                 )
                 for sentence_text in sentence_texts:
                     yield (intent_name, sentence_text)
@@ -85,6 +91,7 @@ def sample_expression(
     expression: Expression,
     slot_lists: Optional[Dict[str, SlotList]] = None,
     expansion_rules: Optional[Dict[str, Sentence]] = None,
+    language: Optional[str] = None,
 ) -> Iterable[str]:
     """Sample possible text strings from an expression."""
     if isinstance(expression, TextChunk):
@@ -98,6 +105,7 @@ def sample_expression(
                     item,
                     slot_lists,
                     expansion_rules,
+                    language=language,
                 )
         elif seq.type == SequenceType.GROUP:
             seq_sentences = map(
@@ -105,6 +113,7 @@ def sample_expression(
                     sample_expression,
                     slot_lists=slot_lists,
                     expansion_rules=expansion_rules,
+                    language=language,
                 ),
                 seq.items,
             )
@@ -132,13 +141,39 @@ def sample_expression(
                     text_value.text_in,
                     slot_lists,
                     expansion_rules,
+                    language=language,
                 )
         elif isinstance(slot_list, RangeSlotList):
             range_list: RangeSlotList = slot_list
-            number_strs = map(
-                str, range(range_list.start, range_list.stop + 1, range_list.step)
-            )
-            yield from number_strs
+
+            if range_list.digits:
+                number_strs = map(
+                    str, range(range_list.start, range_list.stop + 1, range_list.step)
+                )
+                yield from number_strs
+
+            if range_list.words:
+                words_language = range_list.words_language or language
+                if words_language:
+                    engine = _ENGINE_CACHE.get(words_language)
+                    if engine is None:
+                        engine = RbnfEngine.for_language(words_language)
+                        _ENGINE_CACHE[words_language] = engine
+
+                    assert engine is not None
+
+                    # digits -> words
+                    for word_number in range(
+                        range_list.start, range_list.stop + 1, range_list.step
+                    ):
+                        yield engine.format_number(
+                            word_number, ruleset_name=range_list.words_ruleset
+                        )
+                else:
+                    _LOGGER.warning(
+                        "No language set, so cannot convert %s digits to words",
+                        list_ref.slot_name,
+                    )
 
         else:
             raise ValueError(f"Unexpected slot list type: {slot_list}")
@@ -153,6 +188,7 @@ def sample_expression(
             rule_body,
             slot_lists,
             expansion_rules,
+            language=language,
         )
     else:
         raise ValueError(f"Unexpected expression: {expression}")
