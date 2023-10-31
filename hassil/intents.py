@@ -80,11 +80,16 @@ class RangeSlotList(SlotList):
     stop: int
     step: int = 1
     type: RangeType = RangeType.NUMBER
+    digits: bool = True
+    words: bool = True
+    words_language: Optional[str] = None
+    words_ruleset: Optional[str] = None
 
     def __post_init__(self):
         """Validate number range"""
         assert self.start < self.stop, "start must be less than stop"
         assert self.step > 0, "step must be positive"
+        assert self.digits or self.words, "must have digits, words, or both"
 
 
 @dataclass

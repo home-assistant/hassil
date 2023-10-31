@@ -2,10 +2,13 @@
 
 import collections.abc
 import itertools
+import logging
 import re
 from abc import ABC
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
+
+from unicode_rbnf import RbnfEngine
 
 from .expression import (
     Expression,
@@ -28,10 +31,16 @@ from .intents import (
 from .util import normalize_text, normalize_whitespace
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
+BREAK_WORDS_TABLE = str.maketrans("-_", "  ")
 PUNCTUATION = re.compile(r"[.。,，?¿？؟!¡！;；:：]+")
 WHITESPACE = re.compile(r"\s+")
 
 MISSING_ENTITY = "<missing>"
+
+_LOGGER = logging.getLogger()
+
+# lang -> engine
+_ENGINE_CACHE: Dict[str, RbnfEngine] = {}
 
 
 class HassilError(Exception):
@@ -112,6 +121,10 @@ class MatchSettings:
     """True if whitespace should be ignored during matching."""
 
     allow_unmatched_entities: bool = False
+    """True if unmatched entities are kept for better error messages (slower)."""
+
+    language: Optional[str] = None
+    """Optional language to use when converting digits to words."""
 
 
 @dataclass
@@ -231,6 +244,7 @@ def recognize(
     intent_context: Optional[Dict[str, Any]] = None,
     default_response: Optional[str] = "default",
     allow_unmatched_entities: bool = False,
+    language: Optional[str] = None,
 ) -> Optional[RecognizeResult]:
     """Return the first match of input text/words against a collection of intents.
 
@@ -242,6 +256,7 @@ def recognize(
     intent_context: Slot values to use when not found in text
     default_response: Response key to use if not set in intent
     allow_unmatched_entities: True if entity values outside slot lists are allowed (slower)
+    language: Optional language to use when converting digits to words
 
     Returns the first result.
     If allow_unmatched_entities is True, you should check for unmatched entities.
@@ -255,6 +270,7 @@ def recognize(
         intent_context=intent_context,
         default_response=default_response,
         allow_unmatched_entities=allow_unmatched_entities,
+        language=language,
     ):
         return result
 
@@ -270,6 +286,7 @@ def recognize_all(
     intent_context: Optional[Dict[str, Any]] = None,
     default_response: Optional[str] = "default",
     allow_unmatched_entities: bool = False,
+    language: Optional[str] = None,
 ) -> Iterable[RecognizeResult]:
     """Return all matches for input text/words against a collection of intents.
 
@@ -325,6 +342,7 @@ def recognize_all(
         expansion_rules=expansion_rules,
         ignore_whitespace=intents.settings.ignore_whitespace,
         allow_unmatched_entities=allow_unmatched_entities,
+        language=language,
     )
 
     # Check sentence against each intent.
@@ -391,6 +409,7 @@ def recognize_all(
                 },
                 ignore_whitespace=settings.ignore_whitespace,
                 allow_unmatched_entities=allow_unmatched_entities,
+                language=language,
             )
 
             # Check each sentence template
@@ -560,6 +579,7 @@ def is_match(
     intent_context: Optional[Dict[str, Any]] = None,
     ignore_whitespace: bool = False,
     allow_unmatched_entities: bool = False,
+    language: Optional[str] = None,
 ) -> Optional[MatchContext]:
     """Return the first match of input text/words against a sentence expression."""
     text = normalize_text(text).strip()
@@ -587,6 +607,7 @@ def is_match(
         expansion_rules=expansion_rules,
         ignore_whitespace=ignore_whitespace,
         allow_unmatched_entities=allow_unmatched_entities,
+        language=language,
     )
 
     match_context = MatchContext(
@@ -738,6 +759,11 @@ def match_expression(
                 if (not context_starts_with) and context.is_start_of_word:
                     # Try stripping whitespace
                     context_text = context_text.lstrip()
+                    context_starts_with = context_text.startswith(chunk_text)
+
+                if not context_starts_with:
+                    # Try breaking words apart
+                    context_text = context_text.translate(BREAK_WORDS_TABLE)
                     context_starts_with = context_text.startswith(chunk_text)
 
                 if context_starts_with:
@@ -899,10 +925,16 @@ def match_expression(
                 # List that represents a number range.
                 # Numbers must currently be digits ("1" not "one").
                 range_list: RangeSlotList = slot_list
+
+                # Look for digits at the start of the incoming text
                 number_match = NUMBER_START.match(context.text)
-                if number_match is not None:
+
+                digits_match = False
+                if range_list.digits and (number_match is not None):
                     number_text = number_match[1]
                     word_number = int(number_text)
+
+                    # Check if number is within range of our list
                     if range_list.step == 1:
                         # Unit step
                         in_range = range_list.start <= word_number <= range_list.stop
@@ -913,6 +945,8 @@ def match_expression(
                         )
 
                     if in_range:
+                        # Number is in range
+                        digits_match = True
                         entities = context.entities + [
                             MatchEntity(
                                 name=list_ref.slot_name,
@@ -945,7 +979,60 @@ def match_expression(
                                 )
                             ],
                         )
-                elif settings.allow_unmatched_entities:
+
+                # Only check number words if:
+                # 1. Words are enabled for this list
+                # 2. We didn't already match digits
+                # 3. the incoming text doesn't start with digits
+                words_match: bool = False
+                if range_list.words and (not digits_match) and (number_match is None):
+                    words_language = range_list.words_language or settings.language
+                    if words_language:
+                        # Load number formatting engine
+                        engine = _ENGINE_CACHE.get(words_language)
+                        if engine is None:
+                            engine = RbnfEngine.for_language(words_language)
+                            _ENGINE_CACHE[words_language] = engine
+
+                        assert engine is not None
+
+                        for word_number in range(
+                            range_list.start, range_list.stop + 1, range_list.step
+                        ):
+                            number_words = engine.format_number(
+                                word_number, ruleset_name=range_list.words_ruleset
+                            ).translate(BREAK_WORDS_TABLE)
+
+                            entities = context.entities + [
+                                MatchEntity(
+                                    name=list_ref.slot_name,
+                                    value=word_number,
+                                    text=number_words,
+                                )
+                            ]
+                            yield from match_expression(
+                                settings,
+                                MatchContext(
+                                    text=context.text,
+                                    entities=entities,
+                                    # Copy over
+                                    intent_context=context.intent_context,
+                                    is_start_of_word=context.is_start_of_word,
+                                    unmatched_entities=context.unmatched_entities,
+                                ),
+                                TextChunk(number_words),
+                            )
+                    else:
+                        _LOGGER.warning(
+                            "No language set, so cannot convert %s digits to words",
+                            list_ref.slot_name,
+                        )
+
+                if (
+                    (not digits_match)
+                    and (not words_match)
+                    and settings.allow_unmatched_entities
+                ):
                     # Report not a number
                     yield MatchContext(
                         # Copy over

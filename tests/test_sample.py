@@ -63,6 +63,33 @@ def test_list_range():
     }
 
 
+def test_list_range_missing_language():
+    sentence = parse_sentence("run test {num}")
+    num_list = RangeSlotList(1, 3, words=True)
+
+    # Range slot digits cannot be converted to words without a language available.
+    assert set(sample_expression(sentence, slot_lists={"num": num_list})) == {
+        "run test 1",
+        "run test 2",
+        "run test 3",
+    }
+
+
+def test_list_range_words():
+    sentence = parse_sentence("run test {num}")
+    num_list = RangeSlotList(1, 3, words=True)
+    assert set(
+        sample_expression(sentence, slot_lists={"num": num_list}, language="en")
+    ) == {
+        "run test 1",
+        "run test one",
+        "run test 2",
+        "run test two",
+        "run test 3",
+        "run test three",
+    }
+
+
 def test_rule():
     sentence = parse_sentence("turn off <area>")
     assert set(
