@@ -908,3 +908,42 @@ def test_wildcard_slot_name() -> None:
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"name"}
     assert result.entities["name"].value == "script 1"
+
+
+def test_wildcard_ordering() -> None:
+    """Test wildcard ordering by number of literal text chunks."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "play {album} by {artist}"
+              - "play {album} by {artist} in {room}"
+    lists:
+      album:
+        wildcard: true
+      artist:
+        wildcard: true
+      room:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "play the white album by the beatles in the living room"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"album", "artist", "room"}
+    assert result.entities["album"].value == "the white album "
+    assert result.entities["artist"].value == "the beatles "
+    assert result.entities["room"].value == "the living room"
+
+    # Check that the first sentence can still be used
+    sentence = "play the white album by the beatles"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"album", "artist"}
+    assert result.entities["album"].value == "the white album "
+    assert result.entities["artist"].value == "the beatles"

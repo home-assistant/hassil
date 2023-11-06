@@ -49,7 +49,23 @@ class IntentData:
     @cached_property
     def sentences(self) -> List[Sentence]:
         """Sentence templates that match this intent."""
-        return [parse_sentence(text, keep_text=True) for text in self.sentence_texts]
+        sentences = [
+            parse_sentence(text, keep_text=True) for text in self.sentence_texts
+        ]
+
+        # Sort sentences so that ones with more literal text chunks are processed first.
+        # This will reorder certain wildcards, for example:
+        #
+        # - "play {album} by {artist}"
+        # - "play {album} by {artist} in {room}"
+        #
+        # will be reordered to:
+        #
+        # - "play {album} by {artist} in {room}"
+        # - "play {album} by {artist}"
+        sentences = sorted(sentences, key=lambda s: s.text_chunk_count(), reverse=True)
+
+        return sentences
 
 
 @dataclass

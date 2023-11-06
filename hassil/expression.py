@@ -58,6 +58,18 @@ class Sequence(Expression):
     # Group or alternative
     type: SequenceType = SequenceType.GROUP
 
+    def text_chunk_count(self) -> int:
+        """Return the number of TextChunk expressions in this sequence (recursive)."""
+        num_text_chunks = 0
+        for item in self.items:
+            if isinstance(item, TextChunk):
+                num_text_chunks += 1
+            elif isinstance(item, Sequence):
+                seq: Sequence = item
+                num_text_chunks += seq.text_chunk_count()
+
+        return num_text_chunks
+
 
 @dataclass
 class RuleReference(Expression):
