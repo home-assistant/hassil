@@ -2,7 +2,7 @@
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional
+from typing import Iterator, List, Optional
 
 
 @dataclass
@@ -69,6 +69,16 @@ class Sequence(Expression):
                 num_text_chunks += seq.text_chunk_count()
 
         return num_text_chunks
+
+    def list_names(self) -> Iterator[str]:
+        """Return names of list references (recursive)."""
+        for item in self.items:
+            if isinstance(item, ListReference):
+                list_ref: ListReference = item
+                yield list_ref.list_name
+            elif isinstance(item, Sequence):
+                seq: Sequence = item
+                yield from seq.list_names()
 
 
 @dataclass

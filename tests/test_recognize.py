@@ -947,3 +947,34 @@ def test_wildcard_ordering() -> None:
     assert set(result.entities.keys()) == {"album", "artist"}
     assert result.entities["album"].value == "the white album "
     assert result.entities["artist"].value == "the beatles"
+
+
+def test_ordering_only_wildcards() -> None:
+    """Test that re-ordering only affects wildcards."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "turn on {light} in {room}"
+              - "turn on {light}"
+    lists:
+      light:
+        values:
+          - light
+          - light in bedroom
+      room:
+        values:
+          - bedroom
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "turn on light in bedroom"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"light", "room"}
+    assert result.entities["light"].value == "light"
+    assert result.entities["room"].value == "bedroom"

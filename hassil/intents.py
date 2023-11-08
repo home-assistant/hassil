@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
-from typing import IO, Any, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import IO, Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
 from yaml import safe_load
 
@@ -46,6 +46,8 @@ class IntentData:
     expansion_rules: Dict[str, Sentence] = field(default_factory=dict)
     """Local expansion rules in the context of a single intent."""
 
+    wildcard_list_names: Set[str] = field(default_factory=set)
+
     @cached_property
     def sentences(self) -> List[Sentence]:
         """Sentence templates that match this intent."""
@@ -53,7 +55,7 @@ class IntentData:
             parse_sentence(text, keep_text=True) for text in self.sentence_texts
         ]
 
-        # Sort sentences so that ones with more literal text chunks are processed first.
+        # Sort sentences so that wildcards with more literal text chunks are processed first.
         # This will reorder certain wildcards, for example:
         #
         # - "play {album} by {artist}"
@@ -63,9 +65,24 @@ class IntentData:
         #
         # - "play {album} by {artist} in {room}"
         # - "play {album} by {artist}"
-        sentences = sorted(sentences, key=lambda s: s.text_chunk_count(), reverse=True)
+        sentences = sorted(sentences, key=self._sentence_order)
 
         return sentences
+
+    def _sentence_order(self, sentence: Sentence) -> int:
+        has_wildcards = False
+        if self.wildcard_list_names:
+            # Look for wildcard list references
+            for list_name in sentence.list_names():
+                if list_name in self.wildcard_list_names:
+                    has_wildcards = True
+                    break
+
+        if has_wildcards:
+            # Sentences with more text chunks should be processed sooner
+            return -sentence.text_chunk_count()
+
+        return 0
 
 
 @dataclass
@@ -254,6 +271,11 @@ class Intents:
         #     values:
         #       - "<value>"
         #
+        wildcard_list_names: Set[str] = {
+            list_name
+            for list_name, list_dict in input_dict.get("lists", {}).items()
+            if list_dict.get("wildcard", False)
+        }
         return Intents(
             language=input_dict["language"],
             intents={
@@ -272,6 +294,7 @@ class Intents:
                                 ).items()
                             },
                             response=data_dict.get("response"),
+                            wildcard_list_names=wildcard_list_names,
                         )
                         for data_dict in intent_dict["data"]
                     ],
