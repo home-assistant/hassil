@@ -63,11 +63,19 @@ def sample_intents(
         skip_intent = False
 
         for intent_data in intent.data:
+            if intent_data.expansion_rules:
+                local_expansion_rules = {
+                    **expansion_rules,
+                    **intent_data.expansion_rules,
+                }
+            else:
+                local_expansion_rules = expansion_rules
+
             for intent_sentence in intent_data.sentences:
                 sentence_texts = sample_expression(
                     intent_sentence,
                     slot_lists,
-                    expansion_rules,
+                    local_expansion_rules,
                     language=language,
                 )
                 for sentence_text in sentence_texts:
@@ -216,6 +224,7 @@ def main():
     parser.add_argument(
         "--names", nargs="+", default=["entity"], help="Device/entity names"
     )
+    parser.add_argument("--language", help="Language for digits to words")
     parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to the console"
     )
@@ -251,6 +260,7 @@ def main():
         slot_lists,
         max_sentences_per_intent=args.max_sentences_per_intent,
         intent_names=set(args.intents) if args.intents else None,
+        language=args.language,
     )
     for intent_name, sentence_text in intents_and_texts:
         json.dump(

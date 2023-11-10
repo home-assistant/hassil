@@ -369,6 +369,7 @@ def recognize_all(
 
                         # Ensure value matches
                         actual_value = intent_context[required_key]
+
                         if isinstance(required_value, collections.abc.Collection):
                             if actual_value not in required_value:
                                 skip_data = True
