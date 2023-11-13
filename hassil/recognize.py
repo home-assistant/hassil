@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from unicode_rbnf import RbnfEngine
 
+from .edit_distance import edit_distance
 from .expression import (
     Expression,
     ListReference,
@@ -126,6 +127,8 @@ class MatchSettings:
     language: Optional[str] = None
     """Optional language to use when converting digits to words."""
 
+    edit_budget: int = 0
+
 
 @dataclass
 class MatchContext:
@@ -151,6 +154,8 @@ class MatchContext:
 
     close_unmatched: bool = False
     """True if open unmatched entities should be closed during init."""
+
+    edit_cost: int = 0
 
     def __post_init__(self):
         if self.close_wildcards:
@@ -234,6 +239,8 @@ class RecognizeResult:
     unmatched_entities_list: List[UnmatchedEntity] = field(default_factory=list)
     """Unmatched entities as a list (duplicates allowed)."""
 
+    edit_cost: int = 0
+
 
 def recognize(
     text: str,
@@ -245,6 +252,7 @@ def recognize(
     default_response: Optional[str] = "default",
     allow_unmatched_entities: bool = False,
     language: Optional[str] = None,
+    edit_budget: int = 0,
 ) -> Optional[RecognizeResult]:
     """Return the first match of input text/words against a collection of intents.
 
@@ -261,6 +269,9 @@ def recognize(
     Returns the first result.
     If allow_unmatched_entities is True, you should check for unmatched entities.
     """
+    best_result: Optional[RecognizeResult] = None
+    best_cost: Optional[int] = None
+
     for result in recognize_all(
         text,
         intents,
@@ -271,10 +282,16 @@ def recognize(
         default_response=default_response,
         allow_unmatched_entities=allow_unmatched_entities,
         language=language,
+        edit_budget=edit_budget,
     ):
-        return result
+        if edit_budget <= 0:
+            return result
 
-    return None
+        if (best_cost is None) or (result.edit_cost < best_cost):
+            best_cost = result.edit_cost
+            best_result = result
+
+    return best_result
 
 
 def recognize_all(
@@ -287,6 +304,7 @@ def recognize_all(
     default_response: Optional[str] = "default",
     allow_unmatched_entities: bool = False,
     language: Optional[str] = None,
+    edit_budget: int = 0,
 ) -> Iterable[RecognizeResult]:
     """Return all matches for input text/words against a collection of intents.
 
@@ -298,6 +316,7 @@ def recognize_all(
     intent_context: Slot values to use when not found in text
     default_response: Response key to use if not set in intent
     allow_unmatched_entities: True if entity values outside slot lists are allowed (slower)
+    language: Optional language to use when converting digits to words
 
     Yields results as they're matched.
     If allow_unmatched_entities is True, you should check for unmatched entities.
@@ -343,6 +362,7 @@ def recognize_all(
         ignore_whitespace=intents.settings.ignore_whitespace,
         allow_unmatched_entities=allow_unmatched_entities,
         language=language,
+        edit_budget=edit_budget,
     )
 
     # Check sentence against each intent.
@@ -411,6 +431,7 @@ def recognize_all(
                 ignore_whitespace=settings.ignore_whitespace,
                 allow_unmatched_entities=allow_unmatched_entities,
                 language=language,
+                edit_budget=settings.edit_budget,
             )
 
             # Check each sentence template
@@ -567,6 +588,7 @@ def recognize_all(
                             for entity in maybe_match_context.unmatched_entities
                         },
                         unmatched_entities_list=maybe_match_context.unmatched_entities,
+                        edit_cost=maybe_match_context.edit_cost,
                     )
 
 
@@ -691,6 +713,7 @@ def match_expression(
                         entities=context.entities,
                         intent_context=context.intent_context,
                         unmatched_entities=context.unmatched_entities,
+                        edit_cost=context.edit_cost,
                     )
                     return
 
@@ -726,6 +749,7 @@ def match_expression(
                             # Copy over
                             intent_context=context.intent_context,
                             unmatched_entities=context.unmatched_entities,
+                            edit_cost=context.edit_cost,
                         ),
                         expression,
                     )
@@ -746,6 +770,7 @@ def match_expression(
                     entities=context.entities,
                     intent_context=context.intent_context,
                     unmatched_entities=context.unmatched_entities,
+                    edit_cost=context.edit_cost,
                     #
                     close_wildcards=is_chunk_word,
                     close_unmatched=is_chunk_word,
@@ -767,8 +792,35 @@ def match_expression(
                     context_text = context_text.translate(BREAK_WORDS_TABLE)
                     context_starts_with = context_text.startswith(chunk_text)
 
+                context_chars_to_remove = len(chunk_text)
+
+                # Fuzzy matching
+                if not context_starts_with and (
+                    context.edit_cost < settings.edit_budget
+                ):
+                    # See if we have the budget for a fuzzy match
+                    if settings.ignore_whitespace:
+                        # Compute cost against the next context chunk of the same size
+                        context_text_part = context_text[: len(chunk_text)]
+                    else:
+                        # Find the closest word boundary
+                        next_word_idx = context_text.rfind(" ", 0, len(chunk_text))
+                        if 0 < next_word_idx < len(chunk_text):
+                            # Compute cost against the closest word boundary
+                            context_text_part = context_text[: next_word_idx + 1]
+                        else:
+                            # Compute cost against the next context chunk of the same size
+                            context_text_part = context_text[: len(chunk_text)]
+
+                    match_cost = edit_distance(context_text_part, chunk_text)
+                    if (context.edit_cost + match_cost) <= settings.edit_budget:
+                        # Accept the fuzzy match
+                        context.edit_cost += match_cost
+                        context_chars_to_remove = len(context_text_part)
+                        context_starts_with = True
+
                 if context_starts_with:
-                    context_text = context_text[len(chunk_text) :]
+                    context_text = context_text[context_chars_to_remove:]
                     yield MatchContext(
                         text=context_text,
                         # Copy over
@@ -776,6 +828,7 @@ def match_expression(
                         intent_context=context.intent_context,
                         is_start_of_word=context.is_start_of_word,
                         unmatched_entities=context.unmatched_entities,
+                        edit_cost=context.edit_cost,
                     )
                 elif wildcard is not None:
                     # Add to wildcard by skipping ahead in the text until we find
@@ -794,6 +847,7 @@ def match_expression(
                                 intent_context=context.intent_context,
                                 is_start_of_word=True,
                                 unmatched_entities=context.unmatched_entities,
+                                edit_cost=context.edit_cost,
                             )
                 elif settings.allow_unmatched_entities and (
                     unmatched_entity := context.get_open_entity()
@@ -813,6 +867,7 @@ def match_expression(
                                 intent_context=context.intent_context,
                                 is_start_of_word=True,
                                 unmatched_entities=context.unmatched_entities,
+                                edit_cost=context.edit_cost,
                             )
                 else:
                     # Match failed
@@ -867,6 +922,7 @@ def match_expression(
                             intent_context=context.intent_context,
                             is_start_of_word=context.is_start_of_word,
                             unmatched_entities=context.unmatched_entities,
+                            edit_cost=context.edit_cost,
                         ),
                         slot_value.text_in,
                     )
@@ -896,6 +952,7 @@ def match_expression(
                                 text=value_context.text,
                                 is_start_of_word=context.is_start_of_word,
                                 unmatched_entities=context.unmatched_entities,
+                                edit_cost=context.edit_cost,
                             )
                         else:
                             yield MatchContext(
@@ -905,6 +962,7 @@ def match_expression(
                                 intent_context=value_context.intent_context,
                                 is_start_of_word=context.is_start_of_word,
                                 unmatched_entities=context.unmatched_entities,
+                                edit_cost=context.edit_cost,
                             )
 
                     if (not has_matches) and settings.allow_unmatched_entities:
@@ -915,6 +973,7 @@ def match_expression(
                             entities=context.entities,
                             intent_context=context.intent_context,
                             is_start_of_word=context.is_start_of_word,
+                            edit_cost=context.edit_cost,
                             #
                             unmatched_entities=context.unmatched_entities
                             + [UnmatchedTextEntity(name=list_ref.slot_name, text="")],
@@ -963,6 +1022,7 @@ def match_expression(
                             intent_context=context.intent_context,
                             is_start_of_word=context.is_start_of_word,
                             unmatched_entities=context.unmatched_entities,
+                            edit_cost=context.edit_cost,
                         )
                     elif settings.allow_unmatched_entities:
                         # Report out of range
@@ -972,6 +1032,7 @@ def match_expression(
                             entities=context.entities,
                             intent_context=context.intent_context,
                             is_start_of_word=context.is_start_of_word,
+                            edit_cost=context.edit_cost,
                             #
                             unmatched_entities=context.unmatched_entities
                             + [
@@ -1020,6 +1081,7 @@ def match_expression(
                                     intent_context=context.intent_context,
                                     is_start_of_word=context.is_start_of_word,
                                     unmatched_entities=context.unmatched_entities,
+                                    edit_cost=context.edit_cost,
                                 ),
                                 TextChunk(number_words),
                             )
@@ -1041,6 +1103,7 @@ def match_expression(
                         entities=context.entities,
                         intent_context=context.intent_context,
                         is_start_of_word=context.is_start_of_word,
+                        edit_cost=context.edit_cost,
                         #
                         unmatched_entities=context.unmatched_entities
                         + [UnmatchedTextEntity(name=list_ref.slot_name, text="")],
@@ -1055,6 +1118,7 @@ def match_expression(
                     intent_context=context.intent_context,
                     is_start_of_word=context.is_start_of_word,
                     unmatched_entities=context.unmatched_entities,
+                    edit_cost=context.edit_cost,
                     #
                     entities=context.entities
                     + [

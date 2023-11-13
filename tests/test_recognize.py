@@ -134,6 +134,42 @@ def test_turn_on(intents, slot_lists):
 
 
 # pylint: disable=redefined-outer-name
+def test_turn_on_fuzzy(intents, slot_lists):
+    # Not enough of a budget
+    result = recognize("trn on ktchen T", intents, slot_lists=slot_lists, edit_budget=2)
+    assert result is None
+
+    # Exactly enough budget
+    result = recognize("trn on ktchen T", intents, slot_lists=slot_lists, edit_budget=3)
+    assert result is not None
+    assert result.intent.name == "TurnOnTV"
+
+    area = result.entities["area"]
+    assert area.name == "area"
+    assert area.value == "area.kitchen"
+
+    # Should match the shorter area name (kitchen)
+    result = recognize("turn on X TV", intents, slot_lists=slot_lists, edit_budget=50)
+    assert result is not None
+    assert result.intent.name == "TurnOnTV"
+
+    area = result.entities["area"]
+    assert area.name == "area"
+    assert area.value == "area.kitchen"
+
+    # Should match the longer area name (living room)
+    result = recognize(
+        "turn on livXXX rXXX TV", intents, slot_lists=slot_lists, edit_budget=50
+    )
+    assert result is not None
+    assert result.intent.name == "TurnOnTV"
+
+    area = result.entities["area"]
+    assert area.name == "area"
+    assert area.value == "area.living_room"
+
+
+# pylint: disable=redefined-outer-name
 def test_brightness_area(intents, slot_lists):
     result = recognize(
         "set the brightness in the living room to 75%", intents, slot_lists=slot_lists
