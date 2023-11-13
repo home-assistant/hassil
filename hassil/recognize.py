@@ -11,7 +11,6 @@ from typing import Any, Dict, Iterable, List, Optional
 from unicode_rbnf import RbnfEngine
 
 from .edit_distance import edit_distance
-
 from .expression import (
     Expression,
     ListReference,

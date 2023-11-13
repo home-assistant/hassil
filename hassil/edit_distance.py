@@ -1,5 +1,5 @@
 # Based on: https://github.com/nltk/nltk
-from typing import Set, Iterable, Dict, List
+from typing import Dict, Iterable, List, Set
 
 
 def edit_distance(

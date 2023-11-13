@@ -158,7 +158,9 @@ def test_turn_on_fuzzy(intents, slot_lists):
     assert area.value == "area.kitchen"
 
     # Should match the longer area name (living room)
-    result = recognize("turn on livXXX rXXX TV", intents, slot_lists=slot_lists, edit_budget=50)
+    result = recognize(
+        "turn on livXXX rXXX TV", intents, slot_lists=slot_lists, edit_budget=50
+    )
     assert result is not None
     assert result.intent.name == "TurnOnTV"
 
