@@ -63,6 +63,11 @@ intents:
           device_class: "curtain"
         requires_context:
           area:
+            slot: true
+          not_copied: "not copied value"
+          copied_to_different:
+            value: null
+            slot: "different_slot"
 expansion_rules:
   area: "[the] {area}"
   name: "[the] {name}"
@@ -279,7 +284,11 @@ def test_play_no_cover(intents, slot_lists):
 
 # pylint: disable=redefined-outer-name
 def test_requires_context_implicit(intents, slot_lists):
-    intent_context = {"area": "living room"}
+    intent_context = {
+        "area": "living room",
+        "not_copied": "not copied value",
+        "copied_to_different": "copied value",
+    }
 
     result = recognize(
         "close the curtains",
@@ -290,8 +299,17 @@ def test_requires_context_implicit(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "CloseCurtains"
 
+    # test_slot should not be copied over
+    assert set(result.entities.keys()) == {
+        "area",
+        "domain",
+        "device_class",
+        "different_slot",
+    }
+    assert result.entities["area"].value == "living room"
     assert result.entities["domain"].value == "cover"
     assert result.entities["device_class"].value == "curtain"
+    assert result.entities["different_slot"].value == "copied value"
 
 
 # pylint: disable=redefined-outer-name

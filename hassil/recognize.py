@@ -156,6 +156,7 @@ class MatchContext:
     """True if open unmatched entities should be closed during init."""
 
     edit_cost: int = 0
+    """Number of edits that were required to match."""
 
     def __post_init__(self):
         if self.close_wildcards:
@@ -381,11 +382,14 @@ def recognize_all(
                         required_key,
                         required_value,
                     ) in intent_data.requires_context.items():
-                        if (required_value is None) or (
-                            required_key not in intent_context
-                        ):
-                            # None is wildcard
+                        if required_key not in intent_context:
                             continue
+
+                        if isinstance(required_value, collections.abc.Mapping):
+                            # Unpack dict
+                            # <context_key>:
+                            #   value: ...
+                            required_value = required_value.get("value")
 
                         # Ensure value matches
                         actual_value = intent_context[required_key]
@@ -394,7 +398,9 @@ def recognize_all(
                             if actual_value not in required_value:
                                 skip_data = True
                                 break
-                        elif actual_value != required_value:
+                        elif (required_value is not None) and (
+                            actual_value != required_value
+                        ):
                             skip_data = True
                             break
 
@@ -490,11 +496,28 @@ def recognize_all(
                                 break
 
                     # Verify required context
+                    slots_from_context: Dict[str, Any] = {}
                     if (not skip_match) and intent_data.requires_context:
                         for (
                             context_key,
                             context_value,
                         ) in intent_data.requires_context.items():
+                            copy_to_slot: Optional[str] = None
+                            if isinstance(context_value, collections.abc.Mapping):
+                                # Unpack dict
+                                # <context_key>:
+                                #   value: ...
+                                #   slot: true/false or "name"
+                                maybe_copy_to_slot = context_value.get("slot")
+                                if isinstance(maybe_copy_to_slot, str):
+                                    # Slot name provided
+                                    copy_to_slot = maybe_copy_to_slot
+                                elif maybe_copy_to_slot:
+                                    # True
+                                    copy_to_slot = context_key
+
+                                context_value = context_value.get("value")
+
                             actual_value = maybe_match_context.intent_context.get(
                                 context_key
                             )
@@ -517,10 +540,14 @@ def recognize_all(
                                 and context_value is not None
                             ):
                                 # Exact match to context value, except when context value is required and not provided
+                                if copy_to_slot:
+                                    slots_from_context[copy_to_slot] = actual_value
                                 continue
 
                             if (context_value is None) and (actual_value is not None):
                                 # Any value matches, as long as it's set
+                                if copy_to_slot:
+                                    slots_from_context[copy_to_slot] = actual_value
                                 continue
 
                             if (
@@ -529,6 +556,8 @@ def recognize_all(
                                 and (actual_value in context_value)
                             ):
                                 # Actual value was in context value list
+                                if copy_to_slot:
+                                    slots_from_context[copy_to_slot] = actual_value
                                 continue
 
                             if allow_unmatched_entities:
@@ -563,6 +592,13 @@ def recognize_all(
                         entity.name for entity in maybe_match_context.entities
                     )
                     for slot_name, slot_value in intent_data.slots.items():
+                        if slot_name not in entity_names:
+                            maybe_match_context.entities.append(
+                                MatchEntity(name=slot_name, value=slot_value, text="")
+                            )
+
+                    # Add context slots
+                    for slot_name, slot_value in slots_from_context.items():
                         if slot_name not in entity_names:
                             maybe_match_context.entities.append(
                                 MatchEntity(name=slot_name, value=slot_value, text="")
