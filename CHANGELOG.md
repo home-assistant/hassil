@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.1
+
+- Expand `requires_context` to allow copying value to a slot
+
 ## 1.5.0
 
 - Add fuzzy matching using edit distance
