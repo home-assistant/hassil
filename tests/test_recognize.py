@@ -6,7 +6,12 @@ import pytest
 from hassil import Intents, recognize, recognize_all
 from hassil.expression import TextChunk
 from hassil.intents import TextSlotList
-from hassil.recognize import MISSING_ENTITY, UnmatchedRangeEntity, UnmatchedTextEntity
+from hassil.recognize import (
+    MISSING_ENTITY,
+    MatchEntity,
+    UnmatchedRangeEntity,
+    UnmatchedTextEntity,
+)
 
 TEST_YAML = """
 language: "en"
@@ -587,6 +592,40 @@ def test_local_expansion_rules() -> None:
         result = recognize(sentence, intents)
         assert result is not None, sentence
         assert result.intent.name == "GetSmokeState"
+
+
+def test_local_slot_lists() -> None:
+    """Test local slot lists, defined at the intent level"""
+    yaml_text = """
+    language: "en"
+    intents:
+      PlayTrackAtVolume:
+        data:
+          - sentences:
+              - "play {track} at {volume}[%| percent] volume"
+            lists:
+              track:
+                wildcard: true
+    lists:
+      volume:
+        range:
+          from: 1
+          to: 100
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for sentence in ("play paint it black at 90% volume",):
+        result = recognize(sentence, intents)
+        assert result is not None, sentence
+        assert result.intent.name == "PlayTrackAtVolume"
+        track = result.entities.get("track")
+        volume = result.entities.get("volume")
+        assert isinstance(track, MatchEntity)
+        assert track.value == "paint it black "
+        assert isinstance(volume, MatchEntity)
+        assert volume.value == 90
 
 
 def test_unmatched_entity() -> None:

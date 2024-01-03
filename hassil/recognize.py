@@ -429,7 +429,10 @@ def recognize_all(
                     continue
 
             local_settings = MatchSettings(
-                slot_lists=settings.slot_lists,
+                slot_lists={
+                    **settings.slot_lists,
+                    **intent_data.slot_lists,
+                },
                 expansion_rules={
                     **settings.expansion_rules,
                     **intent_data.expansion_rules,

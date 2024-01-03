@@ -74,7 +74,7 @@ Uses a custom parser written in Python.
 * Slot Lists
   * `{list_name}`
   * `{list_name:slot_name}`
-  * Refers to a pre-defined list of values in YAML (`lists`)
+  * Refers to a pre-defined list of values in YAML (`lists`), either global or local (particular to the intent to which the sentence refers)
 * Expansion Rules
   * `<rule_name>`
   * Refers to a pre-defined expansion rule in YAML (`expansion_rules`), either global or local (particular to the intent to which the sentence refers)
@@ -104,6 +104,13 @@ intents:
         expansion_rules:
           # Expansion rules which only apply to the intent, referenced as <rule_name>
           <rule_name>: <sentence template>
+        lists:
+          # Lists which apply only to the current set of sentences, referenced as {list_name} or {list_name:slot_name}
+          <list name>:
+            values:
+              # See below for other possible types
+              - "items"
+              - "in list"
 
 # Optional lists of items that become alternatives in sentence templates
 lists:
