@@ -24,75 +24,6 @@ class ResponseType(str, Enum):
     HANDLE_ERROR = "handle_error"
 
 
-@dataclass(frozen=True)
-class IntentData:
-    """Block of sentences and known slots for an intent."""
-
-    sentence_texts: List[str]
-    """Sentence templates that match this intent."""
-
-    slots: Dict[str, Any] = field(default_factory=dict)
-    """Slot values that are assumed if intent is matched."""
-
-    response: Optional[str] = None
-    """Key for response to intent."""
-
-    requires_context: Dict[str, Any] = field(default_factory=dict)
-    """Context items required before match is successful."""
-
-    excludes_context: Dict[str, Any] = field(default_factory=dict)
-    """Context items that must not be present for match to be successful."""
-
-    expansion_rules: Dict[str, Sentence] = field(default_factory=dict)
-    """Local expansion rules in the context of a single intent."""
-
-    wildcard_list_names: Set[str] = field(default_factory=set)
-
-    @cached_property
-    def sentences(self) -> List[Sentence]:
-        """Sentence templates that match this intent."""
-        sentences = [
-            parse_sentence(text, keep_text=True) for text in self.sentence_texts
-        ]
-
-        # Sort sentences so that wildcards with more literal text chunks are processed first.
-        # This will reorder certain wildcards, for example:
-        #
-        # - "play {album} by {artist}"
-        # - "play {album} by {artist} in {room}"
-        #
-        # will be reordered to:
-        #
-        # - "play {album} by {artist} in {room}"
-        # - "play {album} by {artist}"
-        sentences = sorted(sentences, key=self._sentence_order)
-
-        return sentences
-
-    def _sentence_order(self, sentence: Sentence) -> int:
-        has_wildcards = False
-        if self.wildcard_list_names:
-            # Look for wildcard list references
-            for list_name in sentence.list_names():
-                if list_name in self.wildcard_list_names:
-                    has_wildcards = True
-                    break
-
-        if has_wildcards:
-            # Sentences with more text chunks should be processed sooner
-            return -sentence.text_chunk_count()
-
-        return 0
-
-
-@dataclass
-class Intent:
-    """A named intent with sentences + slots."""
-
-    name: str
-    data: List[IntentData] = field(default_factory=list)
-
-
 class SlotList(ABC):
     """Base class for slot lists."""
 
@@ -204,6 +135,78 @@ class WildcardSlotList(SlotList):
     """Matches as much text as possible."""
 
 
+@dataclass(frozen=True)
+class IntentData:
+    """Block of sentences and known slots for an intent."""
+
+    sentence_texts: List[str]
+    """Sentence templates that match this intent."""
+
+    slots: Dict[str, Any] = field(default_factory=dict)
+    """Slot values that are assumed if intent is matched."""
+
+    response: Optional[str] = None
+    """Key for response to intent."""
+
+    requires_context: Dict[str, Any] = field(default_factory=dict)
+    """Context items required before match is successful."""
+
+    excludes_context: Dict[str, Any] = field(default_factory=dict)
+    """Context items that must not be present for match to be successful."""
+
+    expansion_rules: Dict[str, Sentence] = field(default_factory=dict)
+    """Local expansion rules in the context of a single intent."""
+
+    slot_lists: Dict[str, SlotList] = field(default_factory=dict)
+    """Local slot lists in the context of a single intent."""
+
+    wildcard_list_names: Set[str] = field(default_factory=set)
+
+    @cached_property
+    def sentences(self) -> List[Sentence]:
+        """Sentence templates that match this intent."""
+        sentences = [
+            parse_sentence(text, keep_text=True) for text in self.sentence_texts
+        ]
+
+        # Sort sentences so that wildcards with more literal text chunks are processed first.
+        # This will reorder certain wildcards, for example:
+        #
+        # - "play {album} by {artist}"
+        # - "play {album} by {artist} in {room}"
+        #
+        # will be reordered to:
+        #
+        # - "play {album} by {artist} in {room}"
+        # - "play {album} by {artist}"
+        sentences = sorted(sentences, key=self._sentence_order)
+
+        return sentences
+
+    def _sentence_order(self, sentence: Sentence) -> int:
+        has_wildcards = False
+        if self.wildcard_list_names:
+            # Look for wildcard list references
+            for list_name in sentence.list_names():
+                if list_name in self.wildcard_list_names:
+                    has_wildcards = True
+                    break
+
+        if has_wildcards:
+            # Sentences with more text chunks should be processed sooner
+            return -sentence.text_chunk_count()
+
+        return 0
+
+
+@dataclass
+class Intent:
+    """A named intent with sentences + slots."""
+
+    name: str
+    data: List[IntentData] = field(default_factory=list)
+
+
 @dataclass
 class IntentsSettings:
     """Settings for intents."""
@@ -291,6 +294,12 @@ class Intents:
                                 rule_name: parse_sentence(rule_body, keep_text=True)
                                 for rule_name, rule_body in data_dict.get(
                                     "expansion_rules", {}
+                                ).items()
+                            },
+                            slot_lists={
+                                list_name: _parse_list(list_dict)
+                                for list_name, list_dict in data_dict.get(
+                                    "lists", {}
                                 ).items()
                             },
                             response=data_dict.get("response"),
