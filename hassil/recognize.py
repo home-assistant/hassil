@@ -33,7 +33,9 @@ from .util import normalize_text, normalize_whitespace
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
 BREAK_WORDS_TABLE = str.maketrans("-_", "  ")
-PUNCTUATION = re.compile(r"[.。,，?¿？؟!¡！;；:：]+")
+PUNCTUATION_STR = ".。,，?¿？؟!¡！;；:："
+PUNCTUATION = re.compile(rf"[{re.escape(PUNCTUATION_STR)}]+")
+PUNCTUATION_AT_END = re.compile(rf"[{re.escape(PUNCTUATION_STR)}]+\s*$")
 WHITESPACE = re.compile(r"\s+")
 
 MISSING_ENTITY = "<missing>"
@@ -183,8 +185,14 @@ class MatchContext:
 
         # Wildcards cannot be empty
         for entity in self.entities:
-            if entity.is_wildcard and (not entity.text.strip()):
-                return False
+            if entity.is_wildcard:
+                # Remove punctuation from the end
+                if isinstance(entity.value, str):
+                    entity.value = PUNCTUATION_AT_END.sub("", entity.value)
+                entity.text = PUNCTUATION_AT_END.sub("", entity.text)
+
+                if not entity.text.strip():
+                    return False
 
         # Unmatched entities cannot be empty
         for unmatched_entity in self.unmatched_entities:
