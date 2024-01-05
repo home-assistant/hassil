@@ -1071,3 +1071,30 @@ def test_ordering_only_wildcards() -> None:
     assert set(result.entities.keys()) == {"light", "room"}
     assert result.entities["light"].value == "light"
     assert result.entities["room"].value == "bedroom"
+
+
+def test_wildcard_punctuation() -> None:
+    """Test that wildcards do not include punctuation."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "is {name} in {zone}"
+    lists:
+      name:
+        wildcard: true
+      zone:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "is Alice in New York!?"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"name", "zone"}
+    assert result.entities["name"].value == "alice "
+    assert result.entities["zone"].value == "new york"
