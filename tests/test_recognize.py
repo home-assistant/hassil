@@ -1098,3 +1098,33 @@ def test_wildcard_punctuation() -> None:
     assert set(result.entities.keys()) == {"name", "zone"}
     assert result.entities["name"].value == "alice "
     assert result.entities["zone"].value == "new york"
+
+
+def test_entity_metadata() -> None:
+    """Ensure metadata is returned for text slots"""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "run test {name} [now]"
+              - "{name} test"
+    lists:
+      name:
+        values:
+          - in: "alpha "
+            out: "A"
+            metadata:
+              is_alpha: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for sentence in ("run test alpha, now", "run test alpha!", "alpha test"):
+        result = recognize(sentence, intents)
+        assert result is not None, sentence
+        assert result.entities["name"].value == "A"
+        assert result.entities["name"].text_clean == "alpha"
+        assert result.entities["name"].metadata == {"is_alpha": True}

@@ -69,21 +69,38 @@ class TextSlotValue:
     context: Optional[Dict[str, Any]] = None
     """Items added to context if value is matched"""
 
+    metadata: Optional[Dict[str, Any]] = None
+    """Additional metadata to be returned if value is matched"""
+
     @staticmethod
     def from_tuple(
-        value_tuple: Union[Tuple[str, Any], Tuple[str, Any, Dict[str, Any]]],
+        value_tuple: Union[
+            Tuple[str, Any],
+            Tuple[str, Any, Dict[str, Any]],
+            Tuple[str, Any, Dict[str, Any], Dict[str, Any]],
+        ],
         allow_template: bool = True,
     ) -> "TextSlotValue":
         """Construct text slot value from a tuple."""
-        text_in, value_out, context = value_tuple[0], value_tuple[1], None
+        text_in, value_out, context, metadata = (
+            value_tuple[0],
+            value_tuple[1],
+            None,
+            None,
+        )
 
         if len(value_tuple) > 2:
             context = cast(Tuple[str, Any, Dict[str, Any]], value_tuple)[2]
+        if len(value_tuple) > 3:
+            metadata = cast(
+                Tuple[str, Any, Dict[str, Any], Dict[str, Any]], value_tuple
+            )[3]
 
         return TextSlotValue(
             text_in=_maybe_parse_template(text_in, allow_template),
             value_out=value_out,
             context=context,
+            metadata=metadata,
         )
 
 
@@ -114,7 +131,13 @@ class TextSlotList(SlotList):
 
     @staticmethod
     def from_tuples(
-        tuples: Iterable[Union[Tuple[str, Any], Tuple[str, Any, Dict[str, Any]]]],
+        tuples: Iterable[
+            Union[
+                Tuple[str, Any],
+                Tuple[str, Any, Dict[str, Any]],
+                Tuple[str, Any, Dict[str, Any], Dict[str, Any]],
+            ]
+        ],
         allow_template: bool = True,
     ) -> "TextSlotList":
         """
@@ -349,6 +372,7 @@ def _parse_list(
                         text_in=_maybe_parse_template(value["in"], allow_template),
                         value_out=value["out"],
                         context=value.get("context"),
+                        metadata=value.get("metadata"),
                     )
                 )
 

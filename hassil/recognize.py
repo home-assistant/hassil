@@ -71,6 +71,9 @@ class MatchEntity:
     text: str
     """Original value text."""
 
+    metadata: Optional[Dict[str, Any]] = None
+    """Entity metadata."""
+
     is_wildcard: bool = False
     """True if entity is a wildcard."""
 
@@ -1023,6 +1026,7 @@ def match_expression(
                                 text=context.text[: -len(value_context.text)]
                                 if value_context.text
                                 else context.text,
+                                metadata=slot_value.metadata,
                             )
                         ]
 
