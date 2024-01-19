@@ -1,5 +1,5 @@
 import io
-from typing import cast
+from typing import Set, cast
 
 import pytest
 
@@ -134,6 +134,9 @@ def test_turn_on(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "TurnOnTV"
 
+    # turn, on, TV
+    assert result.text_chunks_matched == 3
+
     area = result.entities["area"]
     assert area.name == "area"
     assert area.value == "area.kitchen"
@@ -186,6 +189,9 @@ def test_brightness_area(intents, slot_lists):
     )
     assert result is not None
     assert result.intent.name == "SetBrightness"
+
+    # set, the, brightness, in, the, to, %
+    assert result.text_chunks_matched == 7
 
     assert result.entities["area"].value == "area.living_room"
     assert result.entities["brightness_pct"].value == 75
@@ -688,14 +694,14 @@ def test_unmatched_entity() -> None:
     assert percent.text == "blah blah blah "
 
     # Test with unmatched entity at end of sentence
-    sentence = "set kitchen lights to fifty"
+    sentence = "set kitchen lights to nothing"
     result = recognize(sentence, intents, allow_unmatched_entities=True)
     assert result is not None, f"{sentence} should match"
     assert set(result.unmatched_entities.keys()) == {"percent"}
 
     percent = result.unmatched_entities["percent"]
     assert isinstance(percent, UnmatchedTextEntity)
-    assert percent.text == "fifty"
+    assert percent.text == "nothing"
 
 
 def test_no_empty_unmatched_entity() -> None:
@@ -839,6 +845,136 @@ def test_unmatched_slot_name() -> None:
     result = recognize(sentence, intents, allow_unmatched_entities=True)
     assert result is not None, f"{sentence} should match"
     assert set(result.unmatched_entities.keys()) == {"number"}
+
+
+def test_unmatched_entity_stops_at_optional() -> None:
+    """Test that unmatched entities do not cross optional text chunks."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "set {area} [to] brightness <brightness>"
+              - "set {name} [to] brightness <brightness>"
+    lists:
+      name:
+        values:
+          - lamp
+      area:
+        values:
+          - kitchen
+      brightness_pct:
+          range:
+            type: percentage
+            from: 0
+            to: 100
+    expansion_rules:
+        brightness: "{brightness_pct}[%| percent]"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "set unknown thing to brightness 100%"
+
+    # Should fail without unmatched entities enabled
+    result = recognize(sentence, intents, allow_unmatched_entities=False)
+    assert result is None, f"{sentence} should not match"
+
+    results = list(recognize_all(sentence, intents, allow_unmatched_entities=True))
+    assert len(results) == 4
+
+    area_names: Set[str] = set()
+    entity_names: Set[str] = set()
+
+    for result in results:
+        assert len(result.unmatched_entities) == 1
+        area_entity = result.unmatched_entities.get("area")
+        if area_entity is not None:
+            assert isinstance(area_entity, UnmatchedTextEntity)
+            area_names.add(area_entity.text)
+        else:
+            name_entity = result.unmatched_entities.get("name")
+            assert name_entity is not None
+            assert isinstance(name_entity, UnmatchedTextEntity)
+            entity_names.add(name_entity.text)
+
+    assert area_names == {"unknown thing ", "unknown thing to "}
+    assert entity_names == {"unknown thing ", "unknown thing to "}
+
+
+def test_unmatched_entities_dont_share_text() -> None:
+    """Test that text only goes into one unmatched entity."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "set [the] brightness [of] {name} [to] <brightness>"
+    lists:
+      name:
+        values:
+          - lamp
+      brightness_pct:
+          range:
+            type: percentage
+            from: 0
+            to: 100
+    expansion_rules:
+        brightness: "{brightness_pct}[%| percent]"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "set brightness of unknown thing to 100%"
+
+    # Should fail without unmatched entities enabled
+    result = recognize(sentence, intents, allow_unmatched_entities=False)
+    assert result is None, f"{sentence} should not match"
+
+    results = list(recognize_all(sentence, intents, allow_unmatched_entities=True))
+    assert len(results) == 2
+
+    possible_names: Set[str] = set()
+    for result in results:
+        assert len(result.unmatched_entities) == 1
+        assert "name" in result.unmatched_entities
+        name_entity = result.unmatched_entities["name"]
+        assert isinstance(name_entity, UnmatchedTextEntity)
+        possible_names.add(name_entity.text)
+
+    assert possible_names == {"unknown thing ", "of unknown thing "}
+
+
+def test_unmatched_entities_cant_skip_words() -> None:
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "[turn] {name} [to] on"
+    lists:
+      name:
+        values:
+          - lamp
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "turn on unknown thing"
+
+    # Should fail without unmatched entities enabled
+    result = recognize(sentence, intents, allow_unmatched_entities=False)
+    assert result is None, f"{sentence} should not match"
+
+    # Should also fail with unmatched entities enabled
+    results = list(recognize_all(sentence, intents, allow_unmatched_entities=True))
+    assert len(results) == 0
 
 
 def test_wildcard() -> None:
