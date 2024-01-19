@@ -383,7 +383,7 @@ def recognize_all(
         expansion_rules=expansion_rules,
         ignore_whitespace=intents.settings.ignore_whitespace,
         allow_unmatched_entities=allow_unmatched_entities,
-        language=language,
+        language=language or intents.language,
         edit_budget=edit_budget,
     )
 
@@ -460,7 +460,7 @@ def recognize_all(
                 },
                 ignore_whitespace=settings.ignore_whitespace,
                 allow_unmatched_entities=allow_unmatched_entities,
-                language=language,
+                language=language or intents.language,
                 edit_budget=settings.edit_budget,
             )
 
@@ -829,12 +829,19 @@ def match_expression(
             if context_text.startswith(chunk_text):
                 # Successful match for chunk
                 context_text = context_text[len(chunk_text) :]
-                is_chunk_word = bool(chunk_text) and (not chunk_text.isspace())
+
+                # Close wildcards/unmatched entities on non-empty chunk
+                is_chunk_non_empty = len(chunk_text.strip()) > 0
+
+                text_chunks_matched = context.text_chunks_matched
+                if is_chunk_non_empty:
+                    text_chunks_matched += 1
+
                 yield MatchContext(
                     text=context_text,
                     # must use chunk.text because it hasn't been stripped
                     is_start_of_word=chunk.text.endswith(" "),
-                    text_chunks_matched=context.text_chunks_matched + 1,
+                    text_chunks_matched=text_chunks_matched,
                     # Copy over
                     entities=context.entities,
                     intent_context=context.intent_context,
@@ -842,8 +849,8 @@ def match_expression(
                     edit_cost=context.edit_cost,
                     intent_sentence=context.intent_sentence,
                     #
-                    close_wildcards=is_chunk_word,
-                    close_unmatched=is_chunk_word,
+                    close_wildcards=is_chunk_non_empty,
+                    close_unmatched=is_chunk_non_empty,
                 )
             elif is_context_text_empty and chunk_text.isspace():
                 # No text left to match, so extra whitespace is OK to skip
@@ -891,6 +898,10 @@ def match_expression(
 
                 if context_starts_with:
                     context_text = context_text[context_chars_to_remove:]
+
+                    # Close wildcards/unmatched entities on non-empty chunk
+                    is_chunk_non_empty = len(chunk_text.strip()) > 0
+
                     yield MatchContext(
                         text=context_text,
                         # Copy over
@@ -901,27 +912,43 @@ def match_expression(
                         edit_cost=context.edit_cost,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
+                        #
+                        close_wildcards=is_chunk_non_empty,
+                        close_unmatched=is_chunk_non_empty,
                     )
                 elif wildcard is not None:
                     # Add to wildcard by skipping ahead in the text until we find
                     # the current chunk text.
                     skip_idx = context_text.find(chunk_text)
                     if skip_idx >= 0:
-                        wildcard.text += context_text[:skip_idx]
+                        wildcard_text += context_text[:skip_idx]
 
                         # Wildcards cannot be empty
-                        if wildcard.text:
-                            wildcard.value = wildcard.text
+                        if wildcard_text:
+                            entities = [
+                                e for e in context.entities if e.name != wildcard.name
+                            ]
+                            entities.append(
+                                MatchEntity(
+                                    name=wildcard.name,
+                                    value=wildcard_text,
+                                    text=wildcard_text,
+                                    is_wildcard=True,
+                                    is_wildcard_open=False,  # always close
+                                )
+                            )
                             yield MatchContext(
                                 text=context.text[skip_idx + len(chunk_text) :],
                                 # Copy over
-                                entities=context.entities,
+                                # entities=context.entities,
                                 intent_context=context.intent_context,
                                 is_start_of_word=True,
                                 unmatched_entities=context.unmatched_entities,
                                 edit_cost=context.edit_cost,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
+                                #
+                                entities=entities,
                             )
                 elif settings.allow_unmatched_entities and (
                     unmatched_entity := context.get_open_entity()
@@ -938,20 +965,39 @@ def match_expression(
                         )
 
                     if chunk_match:
-                        unmatched_entity.text += context_text[: chunk_match.start() + 1]
+                        unmatched_entity_text = (
+                            unmatched_entity.text
+                            + context_text[: chunk_match.start() + 1]
+                        )
 
                         # Unmatched entities cannot be empty
-                        if unmatched_entity.text:
+                        if unmatched_entity_text:
+                            # Make a copy of modified unmatched entity
+                            unmatched_entities = [
+                                e
+                                for e in context.unmatched_entities
+                                if e.name != unmatched_entity.name
+                            ]
+                            unmatched_entities.append(
+                                UnmatchedTextEntity(
+                                    name=unmatched_entity.name,
+                                    text=unmatched_entity_text,
+                                    is_open=False,  # always close
+                                )
+                            )
+
                             yield MatchContext(
                                 text=context.text[chunk_match.end() :],
                                 # Copy over
                                 entities=context.entities,
                                 intent_context=context.intent_context,
                                 is_start_of_word=True,
-                                unmatched_entities=context.unmatched_entities,
+                                # unmatched_entities=context.unmatched_entities,
                                 edit_cost=context.edit_cost,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
+                                #
+                                unmatched_entities=unmatched_entities,
                             )
                 else:
                     # Match failed
@@ -1148,46 +1194,46 @@ def match_expression(
                     if words_language:
                         # Load number formatting engine
                         engine = _ENGINE_CACHE.get(words_language)
-                        if engine is None:
-                            engine = RbnfEngine.for_language(words_language)
-                            _ENGINE_CACHE[words_language] = engine
+                        try:
+                            if engine is None:
+                                engine = RbnfEngine.for_language(words_language)
+                                _ENGINE_CACHE[words_language] = engine
 
-                        assert engine is not None
+                            for word_number in range(
+                                range_list.start, range_list.stop + 1, range_list.step
+                            ):
+                                number_words = engine.format_number(
+                                    word_number, ruleset_name=range_list.words_ruleset
+                                ).translate(BREAK_WORDS_TABLE)
 
-                        for word_number in range(
-                            range_list.start, range_list.stop + 1, range_list.step
-                        ):
-                            number_words = engine.format_number(
-                                word_number, ruleset_name=range_list.words_ruleset
-                            ).translate(BREAK_WORDS_TABLE)
-
-                            entities = context.entities + [
-                                MatchEntity(
-                                    name=list_ref.slot_name,
-                                    value=word_number,
-                                    text=number_words,
+                                entities = context.entities + [
+                                    MatchEntity(
+                                        name=list_ref.slot_name,
+                                        value=word_number,
+                                        text=number_words,
+                                    )
+                                ]
+                                yield from match_expression(
+                                    settings,
+                                    MatchContext(
+                                        text=context.text,
+                                        entities=entities,
+                                        # Copy over
+                                        intent_context=context.intent_context,
+                                        is_start_of_word=context.is_start_of_word,
+                                        unmatched_entities=context.unmatched_entities,
+                                        edit_cost=context.edit_cost,
+                                        text_chunks_matched=context.text_chunks_matched,
+                                        intent_sentence=context.intent_sentence,
+                                    ),
+                                    TextChunk(number_words),
                                 )
-                            ]
-                            yield from match_expression(
-                                settings,
-                                MatchContext(
-                                    text=context.text,
-                                    entities=entities,
-                                    # Copy over
-                                    intent_context=context.intent_context,
-                                    is_start_of_word=context.is_start_of_word,
-                                    unmatched_entities=context.unmatched_entities,
-                                    edit_cost=context.edit_cost,
-                                    text_chunks_matched=context.text_chunks_matched,
-                                    intent_sentence=context.intent_sentence,
-                                ),
-                                TextChunk(number_words),
+                        except ValueError as error:
+                            _LOGGER.debug(
+                                "Unexpected error converting numbers to words for language '%s': %s",
+                                settings.language,
+                                str(error),
                             )
-                    else:
-                        _LOGGER.warning(
-                            "No language set, so cannot convert %s digits to words",
-                            list_ref.slot_name,
-                        )
 
                 if (
                     (not digits_match)

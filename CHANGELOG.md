@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.3
+
+- Restrict unmatched entities to contiguous blocks of non-literal text
+- Automatically use intents language for number words if supported
+
+## 1.5.2
+
+- Add local slots (under data sentences)
+- Add literal text chunk count and matched sentence template to results
+
 ## 1.5.1
 
 - Expand `requires_context` to allow copying value to a slot
