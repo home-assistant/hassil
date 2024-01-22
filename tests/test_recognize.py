@@ -704,6 +704,49 @@ def test_unmatched_entity() -> None:
     assert percent.text == "nothing"
 
 
+def test_unmatched_range_only() -> None:
+    """Test allow_unmatched_entities option with an out-of-range value only."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "set {domain} to {percent}[%]"
+    lists:
+      domain:
+        values:
+          - lights
+      percent:
+        range:
+          type: percentage
+          from: 0
+          to: 100
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "set lights to 1001%"
+
+    # Should fail without unmatched entities enabled
+    result = recognize(sentence, intents, allow_unmatched_entities=False)
+    assert result is None, f"{sentence} should not match"
+
+    # Should succeed now
+    result = recognize(sentence, intents, allow_unmatched_entities=True)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"domain"}
+    assert set(result.unmatched_entities.keys()) == {"percent"}
+
+    domain = result.entities["domain"]
+    assert domain.text == "lights"
+
+    percent = result.unmatched_entities["percent"]
+    assert isinstance(percent, UnmatchedRangeEntity)
+    assert percent.value == 1001
+
+
 def test_no_empty_unmatched_entity() -> None:
     """Test that unmatched entities are not empty."""
     yaml_text = """
