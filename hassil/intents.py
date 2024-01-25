@@ -184,6 +184,10 @@ class IntentData:
     """Local slot lists in the context of a single intent."""
 
     wildcard_list_names: Set[str] = field(default_factory=set)
+    """List names that are wildcards."""
+
+    metadata: Optional[Dict[str, Any]] = None
+    """Metadata that will be passed into the result if matched."""
 
     @cached_property
     def sentences(self) -> List[Sentence]:
@@ -290,6 +294,8 @@ class Intents:
         #           <slot_name>: <slot value>
         #           <slot_name>:
         #             - <slot value>
+        #         metadata:
+        #           key: value
         # expansion_rules:
         #   <rule_name>: "<rule body>"
         # lists:
@@ -327,6 +333,7 @@ class Intents:
                             },
                             response=data_dict.get("response"),
                             wildcard_list_names=wildcard_list_names,
+                            metadata=data_dict.get("metadata"),
                         )
                         for data_dict in intent_dict["data"]
                     ],

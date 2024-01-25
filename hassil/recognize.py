@@ -169,6 +169,9 @@ class MatchContext:
     intent_sentence: Optional[Sentence] = None
     """Sentence template that is being matched."""
 
+    intent_metadata: Optional[Dict[str, Any]] = None
+    """Metadata of sentence template that is being matched."""
+
     def __post_init__(self):
         if self.close_wildcards:
             for entity in self.entities:
@@ -265,6 +268,9 @@ class RecognizeResult:
 
     intent_sentence: Optional[Sentence] = None
     """Sentence template that was matched."""
+
+    intent_metadata: Optional[Dict[str, Any]] = None
+    """Metadata from the intent sentence that was matched."""
 
 
 def recognize(
@@ -474,6 +480,7 @@ def recognize_all(
                     text=text,
                     intent_context=intent_context,
                     intent_sentence=intent_sentence,
+                    intent_metadata=intent_data.metadata,
                 )
                 maybe_match_contexts = match_expression(
                     local_settings, match_context, intent_sentence
@@ -655,6 +662,7 @@ def recognize_all(
                         edit_cost=maybe_match_context.edit_cost,
                         text_chunks_matched=maybe_match_context.text_chunks_matched,
                         intent_sentence=maybe_match_context.intent_sentence,
+                        intent_metadata=maybe_match_context.intent_metadata,
                     )
 
 
@@ -783,6 +791,7 @@ def match_expression(
                         edit_cost=context.edit_cost,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
+                        intent_metadata=context.intent_metadata,
                     )
                     return
 
@@ -821,6 +830,7 @@ def match_expression(
                             edit_cost=context.edit_cost,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
+                            intent_metadata=context.intent_metadata,
                         ),
                         expression,
                     )
@@ -851,6 +861,7 @@ def match_expression(
                     unmatched_entities=context.unmatched_entities,
                     edit_cost=context.edit_cost,
                     intent_sentence=context.intent_sentence,
+                    intent_metadata=context.intent_metadata,
                     #
                     close_wildcards=is_chunk_non_empty,
                     close_unmatched=is_chunk_non_empty,
@@ -915,6 +926,7 @@ def match_expression(
                         edit_cost=context.edit_cost,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
+                        intent_metadata=context.intent_metadata,
                         #
                         close_wildcards=is_chunk_non_empty,
                         close_unmatched=is_chunk_non_empty,
@@ -950,6 +962,7 @@ def match_expression(
                                 edit_cost=context.edit_cost,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
+                                intent_metadata=context.intent_metadata,
                                 #
                                 entities=entities,
                             )
@@ -999,6 +1012,7 @@ def match_expression(
                                 edit_cost=context.edit_cost,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
+                                intent_metadata=context.intent_metadata,
                                 #
                                 unmatched_entities=unmatched_entities,
                             )
@@ -1059,6 +1073,7 @@ def match_expression(
                             edit_cost=context.edit_cost,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
+                            intent_metadata=context.intent_metadata,
                         ),
                         slot_value.text_in,
                     )
@@ -1091,6 +1106,7 @@ def match_expression(
                                 edit_cost=context.edit_cost,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
+                                intent_metadata=context.intent_metadata,
                             )
                         else:
                             yield MatchContext(
@@ -1103,6 +1119,7 @@ def match_expression(
                                 edit_cost=context.edit_cost,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
+                                intent_metadata=context.intent_metadata,
                             )
 
                 if (not has_matches) and settings.allow_unmatched_entities:
@@ -1116,6 +1133,7 @@ def match_expression(
                         edit_cost=context.edit_cost,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
+                        intent_metadata=context.intent_metadata,
                         #
                         unmatched_entities=context.unmatched_entities
                         + [UnmatchedTextEntity(name=list_ref.slot_name, text="")],
@@ -1167,6 +1185,7 @@ def match_expression(
                             edit_cost=context.edit_cost,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
+                            intent_metadata=context.intent_metadata,
                         )
                     elif settings.allow_unmatched_entities:
                         # Report out of range
@@ -1179,6 +1198,7 @@ def match_expression(
                             edit_cost=context.edit_cost,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
+                            intent_metadata=context.intent_metadata,
                             #
                             unmatched_entities=context.unmatched_entities
                             + [
@@ -1229,6 +1249,7 @@ def match_expression(
                                         edit_cost=context.edit_cost,
                                         text_chunks_matched=context.text_chunks_matched,
                                         intent_sentence=context.intent_sentence,
+                                        intent_metadata=context.intent_metadata,
                                     ),
                                     TextChunk(number_words),
                                 )
@@ -1254,6 +1275,7 @@ def match_expression(
                         edit_cost=context.edit_cost,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
+                        intent_metadata=context.intent_metadata,
                         #
                         unmatched_entities=context.unmatched_entities
                         + [UnmatchedTextEntity(name=list_ref.slot_name, text="")],
@@ -1271,6 +1293,7 @@ def match_expression(
                     edit_cost=context.edit_cost,
                     text_chunks_matched=context.text_chunks_matched,
                     intent_sentence=context.intent_sentence,
+                    intent_metadata=context.intent_metadata,
                     #
                     entities=context.entities
                     + [
