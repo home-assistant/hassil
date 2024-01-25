@@ -127,6 +127,9 @@ lists:
         # Optional
         context:
           <name>: <value>
+        metadata:
+          # Arbitrary key/value pairs that will be available in the result
+          <key>: <value>
   <range_name>
     range:
       type: "number"
