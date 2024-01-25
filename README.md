@@ -111,6 +111,9 @@ intents:
               # See below for other possible types
               - "items"
               - "in list"
+        metadata:
+          # Arbitrary key/value pairs that will be available in the result
+          <key>: <value>
 
 # Optional lists of items that become alternatives in sentence templates
 lists:

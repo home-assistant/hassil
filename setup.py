@@ -5,7 +5,8 @@ import setuptools
 from setuptools import setup
 
 this_dir = Path(__file__).parent
-module_dir = this_dir / "hassil"
+module_name = "hassil"
+module_dir = this_dir / module_name
 
 # -----------------------------------------------------------------------------
 
@@ -28,7 +29,7 @@ with open(version_path, "r", encoding="utf-8") as version_file:
 # -----------------------------------------------------------------------------
 
 setup(
-    name="hassil",
+    name=module_name,
     version=version,
     description="The Home Assistant Intent Language parser",
     long_description=long_description,
@@ -39,7 +40,7 @@ setup(
     license="Apache-2.0",
     packages=setuptools.find_packages(exclude=["tests", "tests.*"]),
     package_data={
-        "hassil": ["VERSION", "py.typed"],
+        module_name: ["VERSION", "py.typed"],
     },
     install_requires=requirements,
     extras_require={':python_version<"3.9"': ["importlib_resources"]},

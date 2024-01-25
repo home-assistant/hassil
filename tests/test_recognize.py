@@ -1307,3 +1307,27 @@ def test_entity_metadata() -> None:
         assert result.entities["name"].value == "A"
         assert result.entities["name"].text_clean == "alpha"
         assert result.entities["name"].metadata == {"is_alpha": True}
+
+
+def test_sentence_metadata() -> None:
+    """Test that metadata attached to sentences is passed through to the result."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "this is a test"
+            metadata:
+              string_key: "test value"
+              int_key: 1234
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "this is a test"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert result.intent_metadata is not None, "No metadata"
+    assert result.intent_metadata == {"string_key": "test value", "int_key": 1234}
