@@ -393,6 +393,10 @@ def _parse_list(
             start=int(range_dict["from"]),
             stop=int(range_dict["to"]),
             step=int(range_dict.get("step", 1)),
+            digits=bool(range_dict.get("digits", True)),
+            words=bool(range_dict.get("words", True)),
+            words_language=range_dict.get("words_language"),
+            words_ruleset=range_dict.get("words_ruleset"),
         )
 
     if list_dict.get("wildcard", False):
