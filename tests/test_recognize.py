@@ -1379,3 +1379,97 @@ def test_digits_calc() -> None:
     assert result.entities["x"].value == 1
     assert result.entities["operator"].value == "+"
     assert result.entities["y"].value == 2
+
+def test_range_params_calc() -> None:
+    """Test that params attached to RangeSlotList affect the parsing."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Calculate:
+        data:
+          - sentences:
+              - "calc[ulate] {x} {operator} {y}"
+    lists:
+      operator:
+        values:
+          - in: "(+|plus)"
+            out: "+"
+      x:
+        range:
+          from: 0
+          to: 100
+          digits: false
+          words: true
+      y:
+        range:
+          from: 0
+          to: 100
+          digits: true
+          words: false
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    # x can't have digits
+    sentence = "calc 1 + 2"
+    result = recognize(sentence, intents)
+    assert result is None, f"{sentence} should not match"
+
+    # y can't have words
+    sentence = "calc one plus two"
+    result = recognize(sentence, intents)
+    assert result is None, f"{sentence} should not match"
+
+    sentence = "calc one + 2"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert result.entities.keys() == {"x", "operator", "y"}
+    assert result.entities["x"].value == 1
+    assert result.entities["operator"].value == "+"
+    assert result.entities["y"].value == 2
+
+def test_range_rule_sets_calc() -> None:
+    """Test that params attached to RangeSlotList affect the parsing."""
+    # https://github.com/rhasspy/unicode-rbnf/blob/master/unicode_rbnf/engine.py#L13
+    yaml_text = """
+    language: "en"
+    intents:
+      Calculate:
+        data:
+          - sentences:
+              - "calc[ulate] {x} {operator} {y}"
+    lists:
+      operator:
+        values:
+          - in: "(+|plus)"
+            out: "+"
+      x:
+        range:
+          from: 0
+          to: 3000
+          digits: true
+          words: true
+          words_ruleset: "spellout-numbering-year"
+      y:
+        range:
+          from: 0
+          to: 3000
+          digits: true
+          words: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "calc nineteen ninety-nine + 23"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert result.entities.keys() == {"x", "operator", "y"}
+    assert result.entities["x"].value == 1999
+    assert result.entities["operator"].value == "+"
+    assert result.entities["y"].value == 23
+
+    sentence = "calc 23 + nineteen ninety-nine"
+    result = recognize(sentence, intents)
+    assert result is None, f"{sentence} should not match"
