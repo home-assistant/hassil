@@ -1331,3 +1331,51 @@ def test_sentence_metadata() -> None:
     assert result is not None, f"{sentence} should match"
     assert result.intent_metadata is not None, "No metadata"
     assert result.intent_metadata == {"string_key": "test value", "int_key": 1234}
+
+
+def test_digits_calc() -> None:
+    """Test that metadata attached to sentences is passed through to the result."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Calculate:
+        data:
+          - sentences:
+              - "calc[ulate] {x} {operator} {y}"
+    lists:
+      operator:
+        values:
+          - in: "(+|plus)"
+            out: "+"
+      x:
+        range:
+          from: 0
+          to: 100
+          digits: true
+          words: true
+      y:
+        range:
+          from: 0
+          to: 100
+          digits: true
+          words: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "calc 1 + 2"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert result.entities.keys() == {"x", "operator", "y"}
+    assert result.entities["x"].value == 1
+    assert result.entities["operator"].value == "+"
+    assert result.entities["y"].value == 2
+
+    sentence = "calc 1 plus two"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert result.entities.keys() == {"x", "operator", "y"}
+    assert result.entities["x"].value == 1
+    assert result.entities["operator"].value == "+"
+    assert result.entities["y"].value == 2
