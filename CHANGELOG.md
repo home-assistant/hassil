@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.0
+
+- Add metadata to sentences
+- Add metadata to list items
+
 ## 1.5.3
 
 - Restrict unmatched entities to contiguous blocks of non-literal text
