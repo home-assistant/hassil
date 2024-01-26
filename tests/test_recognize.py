@@ -1380,6 +1380,7 @@ def test_digits_calc() -> None:
     assert result.entities["operator"].value == "+"
     assert result.entities["y"].value == 2
 
+
 def test_range_params_calc() -> None:
     """Test that params attached to RangeSlotList affect the parsing."""
     yaml_text = """
@@ -1428,6 +1429,7 @@ def test_range_params_calc() -> None:
     assert result.entities["x"].value == 1
     assert result.entities["operator"].value == "+"
     assert result.entities["y"].value == 2
+
 
 def test_range_rule_sets_calc() -> None:
     """Test that params attached to RangeSlotList affect the parsing."""
