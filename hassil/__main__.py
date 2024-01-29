@@ -1,4 +1,5 @@
 """Command-line interface to hassil."""
+
 import argparse
 import logging
 import os

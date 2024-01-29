@@ -1,4 +1,5 @@
 """Utility methods"""
+
 import collections
 import re
 import unicodedata
