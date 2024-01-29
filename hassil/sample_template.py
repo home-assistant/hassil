@@ -1,4 +1,5 @@
 """CLI tool for sampling sentences from a template."""
+
 import argparse
 import logging
 

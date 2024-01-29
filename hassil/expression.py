@@ -1,4 +1,5 @@
 """Classes for representing sentence templates."""
+
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum

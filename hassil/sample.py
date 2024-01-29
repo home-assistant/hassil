@@ -1,4 +1,5 @@
 """CLI tool for sampling sentences from intents."""
+
 import argparse
 import itertools
 import json
