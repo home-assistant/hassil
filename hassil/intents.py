@@ -14,16 +14,6 @@ from .parse_expression import parse_sentence
 from .util import is_template, merge_dict, normalize_text
 
 
-class ResponseType(str, Enum):
-    SUCCESS = "success"
-    NO_INTENT = "no_intent"
-    NO_AREA = "no_area"
-    NO_DOMAIN = "no_domain"
-    NO_DEVICE_CLASS = "no_device_class"
-    NO_ENTITY = "no_entity"
-    HANDLE_ERROR = "handle_error"
-
-
 class SlotList(ABC):
     """Base class for slot lists."""
 
