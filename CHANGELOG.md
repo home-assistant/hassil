@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1
+
+- Allow context values to be dicts
+
 ## 1.6.0
 
 - Add metadata to sentences
