@@ -1475,3 +1475,49 @@ def test_range_rule_sets_calc() -> None:
     sentence = "calc 23 + nineteen ninety-nine"
     result = recognize(sentence, intents)
     assert result is None, f"{sentence} should not match"
+
+
+# pylint: disable=redefined-outer-name
+def test_context_dict(intents, slot_lists):
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test sentence"
+            requires_context:
+              slot1:
+                value: value1
+                slot: true
+            excludes_context:
+              slot2: value2
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    slot1 = {"value": "value1", "text": "Value One"}
+
+    # Try includes context
+    result = recognize(
+        "test sentence",
+        intents,
+        slot_lists=slot_lists,
+        intent_context={"slot1": slot1},
+    )
+    assert result is not None
+    assert result.context.keys() == {"slot1"}
+    assert result.context["slot1"] == slot1
+    assert result.entities.keys() == {"slot1"}
+    assert result.entities["slot1"].value == "value1"
+    assert result.entities["slot1"].text == "Value One"
+
+    # Try excludes context
+    result = recognize(
+        "test sentence",
+        intents,
+        slot_lists=slot_lists,
+        intent_context={"slot1": slot1, "slot2": {"value": "value2"}},
+    )
+    assert result is None

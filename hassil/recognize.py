@@ -424,6 +424,12 @@ def recognize_all(
                         # Ensure value matches
                         actual_value = intent_context[required_key]
 
+                        if isinstance(actual_value, collections.abc.Mapping):
+                            # Unpack dict
+                            # <context_key>:
+                            #   value: ...
+                            actual_value = actual_value.get("value")
+
                         if isinstance(required_value, collections.abc.Collection):
                             if actual_value not in required_value:
                                 skip_data = True
@@ -441,12 +447,25 @@ def recognize_all(
                     for (
                         excluded_key,
                         excluded_value,
-                    ) in intent_data.requires_context.items():
+                    ) in intent_data.excludes_context.items():
                         if excluded_key not in intent_context:
                             continue
 
+                        if isinstance(excluded_value, collections.abc.Mapping):
+                            # Unpack dict
+                            # <context_key>:
+                            #   value: ...
+                            excluded_value = excluded_value.get("value")
+
                         # Ensure value does not match
                         actual_value = intent_context[excluded_key]
+
+                        if isinstance(actual_value, collections.abc.Mapping):
+                            # Unpack dict
+                            # <context_key>:
+                            #   value: ...
+                            actual_value = actual_value.get("value")
+
                         if isinstance(excluded_value, collections.abc.Collection):
                             if actual_value in excluded_value:
                                 skip_data = True
@@ -531,7 +550,7 @@ def recognize_all(
                                 break
 
                     # Verify required context
-                    slots_from_context: Dict[str, Any] = {}
+                    slots_from_context: List[MatchEntity] = []
                     if (not skip_match) and intent_data.requires_context:
                         for (
                             context_key,
@@ -556,6 +575,14 @@ def recognize_all(
                             actual_value = maybe_match_context.intent_context.get(
                                 context_key
                             )
+                            actual_text = ""
+                            actual_metadata: Optional[Dict[str, Any]] = None
+
+                            if isinstance(actual_value, collections.abc.Mapping):
+                                # Unpack dict
+                                actual_text = actual_value.get("text", "")
+                                actual_metadata = actual_value.get("metadata")
+                                actual_value = actual_value.get("value")
 
                             if allow_unmatched_entities and (actual_value is None):
                                 # Look in unmatched entities
@@ -576,13 +603,27 @@ def recognize_all(
                             ):
                                 # Exact match to context value, except when context value is required and not provided
                                 if copy_to_slot:
-                                    slots_from_context[copy_to_slot] = actual_value
+                                    slots_from_context.append(
+                                        MatchEntity(
+                                            name=copy_to_slot,
+                                            value=actual_value,
+                                            text=actual_text,
+                                            metadata=actual_metadata,
+                                        )
+                                    )
                                 continue
 
                             if (context_value is None) and (actual_value is not None):
                                 # Any value matches, as long as it's set
                                 if copy_to_slot:
-                                    slots_from_context[copy_to_slot] = actual_value
+                                    slots_from_context.append(
+                                        MatchEntity(
+                                            name=copy_to_slot,
+                                            value=actual_value,
+                                            text=actual_text,
+                                            metadata=actual_metadata,
+                                        )
+                                    )
                                 continue
 
                             if (
@@ -592,7 +633,14 @@ def recognize_all(
                             ):
                                 # Actual value was in context value list
                                 if copy_to_slot:
-                                    slots_from_context[copy_to_slot] = actual_value
+                                    slots_from_context.append(
+                                        MatchEntity(
+                                            name=copy_to_slot,
+                                            value=actual_value,
+                                            text=actual_text,
+                                            metadata=actual_metadata,
+                                        )
+                                    )
                                 continue
 
                             if allow_unmatched_entities:
@@ -633,11 +681,9 @@ def recognize_all(
                             )
 
                     # Add context slots
-                    for slot_name, slot_value in slots_from_context.items():
-                        if slot_name not in entity_names:
-                            maybe_match_context.entities.append(
-                                MatchEntity(name=slot_name, value=slot_value, text="")
-                            )
+                    for slot_entity in slots_from_context:
+                        if slot_entity.name not in entity_names:
+                            maybe_match_context.entities.append(slot_entity)
 
                     # Return each match
                     response = default_response
