@@ -1,2 +1,2 @@
 PyYAML>=6.0,<7
-unicode-rbnf==1.0.0
+unicode-rbnf==1.1.0
