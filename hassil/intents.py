@@ -396,7 +396,7 @@ def _parse_list(
     raise ValueError(f"Unknown slot list type: {list_dict}")
 
 
-def _parse_settings(settings_dict: dict[str, Any]) -> IntentsSettings:
+def _parse_settings(settings_dict: Dict[str, Any]) -> IntentsSettings:
     """Parse intent settings."""
     return IntentsSettings(
         ignore_whitespace=settings_dict.get("ignore_whitespace", False)
