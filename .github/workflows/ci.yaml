@@ -28,6 +28,6 @@ jobs:
         with:
           python-version: "${{ matrix.python_version }}"
           cache: "pip"
-      - run: script/setup
+      - run: script/setup --dev
       - run: script/lint
       - run: script/test
