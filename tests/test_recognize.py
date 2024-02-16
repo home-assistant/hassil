@@ -1521,3 +1521,30 @@ def test_context_dict(intents, slot_lists):
         intent_context={"slot1": slot1, "slot2": {"value": "value2"}},
     )
     assert result is None
+
+
+# pylint: disable=redefined-outer-name
+def test_range_scale(intents, slot_lists):
+    yaml_text = """
+    language: "en"
+    intents:
+      SetVolume:
+        data:
+          - sentences:
+              - "set volume to {volume_level}"
+    lists:
+      volume_level:
+        range:
+          from: 0
+          to: 100
+          scale: 0.01
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("set volume to 50", intents)
+    assert result is not None
+    assert result.entities.keys() == {"volume_level"}
+    assert result.entities["volume_level"].value == 0.5
+    assert result.entities["volume_level"].text == "50"
