@@ -6,7 +6,7 @@ import logging
 import re
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from unicode_rbnf import RbnfEngine
 
@@ -109,7 +109,7 @@ class UnmatchedTextEntity(UnmatchedEntity):
 class UnmatchedRangeEntity(UnmatchedEntity):
     """Range entity that should have matched."""
 
-    value: int
+    value: Union[int, float]
     """Value of entity that was out of range."""
 
 
@@ -1200,7 +1200,7 @@ def match_expression(
                 digits_match = False
                 if range_list.digits and (number_match is not None):
                     number_text = number_match[1]
-                    word_number = int(number_text)
+                    word_number: Union[int, float] = int(number_text)
 
                     # Check if number is within range of our list
                     if range_list.step == 1:
@@ -1215,10 +1215,14 @@ def match_expression(
                     if in_range:
                         # Number is in range
                         digits_match = True
+                        range_value = word_number
+                        if range_list.scale is not None:
+                            range_value *= range_list.scale
+
                         entities = context.entities + [
                             MatchEntity(
                                 name=list_ref.slot_name,
-                                value=word_number,
+                                value=range_value,
                                 text=context.text.split()[0],
                             )
                         ]
@@ -1278,10 +1282,14 @@ def match_expression(
                                     word_number, ruleset_name=range_list.words_ruleset
                                 ).translate(BREAK_WORDS_TABLE)
 
+                                range_value = word_number
+                                if range_list.scale is not None:
+                                    range_value *= range_list.scale
+
                                 entities = context.entities + [
                                     MatchEntity(
                                         name=list_ref.slot_name,
-                                        value=word_number,
+                                        value=range_value,
                                         text=number_words,
                                     )
                                 ]

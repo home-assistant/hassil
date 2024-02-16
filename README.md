@@ -135,6 +135,7 @@ lists:
       type: "number"
       from: 0
       to: 100  # inclusive
+      scale: 1.0  # multiply to get final value
   <wildcard_name>
     wildcard: true
 
