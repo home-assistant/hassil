@@ -11,6 +11,7 @@ htmlcov
 .projectile
 .venv/
 venv/
+.tox/
 .mypy_cache/
 *.egg-info/
 
