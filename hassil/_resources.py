@@ -7,7 +7,7 @@ from pathlib import Path
 try:
     import importlib.resources
 
-    files = importlib.resources.files
+    files = importlib.resources.files  # type: ignore
 except (ImportError, AttributeError):
     # Backport for Python < 3.9
     import importlib_resources  # type: ignore
