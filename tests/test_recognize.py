@@ -1524,7 +1524,7 @@ def test_context_dict(intents, slot_lists):
 
 
 # pylint: disable=redefined-outer-name
-def test_range_scale(intents, slot_lists):
+def test_range_multiplier(intents, slot_lists):
     yaml_text = """
     language: "en"
     intents:
@@ -1537,7 +1537,7 @@ def test_range_scale(intents, slot_lists):
         range:
           from: 0
           to: 100
-          scale: 0.01
+          multiplier: 0.01
     """
 
     with io.StringIO(yaml_text) as test_file:

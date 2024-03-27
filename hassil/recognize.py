@@ -1216,8 +1216,8 @@ def match_expression(
                         # Number is in range
                         digits_match = True
                         range_value = word_number
-                        if range_list.scale is not None:
-                            range_value *= range_list.scale
+                        if range_list.multiplier is not None:
+                            range_value *= range_list.multiplier
 
                         entities = context.entities + [
                             MatchEntity(
@@ -1283,8 +1283,8 @@ def match_expression(
                                 ).translate(BREAK_WORDS_TABLE)
 
                                 range_value = word_number
-                                if range_list.scale is not None:
-                                    range_value *= range_list.scale
+                                if range_list.multiplier is not None:
+                                    range_value *= range_list.multiplier
 
                                 entities = context.entities + [
                                     MatchEntity(

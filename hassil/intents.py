@@ -34,7 +34,7 @@ class RangeSlotList(SlotList):
     stop: int
     step: int = 1
     type: RangeType = RangeType.NUMBER
-    scale: Optional[float] = None
+    multiplier: Optional[float] = None
     digits: bool = True
     words: bool = True
     words_language: Optional[str] = None
@@ -379,13 +379,15 @@ def _parse_list(
     if "range" in list_dict:
         # Number range
         range_dict = list_dict["range"]
-        range_scale = range_dict.get("scale")
+        range_multiplier = range_dict.get("multiplier")
         return RangeSlotList(
             type=RangeType(range_dict.get("type", "number")),
             start=int(range_dict["from"]),
             stop=int(range_dict["to"]),
             step=int(range_dict.get("step", 1)),
-            scale=float(range_scale) if range_scale is not None else None,
+            multiplier=(
+                float(range_multiplier) if range_multiplier is not None else None
+            ),
             digits=bool(range_dict.get("digits", True)),
             words=bool(range_dict.get("words", True)),
             words_language=range_dict.get("words_language"),
