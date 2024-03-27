@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.0
+
+- Add multiplier to range
+
 ## 1.6.1
 
 - Allow context values to be dicts
