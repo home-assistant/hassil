@@ -85,6 +85,10 @@ class MatchEntity:
         """Trimmed text with punctuation removed."""
         return PUNCTUATION.sub("", self.text.strip())
 
+    def __str__(self) -> str:
+        """String representation of a match entity."""
+        return self.text or self.value
+
 
 @dataclass
 class UnmatchedEntity(ABC):
