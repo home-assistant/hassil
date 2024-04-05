@@ -982,7 +982,7 @@ def match_expression(
                     # the current chunk text.
                     skip_idx = context_text.find(chunk_text)
                     if skip_idx >= 0:
-                        wildcard_text += context_text[:skip_idx]
+                        wildcard_text = context_text[:skip_idx]
 
                         # Wildcards cannot be empty
                         if wildcard_text:
