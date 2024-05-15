@@ -1090,8 +1090,7 @@ def match_expression(
                     if not group_contexts:
                         break
 
-                for group_context in group_contexts:
-                    yield group_context
+                yield from group_contexts
         else:
             raise ValueError(f"Unexpected sequence type: {seq}")
 
