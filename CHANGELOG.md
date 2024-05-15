@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.1
+
+- Fix `is_wildcard` in match entities
+- Fix `wildcard_text` initialization
+- Bump pylint to 3.1.0
+
 ## 1.7.0
 
 - Add multiplier to range
