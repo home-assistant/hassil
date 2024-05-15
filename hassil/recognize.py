@@ -868,6 +868,7 @@ def match_expression(
                                     name=wildcard.name,
                                     text=wildcard_text,
                                     value=wildcard_text,
+                                    is_wildcard=True,
                                 )
                             ],
                             # Copy over

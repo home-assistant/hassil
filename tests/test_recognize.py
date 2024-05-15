@@ -1046,7 +1046,9 @@ def test_wildcard() -> None:
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
     assert result.entities["album"].value == "the white album "
+    assert result.entities["album"].is_wildcard
     assert result.entities["artist"].value == "the beatles "
+    assert result.entities["artist"].is_wildcard
 
     # Wildcards cannot be empty
     sentence = "play by please now"
@@ -1059,7 +1061,9 @@ def test_wildcard() -> None:
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
     assert result.entities["album"].value == "the white album "
+    assert result.entities["album"].is_wildcard
     assert result.entities["artist"].value == "the beatles"
+    assert result.entities["artist"].is_wildcard
 
     # Test use of next word in wildcard
     sentence = "play day by day by taken by trees now"
@@ -1077,6 +1081,9 @@ def test_wildcard() -> None:
         ("day by day ", "taken by trees "),
         ("day by day by taken ", "trees "),
     }
+    for result in results:
+        assert result.entities["album"].is_wildcard
+        assert result.entities["artist"].is_wildcard
 
     # Add "artist" word
     sentence = "begin day by day by artist taken by trees"
@@ -1084,7 +1091,9 @@ def test_wildcard() -> None:
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
     assert result.entities["album"].value == "day by day "
+    assert result.entities["album"].is_wildcard
     assert result.entities["artist"].value == "taken by trees"
+    assert result.entities["artist"].is_wildcard
 
 
 def test_wildcard_degenerate() -> None:
