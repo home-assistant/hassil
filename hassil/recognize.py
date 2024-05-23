@@ -33,7 +33,7 @@ from .util import normalize_text, normalize_whitespace
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
 BREAK_WORDS_TABLE = str.maketrans("-_", "  ")
-PUNCTUATION_STR = ".。,，?¿？؟!¡！;；:："
+PUNCTUATION_STR = ".。,，?¿？؟!¡！;；:：’"
 PUNCTUATION = re.compile(rf"[{re.escape(PUNCTUATION_STR)}]+")
 PUNCTUATION_AT_END = re.compile(rf"[{re.escape(PUNCTUATION_STR)}]+\s*$")
 WHITESPACE = re.compile(r"\s+")
