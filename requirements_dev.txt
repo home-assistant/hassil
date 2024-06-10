@@ -3,4 +3,4 @@ flake8==7.0.0
 mypy==1.10.0
 pylint==3.2.2
 pytest==8.2.2
-tox==4.15.0
+tox==4.15.1
