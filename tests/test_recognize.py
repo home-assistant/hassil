@@ -1557,3 +1557,35 @@ def test_range_multiplier(intents, slot_lists):
     assert result.entities.keys() == {"volume_level"}
     assert result.entities["volume_level"].value == 0.5
     assert result.entities["volume_level"].text == "50"
+
+
+# Fails because wildcards must be followed by literal text or end of sentence
+# def test_wildcard_then_expansion_rule() -> None:
+#     """Test wildcard followed by expansions rule."""
+#     yaml_text = """
+#     language: "en"
+#     intents:
+#       Test:
+#         data:
+#           - sentences:
+#               - "set timer {timer_name:name} <timer_duration>"
+#     lists:
+#       timer_name:
+#         wildcard: true
+#       minutes:
+#         range:
+#           from: 1
+#           to: 59
+#     expansion_rules:
+#       timer_duration: "{minutes} minute[s]"
+#     """
+
+#     with io.StringIO(yaml_text) as test_file:
+#         intents = Intents.from_yaml(test_file)
+
+#     sentence = "set timer pizza 5 minutes"
+#     result = recognize(sentence, intents)
+#     assert result is not None, f"{sentence} should match"
+#     assert set(result.entities.keys()) == {"name", "minutes"}
+#     assert result.entities["name"].value == "pizza"
+#     assert result.entities["minutes"].value == 5
