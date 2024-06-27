@@ -14,8 +14,12 @@ from .parse_expression import parse_sentence
 from .util import is_template, merge_dict, normalize_text
 
 
+@dataclass
 class SlotList(ABC):
     """Base class for slot lists."""
+
+    name: Optional[str]
+    """Name of the slot list."""
 
 
 class RangeType(str, Enum):
@@ -105,6 +109,7 @@ class TextSlotList(SlotList):
     def from_strings(
         strings: Iterable[str],
         allow_template: bool = True,
+        name: Optional[str] = None,
     ) -> "TextSlotList":
         """
         Construct a text slot list from strings.
@@ -112,9 +117,11 @@ class TextSlotList(SlotList):
         Input and output values are the same text.
         """
         return TextSlotList(
+            name=name,
             values=[
                 TextSlotValue(
-                    text_in=_maybe_parse_template(text, allow_template), value_out=text
+                    text_in=_maybe_parse_template(text, allow_template),
+                    value_out=text,
                 )
                 for text in strings
             ],
@@ -130,6 +137,7 @@ class TextSlotList(SlotList):
             ]
         ],
         allow_template: bool = True,
+        name: Optional[str] = None,
     ) -> "TextSlotList":
         """
         Construct a text slot list from text/value pairs.
@@ -137,6 +145,7 @@ class TextSlotList(SlotList):
         Input values are the left (text), output values are the right (any).
         """
         return TextSlotList(
+            name=name,
             values=[
                 TextSlotValue.from_tuple(value_tuple, allow_template)
                 for value_tuple in tuples
@@ -317,7 +326,7 @@ class Intents:
                                 ).items()
                             },
                             slot_lists={
-                                list_name: _parse_list(list_dict)
+                                list_name: _parse_list(list_name, list_dict)
                                 for list_name, list_dict in data_dict.get(
                                     "lists", {}
                                 ).items()
@@ -332,7 +341,7 @@ class Intents:
                 for intent_name, intent_dict in input_dict["intents"].items()
             },
             slot_lists={
-                list_name: _parse_list(list_dict)
+                list_name: _parse_list(list_name, list_dict)
                 for list_name, list_dict in input_dict.get("lists", {}).items()
             },
             expansion_rules={
@@ -347,6 +356,7 @@ class Intents:
 
 
 def _parse_list(
+    list_name: str,
     list_dict: Dict[str, Any],
     allow_template: bool = True,
 ) -> SlotList:
@@ -374,13 +384,14 @@ def _parse_list(
                     )
                 )
 
-        return TextSlotList(text_values)
+        return TextSlotList(name=list_name, values=text_values)
 
     if "range" in list_dict:
         # Number range
         range_dict = list_dict["range"]
         range_multiplier = range_dict.get("multiplier")
         return RangeSlotList(
+            name=list_name,
             type=RangeType(range_dict.get("type", "number")),
             start=int(range_dict["from"]),
             stop=int(range_dict["to"]),
@@ -396,7 +407,7 @@ def _parse_list(
 
     if list_dict.get("wildcard", False):
         # Wildcard
-        return WildcardSlotList()
+        return WildcardSlotList(name=list_name)
 
     raise ValueError(f"Unknown slot list type: {list_dict}")
 

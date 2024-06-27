@@ -55,7 +55,7 @@ def test_list():
 
 def test_list_range():
     sentence = parse_sentence("run test {num}")
-    num_list = RangeSlotList(1, 3)
+    num_list = RangeSlotList(name=None, start=1, stop=3)
     assert set(sample_expression(sentence, slot_lists={"num": num_list})) == {
         "run test 1",
         "run test 2",
@@ -65,7 +65,7 @@ def test_list_range():
 
 def test_list_range_missing_language():
     sentence = parse_sentence("run test {num}")
-    num_list = RangeSlotList(1, 3, words=True)
+    num_list = RangeSlotList(name=None, start=1, stop=3, words=True)
 
     # Range slot digits cannot be converted to words without a language available.
     assert set(sample_expression(sentence, slot_lists={"num": num_list})) == {
@@ -77,7 +77,7 @@ def test_list_range_missing_language():
 
 def test_list_range_words():
     sentence = parse_sentence("run test {num}")
-    num_list = RangeSlotList(1, 3, words=True)
+    num_list = RangeSlotList(name=None, start=1, stop=3, words=True)
     assert set(
         sample_expression(sentence, slot_lists={"num": num_list}, language="en")
     ) == {

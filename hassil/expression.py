@@ -3,7 +3,7 @@
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterator, List, Optional
+from typing import Dict, Iterator, List, Optional
 
 
 @dataclass
@@ -71,15 +71,31 @@ class Sequence(Expression):
 
         return num_text_chunks
 
-    def list_names(self) -> Iterator[str]:
+    def list_names(
+        self,
+        expansion_rules: Optional[Dict[str, "Sentence"]] = None,
+    ) -> Iterator[str]:
         """Return names of list references (recursive)."""
         for item in self.items:
-            if isinstance(item, ListReference):
-                list_ref: ListReference = item
-                yield list_ref.list_name
-            elif isinstance(item, Sequence):
-                seq: Sequence = item
-                yield from seq.list_names()
+            yield from self._list_names(item, expansion_rules)
+
+    def _list_names(
+        self,
+        item: Expression,
+        expansion_rules: Optional[Dict[str, "Sentence"]] = None,
+    ) -> Iterator[str]:
+        """Return names of list references (recursive)."""
+        if isinstance(item, ListReference):
+            list_ref: ListReference = item
+            yield list_ref.list_name
+        elif isinstance(item, Sequence):
+            seq: Sequence = item
+            yield from seq.list_names(expansion_rules)
+        elif isinstance(item, RuleReference):
+            rule_ref: RuleReference = item
+            if expansion_rules and (rule_ref.rule_name in expansion_rules):
+                rule_body = expansion_rules[rule_ref.rule_name]
+                yield from self._list_names(rule_body, expansion_rules)
 
 
 @dataclass

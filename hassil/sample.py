@@ -21,7 +21,7 @@ from .expression import (
     SequenceType,
     TextChunk,
 )
-from .intents import Intents, RangeSlotList, SlotList, TextSlotList
+from .intents import Intents, RangeSlotList, SlotList, TextSlotList, WildcardSlotList
 from .recognize import MissingListError, MissingRuleError
 from .util import merge_dict, normalize_whitespace
 
@@ -38,6 +38,8 @@ def sample_intents(
     max_sentences_per_intent: Optional[int] = None,
     intent_names: Optional[Set[str]] = None,
     language: Optional[str] = None,
+    exclude_sentences_with_wildcards: bool = True,
+    expand_ranges: bool = True,
 ) -> Iterable[Tuple[str, str]]:
     """Sample text strings for sentences from intents."""
     if slot_lists is None:
@@ -73,11 +75,18 @@ def sample_intents(
                 local_expansion_rules = expansion_rules
 
             for intent_sentence in intent_data.sentences:
+                if exclude_sentences_with_wildcards and any(
+                    list_name in intent_data.wildcard_list_names
+                    for list_name in intent_sentence.list_names(local_expansion_rules)
+                ):
+                    continue
+
                 sentence_texts = sample_expression(
                     intent_sentence,
                     slot_lists,
                     local_expansion_rules,
                     language=language,
+                    expand_ranges=expand_ranges,
                 )
                 for sentence_text in sentence_texts:
                     yield (intent_name, sentence_text)
@@ -101,6 +110,7 @@ def sample_expression(
     slot_lists: Optional[Dict[str, SlotList]] = None,
     expansion_rules: Optional[Dict[str, Sentence]] = None,
     language: Optional[str] = None,
+    expand_ranges: bool = True,
 ) -> Iterable[str]:
     """Sample possible text strings from an expression."""
     if isinstance(expression, TextChunk):
@@ -115,6 +125,7 @@ def sample_expression(
                     slot_lists,
                     expansion_rules,
                     language=language,
+                    expand_ranges=expand_ranges,
                 )
         elif seq.type == SequenceType.GROUP:
             seq_sentences = map(
@@ -123,6 +134,7 @@ def sample_expression(
                     slot_lists=slot_lists,
                     expansion_rules=expansion_rules,
                     language=language,
+                    expand_ranges=expand_ranges,
                 ),
                 seq.items,
             )
@@ -151,9 +163,17 @@ def sample_expression(
                     slot_lists,
                     expansion_rules,
                     language=language,
+                    expand_ranges=expand_ranges,
                 )
         elif isinstance(slot_list, RangeSlotList):
             range_list: RangeSlotList = slot_list
+
+            if not expand_ranges:
+                if range_list.name:
+                    yield f"{{{range_list.name}}}"
+                else:
+                    yield "{number}"
+                return
 
             if range_list.digits:
                 number_strs = map(
@@ -183,7 +203,12 @@ def sample_expression(
                         "No language set, so cannot convert %s digits to words",
                         list_ref.slot_name,
                     )
-
+        elif isinstance(slot_list, WildcardSlotList):
+            wildcard_list: WildcardSlotList = slot_list
+            if wildcard_list.name:
+                yield f"{{{wildcard_list.name}}}"
+            else:
+                yield "{wildcard}"
         else:
             raise ValueError(f"Unexpected slot list type: {slot_list}")
     elif isinstance(expression, RuleReference):
@@ -198,6 +223,7 @@ def sample_expression(
             slot_lists,
             expansion_rules,
             language=language,
+            expand_ranges=expand_ranges,
         )
     else:
         raise ValueError(f"Unexpected expression: {expression}")
