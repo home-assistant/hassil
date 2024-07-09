@@ -5,8 +5,9 @@ import itertools
 import logging
 import re
 from abc import ABC
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from unicode_rbnf import RbnfEngine
 
@@ -44,6 +45,9 @@ _LOGGER = logging.getLogger()
 
 # lang -> engine
 _ENGINE_CACHE: Dict[str, RbnfEngine] = {}
+
+# (lang, ruleset) -> number -> words
+_NUMBER_WORDS_CACHE: Dict[Tuple[str, str | None], Dict[int, str]] = defaultdict(dict)
 
 
 class HassilError(Exception):
@@ -1275,12 +1279,20 @@ def match_expression(
                                 engine = RbnfEngine.for_language(words_language)
                                 _ENGINE_CACHE[words_language] = engine
 
+                            words_cache = _NUMBER_WORDS_CACHE[
+                                (words_language, range_list.words_ruleset)
+                            ]
+
                             for word_number in range(
                                 range_list.start, range_list.stop + 1, range_list.step
                             ):
-                                number_words = engine.format_number(
-                                    word_number, ruleset_name=range_list.words_ruleset
-                                ).translate(BREAK_WORDS_TABLE)
+                                number_words = words_cache.get(word_number)
+                                if number_words is None:
+                                    number_words = engine.format_number(
+                                        word_number,
+                                        ruleset_name=range_list.words_ruleset,
+                                    ).translate(BREAK_WORDS_TABLE)
+                                    words_cache[word_number] = number_words
 
                                 range_value = word_number
                                 if range_list.multiplier is not None:
