@@ -47,7 +47,7 @@ _LOGGER = logging.getLogger()
 _ENGINE_CACHE: Dict[str, RbnfEngine] = {}
 
 # (lang, ruleset) -> number -> words
-_NUMBER_WORDS_CACHE: Dict[Tuple[str, str | None], Dict[int, str]] = defaultdict(dict)
+_NUMBER_WORDS_CACHE: Dict[Tuple[str, Union[str]], Dict[int, str]] = defaultdict(dict)
 
 
 class HassilError(Exception):
