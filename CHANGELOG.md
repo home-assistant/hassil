@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.3
+
+- Cache number words
+
+## 1.7.2
+
+- Add apostrophe to punctuation list
+
 ## 1.7.1
 
 - Fix `is_wildcard` in match entities
