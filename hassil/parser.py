@@ -164,26 +164,26 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
 
         chunk_text = remove_escapes(text[start_index:end_index])
 
-    if next_type in (ParseType.GROUP, ParseType.OPT, ParseType.LIST, ParseType.RULE):
+    elif next_type in (ParseType.GROUP, ParseType.OPT, ParseType.LIST, ParseType.RULE):
         if next_type == ParseType.GROUP:
             start_char = GROUP_START
             end_char = GROUP_END
 
             error_str = "group ')'"
 
-        if next_type == ParseType.OPT:
+        elif next_type == ParseType.OPT:
             start_char = OPT_START
             end_char = OPT_END
 
             error_str = "optional ']'"
 
-        if next_type == ParseType.LIST:
+        elif next_type == ParseType.LIST:
             start_char = LIST_START
             end_char = LIST_END
 
             error_str = "list '}'"
 
-        if next_type == ParseType.RULE:
+        else:  # next_type == ParseType.RULE
             start_char = RULE_START
             end_char = RULE_END
 
@@ -197,7 +197,7 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
 
         chunk_text = remove_escapes(text[start_index:end_index])
 
-    if next_type == ParseType.ALT or next_type == ParseType.PERM:
+    else:  # next_type in (ParseType.ALT, ParseType.PERM):
         chunk_text = text[start_index]
         end_index = start_index + 1
 
