@@ -180,6 +180,9 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
     """Gets the next parsable chunk from text."""
     next_type = peek_type(text, start_index)
 
+    if next_type == ParseType.END:
+        return None
+
     if next_type == ParseType.WORD:
         # Single word
         word_end_index = find_end_word(text, start_index)
@@ -188,14 +191,8 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
                 f"Unable to find end of word from index {start_index} in: {text}"
             )
 
-        word_text = remove_escapes(text[start_index:word_end_index])
-
-        return ParseChunk(
-            text=word_text,
-            start_index=start_index,
-            end_index=word_end_index,
-            parse_type=ParseType.WORD,
-        )
+        chunk_text = remove_escapes(text[start_index:word_end_index])
+        end_index = word_end_index
 
     if next_type == ParseType.GROUP:
         # Skip '('
@@ -208,14 +205,8 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
                 f"Unable to find end of group ')' from index {start_index} in: {text}"
             )
 
-        group_text = remove_escapes(text[start_index:group_end_index])
-
-        return ParseChunk(
-            text=group_text,
-            start_index=start_index,
-            end_index=group_end_index,
-            parse_type=ParseType.GROUP,
-        )
+        chunk_text = remove_escapes(text[start_index:group_end_index])
+        end_index = group_end_index
 
     if next_type == ParseType.OPT:
         # Skip '['
@@ -226,14 +217,8 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
                 f"Unable to find end of optional ']' from index {start_index} in: {text}"
             )
 
-        opt_text = remove_escapes(text[start_index:opt_end_index])
-
-        return ParseChunk(
-            text=opt_text,
-            start_index=start_index,
-            end_index=opt_end_index,
-            parse_type=ParseType.OPT,
-        )
+        chunk_text = remove_escapes(text[start_index:opt_end_index])
+        end_index = opt_end_index
 
     if next_type == ParseType.LIST:
         # Skip '{'
@@ -246,12 +231,8 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
                 f"Unable to find end of list '}}' from index {start_index} in: {text}"
             )
 
-        return ParseChunk(
-            text=remove_escapes(text[start_index:list_end_index]),
-            start_index=start_index,
-            end_index=list_end_index,
-            parse_type=ParseType.LIST,
-        )
+        chunk_text = remove_escapes(text[start_index:list_end_index])
+        end_index = list_end_index
 
     if next_type == ParseType.RULE:
         # Skip '<'
@@ -264,30 +245,23 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
                 f"Unable to find end of rule '>' from index {start_index} in: {text}"
             )
 
-        return ParseChunk(
-            text=remove_escapes(text[start_index:rule_end_index]),
-            start_index=start_index,
-            end_index=rule_end_index,
-            parse_type=ParseType.RULE,
-        )
+        chunk_text = remove_escapes(text[start_index:rule_end_index])
+        end_index = rule_end_index
 
     if next_type == ParseType.ALT:
-        return ParseChunk(
-            text=text[start_index : start_index + 1],
-            start_index=start_index,
-            end_index=start_index + 1,
-            parse_type=ParseType.ALT,
-        )
+        chunk_text = text[start_index : start_index + 1]
+        end_index = start_index + 1
 
     if next_type == ParseType.PERM:
-        return ParseChunk(
-            text=text[start_index : start_index + 1],
-            start_index=start_index,
-            end_index=start_index + 1,
-            parse_type=ParseType.PERM,
-        )
+        chunk_text = text[start_index : start_index + 1]
+        end_index = start_index + 1
 
-    return None
+    return ParseChunk(
+        text=chunk_text,
+        start_index=start_index,
+        end_index=end_index,
+        parse_type=next_type,
+    )
 
 
 def remove_delimiters(
