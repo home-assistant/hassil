@@ -15,11 +15,11 @@ from unicode_rbnf import RbnfEngine
 from .errors import MissingListError, MissingRuleError
 from .expression import (
     Expression,
+    Group,
+    GroupType,
     ListReference,
     RuleReference,
     Sentence,
-    Sequence,
-    SequenceType,
     TextChunk,
 )
 from .intents import Intents, RangeSlotList, SlotList, TextSlotList, WildcardSlotList
@@ -117,10 +117,10 @@ def sample_expression(
     if isinstance(expression, TextChunk):
         chunk: TextChunk = expression
         yield chunk.original_text
-    elif isinstance(expression, Sequence):
-        seq: Sequence = expression
-        if seq.type == SequenceType.ALTERNATIVE:
-            for item in seq.items:
+    elif isinstance(expression, Group):
+        grp: Group = expression
+        if grp.type == GroupType.ALTERNATIVE:
+            for item in grp.items:
                 yield from sample_expression(
                     item,
                     slot_lists,
@@ -129,7 +129,7 @@ def sample_expression(
                     expand_lists=expand_lists,
                     expand_ranges=expand_ranges,
                 )
-        elif seq.type == SequenceType.GROUP:
+        elif grp.type == GroupType.SEQUENCE:
             seq_sentences = map(
                 partial(
                     sample_expression,
@@ -139,13 +139,13 @@ def sample_expression(
                     expand_lists=expand_lists,
                     expand_ranges=expand_ranges,
                 ),
-                seq.items,
+                grp.items,
             )
             sentence_texts = itertools.product(*seq_sentences)
             for sentence_words in sentence_texts:
                 yield normalize_whitespace("".join(sentence_words))
         else:
-            raise ValueError(f"Unexpected sequence type: {seq}")
+            raise ValueError(f"Unexpected group type: {grp}")
     elif isinstance(expression, ListReference):
         # {list}
         list_ref: ListReference = expression

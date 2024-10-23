@@ -11,11 +11,11 @@ from unicode_rbnf import RbnfEngine
 from .errors import MissingListError, MissingRuleError
 from .expression import (
     Expression,
+    Group,
+    GroupType,
     ListReference,
     RuleReference,
     Sentence,
-    Sequence,
-    SequenceType,
     TextChunk,
 )
 from .intents import IntentData, RangeSlotList, SlotList, TextSlotList, WildcardSlotList
@@ -398,19 +398,19 @@ def match_expression(
                 else:
                     # Match failed
                     pass
-    elif isinstance(expression, Sequence):
-        seq: Sequence = expression
-        if seq.type == SequenceType.ALTERNATIVE:
+    elif isinstance(expression, Group):
+        grp: Group = expression
+        if grp.type == GroupType.ALTERNATIVE:
             # Any may match (words | in | alternative)
             # NOTE: [optional] = (optional | )
-            for item in seq.items:
+            for item in grp.items:
                 yield from match_expression(settings, context, item)
 
-        elif seq.type == SequenceType.GROUP:
-            if seq.items:
+        elif grp.type == GroupType.SEQUENCE:
+            if grp.items:
                 # All must match (words in group)
                 group_contexts = [context]
-                for item in seq.items:
+                for item in grp.items:
                     # Next step
                     group_contexts = [
                         item_context
@@ -424,7 +424,7 @@ def match_expression(
 
                 yield from group_contexts
         else:
-            raise ValueError(f"Unexpected sequence type: {seq}")
+            raise ValueError(f"Unexpected group type: {grp}")
 
     elif isinstance(expression, ListReference):
         # {list}

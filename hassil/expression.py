@@ -22,7 +22,7 @@ class TextChunk(Expression):
     # Set in __post_init__
     original_text: str = None  # type: ignore
 
-    parent: "Optional[Sequence]" = None
+    parent: "Optional[Group]" = None
 
     def __post_init__(self):
         if self.original_text is None:
@@ -39,11 +39,11 @@ class TextChunk(Expression):
         return TextChunk()
 
 
-class SequenceType(str, Enum):
-    """Type of a sequence. Optionals are alternatives with an empty option."""
+class GroupType(str, Enum):
+    """Type of a group. Optionals are alternatives with an empty option."""
 
     # Sequence of expressions
-    GROUP = "group"
+    SEQUENCE = "sequence"
 
     # Expressions where only one will be recognized
     ALTERNATIVE = "alternative"
@@ -53,26 +53,25 @@ class SequenceType(str, Enum):
 
 
 @dataclass
-class Sequence(Expression):
-    """Ordered sequence of expressions. Supports groups, optionals, and alternatives."""
+class Group(Expression):
+    """Ordered group of expressions. Supports sequences, optionals, and alternatives."""
 
-    # Items in the sequence
+    # Items in the group
     items: List[Expression] = field(default_factory=list)
 
-    # Group or alternative
-    type: SequenceType = SequenceType.GROUP
+    type: GroupType = GroupType.SEQUENCE
 
     is_optional: bool = False
 
     def text_chunk_count(self) -> int:
-        """Return the number of TextChunk expressions in this sequence (recursive)."""
+        """Return the number of TextChunk expressions in this group (recursive)."""
         num_text_chunks = 0
         for item in self.items:
             if isinstance(item, TextChunk):
                 num_text_chunks += 1
-            elif isinstance(item, Sequence):
-                seq: Sequence = item
-                num_text_chunks += seq.text_chunk_count()
+            elif isinstance(item, Group):
+                grp: Group = item
+                num_text_chunks += grp.text_chunk_count()
 
         return num_text_chunks
 
@@ -93,9 +92,9 @@ class Sequence(Expression):
         if isinstance(item, ListReference):
             list_ref: ListReference = item
             yield list_ref.list_name
-        elif isinstance(item, Sequence):
-            seq: Sequence = item
-            yield from seq.list_names(expansion_rules)
+        elif isinstance(item, Group):
+            grp: Group = item
+            yield from grp.list_names(expansion_rules)
         elif isinstance(item, RuleReference):
             rule_ref: RuleReference = item
             if expansion_rules and (rule_ref.rule_name in expansion_rules):
@@ -135,8 +134,8 @@ class ListReference(Expression):
 
 
 @dataclass
-class Sentence(Sequence):
-    """Sequence representing a complete sentence template."""
+class Sentence(Group):
+    """Group representing a complete sentence template."""
 
     text: Optional[str] = None
     pattern: Optional[re.Pattern] = None
@@ -161,23 +160,23 @@ class Sentence(Sequence):
             if chunk.text:
                 escaped_text = re.escape(chunk.text)
                 pattern_chunks.append(escaped_text)
-        elif isinstance(exp, Sequence):
+        elif isinstance(exp, Group):
             # Linear sequence or alternative choices
-            seq: Sequence = exp
-            if seq.type == SequenceType.GROUP:
+            grp: Group = exp
+            if grp.type == GroupType.SEQUENCE:
                 # Linear sequence
-                for item in seq.items:
+                for item in grp.items:
                     self._compile_expression(item, pattern_chunks, rules)
-            elif seq.type == SequenceType.ALTERNATIVE:
+            elif grp.type == GroupType.ALTERNATIVE:
                 # Alternative choices
-                if seq.items:
+                if grp.items:
                     pattern_chunks.append("(?:")
-                    for item in seq.items:
+                    for item in grp.items:
                         self._compile_expression(item, pattern_chunks, rules)
                         pattern_chunks.append("|")
                     pattern_chunks[-1] = ")"
             else:
-                raise ValueError(seq)
+                raise ValueError(grp)
         elif isinstance(exp, ListReference):
             # Slot list
             pattern_chunks.append("(?:.+)")

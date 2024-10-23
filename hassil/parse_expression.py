@@ -5,11 +5,11 @@ from typing import List, Optional
 
 from .expression import (
     Expression,
+    Group,
+    GroupType,
     ListReference,
     RuleReference,
     Sentence,
-    Sequence,
-    SequenceType,
     TextChunk,
 )
 from .parser import (
@@ -48,45 +48,45 @@ class ParseExpressionError(ParseError):
         return f"Error in chunk {self.chunk} at {self.metadata}"
 
 
-def _ensure_alternative(seq: Sequence):
-    if seq.type != SequenceType.ALTERNATIVE:
-        seq.type = SequenceType.ALTERNATIVE
+def _ensure_alternative(grp: Group):
+    if grp.type != GroupType.ALTERNATIVE:
+        grp.type = GroupType.ALTERNATIVE
 
         # Collapse items into a single group
-        seq.items = [
-            Sequence(
-                type=SequenceType.GROUP,
-                items=seq.items,
+        grp.items = [
+            Group(
+                type=GroupType.SEQUENCE,
+                items=grp.items,
             )
         ]
 
 
-def _ensure_permutation(seq: Sequence):
-    if seq.type != SequenceType.PERMUTATION:
-        seq.type = SequenceType.PERMUTATION
+def _ensure_permutation(grp: Group):
+    if grp.type != GroupType.PERMUTATION:
+        grp.type = GroupType.PERMUTATION
 
         # Collapse items into a single group
-        seq.items = [
-            Sequence(
-                type=SequenceType.GROUP,
-                items=seq.items,
+        grp.items = [
+            Group(
+                type=GroupType.SEQUENCE,
+                items=grp.items,
             )
         ]
 
 
-def parse_group_or_alt_or_perm(
-    seq_chunk: ParseChunk, metadata: Optional[ParseMetadata] = None
-) -> Sequence:
-    seq = Sequence(type=SequenceType.GROUP)
-    if seq_chunk.parse_type == ParseType.GROUP:
-        seq_text = _remove_delimiters(seq_chunk.text, GROUP_START, GROUP_END)
-    elif seq_chunk.parse_type == ParseType.OPT:
-        seq_text = _remove_delimiters(seq_chunk.text, OPT_START, OPT_END)
+def parse_group(
+    grp_chunk: ParseChunk, metadata: Optional[ParseMetadata] = None
+) -> Group:
+    grp = Group(type=GroupType.SEQUENCE)
+    if grp_chunk.parse_type == ParseType.GROUP:
+        grp_text = _remove_delimiters(grp_chunk.text, GROUP_START, GROUP_END)
+    elif grp_chunk.parse_type == ParseType.OPT:
+        grp_text = _remove_delimiters(grp_chunk.text, OPT_START, OPT_END)
     else:
-        raise ParseExpressionError(seq_chunk, metadata=metadata)
+        raise ParseExpressionError(grp_chunk, metadata=metadata)
 
-    item_chunk = next_chunk(seq_text)
-    last_seq_text = seq_text
+    item_chunk = next_chunk(grp_text)
+    last_grp_text = grp_text
 
     while item_chunk is not None:
         if item_chunk.parse_type in (
@@ -98,59 +98,60 @@ def parse_group_or_alt_or_perm(
         ):
             item = parse_expression(item_chunk, metadata=metadata)
 
-            if seq.type in (SequenceType.ALTERNATIVE, SequenceType.PERMUTATION):
+            if grp.type in (GroupType.ALTERNATIVE, GroupType.PERMUTATION):
                 # Add to most recent group
-                if not seq.items:
-                    seq.items.append(Sequence(type=SequenceType.GROUP))
+                if not grp.items:
+                    grp.items.append(Group(type=GroupType.SEQUENCE))
 
-                # Must be group or alternative
-                last_item = seq.items[-1]
-                if not isinstance(last_item, Sequence):
-                    raise ParseExpressionError(seq_chunk, metadata=metadata)
+                # Must be a group
+                last_item = grp.items[-1]
+                if not isinstance(last_item, Group):
+                    raise ParseExpressionError(grp_chunk, metadata=metadata)
 
                 last_item.items.append(item)
             else:
                 # Add to parent group
-                seq.items.append(item)
+                grp.items.append(item)
 
                 if isinstance(item, TextChunk):
                     item_tc: TextChunk = item
-                    item_tc.parent = seq
+                    item_tc.parent = grp
+
         elif item_chunk.parse_type == ParseType.ALT:
-            _ensure_alternative(seq)
+            _ensure_alternative(grp)
 
             # Begin new group
-            seq.items.append(Sequence(type=SequenceType.GROUP))
+            grp.items.append(Group(type=GroupType.SEQUENCE))
         elif item_chunk.parse_type == ParseType.PERM:
-            _ensure_permutation(seq)
+            _ensure_permutation(grp)
 
             # Begin new group
-            seq.items.append(Sequence(type=SequenceType.GROUP))
+            grp.items.append(Group(type=GroupType.SEQUENCE))
         else:
-            raise ParseExpressionError(seq_chunk, metadata=metadata)
+            raise ParseExpressionError(grp_chunk, metadata=metadata)
 
         # Next chunk
-        seq_text = seq_text[item_chunk.end_index :]
+        grp_text = grp_text[item_chunk.end_index :]
 
-        if seq_text == last_seq_text:
+        if grp_text == last_grp_text:
             # No change, unable to proceed
-            raise ParseExpressionError(seq_chunk, metadata=metadata)
+            raise ParseExpressionError(grp_chunk, metadata=metadata)
 
-        item_chunk = next_chunk(seq_text)
-        last_seq_text = seq_text
+        item_chunk = next_chunk(grp_text)
+        last_grp_text = grp_text
 
-    if seq.type == SequenceType.PERMUTATION:
+    if grp.type == GroupType.PERMUTATION:
         permuted_items: List[Expression] = []
 
-        for permutation in permutations(seq.items):
+        for permutation in permutations(grp.items):
             permutation_with_spaces = _add_spaces_between_items(list(permutation))
             permuted_items.append(
-                Sequence(type=SequenceType.GROUP, items=permutation_with_spaces)
+                Group(type=GroupType.SEQUENCE, items=permutation_with_spaces)
             )
 
-        seq = Sequence(type=SequenceType.ALTERNATIVE, items=permuted_items)
+        grp = Group(type=GroupType.ALTERNATIVE, items=permuted_items)
 
-    return seq
+    return grp
 
 
 def parse_expression(
@@ -162,14 +163,14 @@ def parse_expression(
         return TextChunk(text=text, original_text=original_text)
 
     if chunk.parse_type == ParseType.GROUP:
-        return parse_group_or_alt_or_perm(chunk, metadata=metadata)
+        return parse_group(chunk, metadata=metadata)
 
     if chunk.parse_type == ParseType.OPT:
-        seq = parse_group_or_alt_or_perm(chunk, metadata=metadata)
-        _ensure_alternative(seq)
-        seq.items.append(TextChunk(text="", parent=seq))
-        seq.is_optional = True
-        return seq
+        grp = parse_group(chunk, metadata=metadata)
+        _ensure_alternative(grp)
+        grp.items.append(TextChunk(text="", parent=grp))
+        grp.is_optional = True
+        return grp
 
     if chunk.parse_type == ParseType.LIST:
         text = _remove_escapes(chunk.text)
@@ -192,7 +193,7 @@ def parse_sentence(
     text = text.strip()
     # text = fix_pattern_whitespace(text.strip())
 
-    # Wrap in a group because sentences need to always be sequences.
+    # Wrap in a group because sentences need to always be groups.
     text = f"({text})"
 
     chunk = next_chunk(text)
@@ -208,21 +209,21 @@ def parse_sentence(
     if chunk.end_index != len(text):
         raise ParseError(f"Expected chunk to end at index {chunk.end_index} in: {text}")
 
-    seq = parse_expression(chunk, metadata=metadata)
-    if not isinstance(seq, Sequence):
-        raise ParseError(f"Expected Sequence, got: {seq}")
+    grp = parse_expression(chunk, metadata=metadata)
+    if not isinstance(grp, Group):
+        raise ParseError(f"Expected Group, got: {grp}")
 
-    # Unpack redundant sequence
-    if len(seq.items) == 1:
-        first_item = seq.items[0]
-        if isinstance(first_item, Sequence):
-            seq = first_item
+    # Unpack redundant group
+    if len(grp.items) == 1:
+        first_item = grp.items[0]
+        if isinstance(first_item, Group):
+            grp = first_item
 
     return Sentence(
-        type=seq.type,
-        items=seq.items,
+        type=grp.type,
+        items=grp.items,
         text=original_text if keep_text else None,
-        is_optional=seq.is_optional,
+        is_optional=grp.is_optional,
     )
 
 
@@ -382,15 +383,16 @@ def _escape_text(text: str) -> str:
 
 
 def _add_spaces_between_items(items: List[Expression]) -> List[Expression]:
-    """Add spaces between each 2 items of a sequence, used for permutations"""
+    """Add spaces between each 2 items of a group, used for permutations"""
+
     spaced_items: List[Expression] = []
 
     # Unpack single item sequences to make pattern matching easier below
     unpacked_items: List[Expression] = []
     for item in items:
         while (
-            isinstance(item, Sequence)
-            and (item.type == SequenceType.GROUP)
+            isinstance(item, Group)
+            and (item.type == GroupType.SEQUENCE)
             and (len(item.items) == 1)
         ):
             item = item.items[0]
@@ -401,10 +403,10 @@ def _add_spaces_between_items(items: List[Expression]) -> List[Expression]:
     for item_idx, item in enumerate(unpacked_items):
         if item_idx > 0:
             # Only add whitespace after the first item
-            if isinstance(previous_item, Sequence) and previous_item.is_optional:
+            if isinstance(previous_item, Group) and previous_item.is_optional:
                 # Modify the previous optional to include a space at the end of
                 # each item.
-                opt: Sequence = previous_item
+                opt: Group = previous_item
                 fixed_items: List[Expression] = []
                 for opt_item in opt.items:
                     fix_item = True
@@ -420,16 +422,16 @@ def _add_spaces_between_items(items: List[Expression]) -> List[Expression]:
 
                     if fix_item:
                         fixed_items.append(
-                            Sequence(
-                                type=SequenceType.GROUP,
+                            Group(
+                                type=GroupType.SEQUENCE,
                                 items=[opt_item, TextChunk(" ")],
                             )
                         )
                     else:
                         fixed_items.append(opt_item)
 
-                spaced_items[-1] = Sequence(
-                    type=SequenceType.ALTERNATIVE, is_optional=True, items=fixed_items
+                spaced_items[-1] = Group(
+                    type=GroupType.ALTERNATIVE, is_optional=True, items=fixed_items
                 )
             else:
                 # Add a space in front
