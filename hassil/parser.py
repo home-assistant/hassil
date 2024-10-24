@@ -1,4 +1,3 @@
-import re
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
@@ -30,13 +29,13 @@ ESCAPE_CHAR = "\\"
 class ParseType(Enum):
     """Parse chunk types."""
 
+    WORD = auto()
     GROUP = auto()
     OPT = auto()
+    LIST = auto()
+    RULE = auto()
     ALT = auto()
     PERM = auto()
-    RULE = auto()
-    LIST = auto()
-    WORD = auto()
     END = auto()
 
 
@@ -132,17 +131,17 @@ def _peek_type(text, start_index: int) -> ParseType:
     if c == OPT_START:
         return ParseType.OPT
 
-    if c == ALT_SEP:
-        return ParseType.ALT
-
-    if c == PERM_SEP:
-        return ParseType.PERM
-
     if c == LIST_START:
         return ParseType.LIST
 
     if c == RULE_START:
         return ParseType.RULE
+
+    if c == ALT_SEP:
+        return ParseType.ALT
+
+    if c == PERM_SEP:
+        return ParseType.PERM
 
     return ParseType.WORD
 
@@ -162,31 +161,25 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
                 f"Unable to find end of word from index {start_index} in: {text}"
             )
 
-        chunk_text = remove_escapes(text[start_index:end_index])
-
     elif next_type in (ParseType.GROUP, ParseType.OPT, ParseType.LIST, ParseType.RULE):
         if next_type == ParseType.GROUP:
             start_char = GROUP_START
             end_char = GROUP_END
-
             error_str = "group ')'"
 
         elif next_type == ParseType.OPT:
             start_char = OPT_START
             end_char = OPT_END
-
             error_str = "optional ']'"
 
         elif next_type == ParseType.LIST:
             start_char = LIST_START
             end_char = LIST_END
-
             error_str = "list '}'"
 
         else:  # next_type == ParseType.RULE
             start_char = RULE_START
             end_char = RULE_END
-
             error_str = "rule '>'"
 
         end_index = _find_end_delimiter(text, start_index + 1, start_char, end_char)
@@ -195,11 +188,10 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
                 f"Unable to find end of {error_str} from index {start_index} in: {text}"
             )
 
-        chunk_text = remove_escapes(text[start_index:end_index])
-
     else:  # next_type in (ParseType.ALT, ParseType.PERM):
-        chunk_text = text[start_index]
         end_index = start_index + 1
+
+    chunk_text = text[start_index:end_index]
 
     return ParseChunk(
         text=chunk_text,
@@ -207,28 +199,3 @@ def next_chunk(text: str, start_index: int = 0) -> Optional[ParseChunk]:
         end_index=end_index,
         parse_type=next_type,
     )
-
-
-def remove_delimiters(
-    text: str, start_char: str, end_char: Optional[str] = None
-) -> str:
-    """Removes the surrounding delimiters in text."""
-    if end_char is None:
-        assert len(text) > 1, "Text is too short"
-        assert text[0] == start_char, "Wrong start char"
-        return text[1:]
-
-    assert len(text) > 2, "Text is too short"
-    assert text[0] == start_char, "Wrong start char"
-    assert text[-1] == end_char, "Wrong end char"
-    return text[1:-1]
-
-
-def remove_escapes(text: str) -> str:
-    """Remove backslash escape sequences"""
-    return re.sub(r"\\(.)", r"\1", text)
-
-
-def escape_text(text: str) -> str:
-    """Escape parentheses, etc."""
-    return re.sub(r"([()\[\]{}<>])", r"\\\1", text)
