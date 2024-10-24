@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.0
+
+- Bump `unicode-rbnf` to 2.0.0
+- Use multiple texts for numbers, e.g. for German 1 `ein`, `eins`, etc.
+- Remove `words_ruleset` for ranges
+
 ## 1.7.4
 
 - Loosen `unicode-rbnf` version
