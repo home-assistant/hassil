@@ -195,9 +195,7 @@ def sample_expression(
                     for word_number in range(
                         range_list.start, range_list.stop + 1, range_list.step
                     ):
-                        yield engine.format_number(
-                            word_number, ruleset_name=range_list.words_ruleset
-                        )
+                        yield engine.format_number(word_number)
                 else:
                     _LOGGER.warning(
                         "No language set, so cannot convert %s digits to words",

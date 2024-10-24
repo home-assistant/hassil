@@ -1461,7 +1461,6 @@ def test_range_rule_sets_calc() -> None:
           to: 3000
           digits: true
           words: true
-          words_ruleset: "spellout-numbering-year"
       y:
         range:
           from: 0
@@ -1473,7 +1472,7 @@ def test_range_rule_sets_calc() -> None:
     with io.StringIO(yaml_text) as test_file:
         intents = Intents.from_yaml(test_file)
 
-    sentence = "calc nineteen ninety-nine + 23"
+    sentence = "calc one thousand nine hundred ninety-nine + 23"
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert result.entities.keys() == {"x", "operator", "y"}

@@ -42,7 +42,6 @@ class RangeSlotList(SlotList):
     digits: bool = True
     words: bool = True
     words_language: Optional[str] = None
-    words_ruleset: Optional[str] = None
 
     def __post_init__(self):
         """Validate number range"""
@@ -402,7 +401,6 @@ def _parse_list(
             digits=bool(range_dict.get("digits", True)),
             words=bool(range_dict.get("words", True)),
             words_language=range_dict.get("words_language"),
-            words_ruleset=range_dict.get("words_ruleset"),
         )
 
     if list_dict.get("wildcard", False):
