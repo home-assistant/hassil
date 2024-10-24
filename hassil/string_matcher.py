@@ -423,6 +423,20 @@ def match_expression(
                         break
 
                 yield from group_contexts
+
+        elif grp.type == GroupType.PERMUTATION:
+            if len(grp.items) == 1:
+                yield from match_expression(settings, context, grp.items[0])
+            else:
+                # All must match (in arbitrary order)
+                for i, item in enumerate(grp.items):
+                    items = grp.items[:]
+                    del items[i]
+                    perm = Group(type=GroupType.PERMUTATION, items=items)
+
+                    for item_context in match_expression(settings, context, item):
+                        yield from match_expression(settings, item_context, perm)
+
         else:
             raise ValueError(f"Unexpected group type: {grp}")
 

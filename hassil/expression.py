@@ -147,13 +147,12 @@ class Sentence(Group):
 
         pattern_chunks: List[str] = []
         self._compile_expression(self, pattern_chunks, expansion_rules)
-
         pattern_str = "".join(pattern_chunks).replace(r"\ ", r"[ ]*")
         self.pattern = re.compile(f"^{pattern_str}$", re.IGNORECASE)
 
     def _compile_expression(
         self, exp: Expression, pattern_chunks: List[str], rules: Dict[str, "Sentence"]
-    ):
+    ) -> None:
         if isinstance(exp, TextChunk):
             # Literal text
             chunk: TextChunk = exp
@@ -161,7 +160,6 @@ class Sentence(Group):
                 escaped_text = re.escape(chunk.text)
                 pattern_chunks.append(escaped_text)
         elif isinstance(exp, Group):
-            # Linear sequence or alternative choices
             grp: Group = exp
             if grp.type == GroupType.SEQUENCE:
                 # Linear sequence
@@ -175,6 +173,14 @@ class Sentence(Group):
                         self._compile_expression(item, pattern_chunks, rules)
                         pattern_chunks.append("|")
                     pattern_chunks[-1] = ")"
+            elif grp.type == GroupType.PERMUTATION:
+                # Permutation
+                if grp.items:
+                    pattern_chunks.append("(?:")
+                    for item in grp.items:
+                        self._compile_expression(item, pattern_chunks, rules)
+                        pattern_chunks.append("|")
+                    pattern_chunks[-1] = f"){{{len(grp.items)}}}"
             else:
                 raise ValueError(grp)
         elif isinstance(exp, ListReference):

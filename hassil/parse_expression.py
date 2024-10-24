@@ -1,7 +1,6 @@
 import re
 from dataclasses import dataclass
-from itertools import permutations
-from typing import List, Optional
+from typing import Optional
 
 from .expression import (
     Expression,
@@ -100,10 +99,6 @@ def parse_group(
 
             if grp.type in (GroupType.ALTERNATIVE, GroupType.PERMUTATION):
                 # Add to most recent group
-                if not grp.items:
-                    grp.items.append(Group(type=GroupType.SEQUENCE))
-
-                # Must be a group
                 last_item = grp.items[-1]
                 if not isinstance(last_item, Group):
                     raise ParseExpressionError(grp_chunk, metadata=metadata)
@@ -141,15 +136,7 @@ def parse_group(
         last_grp_text = grp_text
 
     if grp.type == GroupType.PERMUTATION:
-        permuted_items: List[Expression] = []
-
-        for permutation in permutations(grp.items):
-            permutation_with_spaces = _add_spaces_between_items(list(permutation))
-            permuted_items.append(
-                Group(type=GroupType.SEQUENCE, items=permutation_with_spaces)
-            )
-
-        grp = Group(type=GroupType.ALTERNATIVE, items=permuted_items)
+        _add_spaces_between_items(grp)
 
     return grp
 
@@ -382,62 +369,10 @@ def _escape_text(text: str) -> str:
     return re.sub(r"([()\[\]{}<>])", r"\\\1", text)
 
 
-def _add_spaces_between_items(items: List[Expression]) -> List[Expression]:
+def _add_spaces_between_items(grp: Group) -> None:
     """Add spaces between each 2 items of a group, used for permutations"""
-
-    spaced_items: List[Expression] = []
-
-    # Unpack single item sequences to make pattern matching easier below
-    unpacked_items: List[Expression] = []
-    for item in items:
-        while (
-            isinstance(item, Group)
-            and (item.type == GroupType.SEQUENCE)
-            and (len(item.items) == 1)
-        ):
-            item = item.items[0]
-
-        unpacked_items.append(item)
-
-    previous_item: Optional[Expression] = None
-    for item_idx, item in enumerate(unpacked_items):
-        if item_idx > 0:
-            # Only add whitespace after the first item
-            if isinstance(previous_item, Group) and previous_item.is_optional:
-                # Modify the previous optional to include a space at the end of
-                # each item.
-                opt: Group = previous_item
-                fixed_items: List[Expression] = []
-                for opt_item in opt.items:
-                    fix_item = True
-                    if isinstance(opt_item, TextChunk):
-                        opt_tc: TextChunk = opt_item
-                        if not opt_tc.text:
-                            # Don't fix empty text chunks
-                            fix_item = False
-                        else:
-                            # Remove ending whitespace since we'll be adding a
-                            # whitespace text chunk after.
-                            opt_tc.text = opt_tc.text.rstrip()
-
-                    if fix_item:
-                        fixed_items.append(
-                            Group(
-                                type=GroupType.SEQUENCE,
-                                items=[opt_item, TextChunk(" ")],
-                            )
-                        )
-                    else:
-                        fixed_items.append(opt_item)
-
-                spaced_items[-1] = Group(
-                    type=GroupType.ALTERNATIVE, is_optional=True, items=fixed_items
-                )
-            else:
-                # Add a space in front
-                spaced_items.append(TextChunk(text=" "))
-
-        spaced_items.append(item)
-        previous_item = item
-
-    return spaced_items
+    for seq in grp.items:
+        assert isinstance(seq, Group), "Item is not a group"
+        assert seq.type == GroupType.SEQUENCE, "Item is not a sequence"
+        seq.items.insert(0, TextChunk(text=" "))
+        seq.items.append(TextChunk(text=" "))

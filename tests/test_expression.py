@@ -49,10 +49,10 @@ def test_group_alternative():
 
 
 def test_group_permutation():
-    assert parse_expression(next_chunk("(test; test2)")) == alt(
+    assert parse_expression(next_chunk("(test; test2)")) == perm(
         items=[
-            sequence(items=[t(text="test"), t(text=" "), t(text=" test2")]),
-            sequence(items=[t(text=" test2"), t(text=" "), t(text="test")]),
+            sequence(items=[t(text=" "), t(text="test"), t(text=" ")]),
+            sequence(items=[t(text=" "), t(text=" test2"), t(text=" ")]),
         ],
     )
 
@@ -149,3 +149,7 @@ def sequence(**kwargs):
 
 def alt(**kwargs):
     return Group(type=GroupType.ALTERNATIVE, **kwargs)
+
+
+def perm(**kwargs):
+    return Group(type=GroupType.PERMUTATION, **kwargs)
