@@ -13,16 +13,6 @@ def test_word():
     )
 
 
-def test_word_escape():
-    text = "test\\(2\\)"
-    assert next_chunk(text) == ParseChunk(
-        text="test(2)",
-        parse_type=ParseType.WORD,
-        start_index=0,
-        end_index=len(text),
-    )
-
-
 def test_group():
     text = "(test test2)"
     assert next_chunk(text) == ParseChunk(
@@ -53,31 +43,11 @@ def test_list_reference():
     )
 
 
-def test_list_escape():
-    text = "\\{test\\}"
-    assert next_chunk(text) == ParseChunk(
-        text="{test}",
-        parse_type=ParseType.WORD,
-        start_index=0,
-        end_index=len(text),
-    )
-
-
 def test_rule_reference():
     text = "<test>"
     assert next_chunk(text) == ParseChunk(
         text="<test>",
         parse_type=ParseType.RULE,
-        start_index=0,
-        end_index=len(text),
-    )
-
-
-def test_rule_escape():
-    text = "\\<test\\>"
-    assert next_chunk(text) == ParseChunk(
-        text="<test>",
-        parse_type=ParseType.WORD,
         start_index=0,
         end_index=len(text),
     )

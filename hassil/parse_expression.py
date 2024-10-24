@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from itertools import permutations
 from typing import List, Optional
@@ -24,7 +25,6 @@ from .parser import (
     ParseError,
     ParseType,
     next_chunk,
-    remove_delimiters,
 )
 from .util import normalize_text
 
@@ -48,7 +48,7 @@ class ParseExpressionError(ParseError):
         return f"Error in chunk {self.chunk} at {self.metadata}"
 
 
-def ensure_alternative(seq: Sequence):
+def _ensure_alternative(seq: Sequence):
     if seq.type != SequenceType.ALTERNATIVE:
         seq.type = SequenceType.ALTERNATIVE
 
@@ -61,7 +61,7 @@ def ensure_alternative(seq: Sequence):
         ]
 
 
-def ensure_permutation(seq: Sequence):
+def _ensure_permutation(seq: Sequence):
     if seq.type != SequenceType.PERMUTATION:
         seq.type = SequenceType.PERMUTATION
 
@@ -79,9 +79,9 @@ def parse_group_or_alt_or_perm(
 ) -> Sequence:
     seq = Sequence(type=SequenceType.GROUP)
     if seq_chunk.parse_type == ParseType.GROUP:
-        seq_text = remove_delimiters(seq_chunk.text, GROUP_START, GROUP_END)
+        seq_text = _remove_delimiters(seq_chunk.text, GROUP_START, GROUP_END)
     elif seq_chunk.parse_type == ParseType.OPT:
-        seq_text = remove_delimiters(seq_chunk.text, OPT_START, OPT_END)
+        seq_text = _remove_delimiters(seq_chunk.text, OPT_START, OPT_END)
     else:
         raise ParseExpressionError(seq_chunk, metadata=metadata)
 
@@ -117,12 +117,12 @@ def parse_group_or_alt_or_perm(
                     item_tc: TextChunk = item
                     item_tc.parent = seq
         elif item_chunk.parse_type == ParseType.ALT:
-            ensure_alternative(seq)
+            _ensure_alternative(seq)
 
             # Begin new group
             seq.items.append(Sequence(type=SequenceType.GROUP))
         elif item_chunk.parse_type == ParseType.PERM:
-            ensure_permutation(seq)
+            _ensure_permutation(seq)
 
             # Begin new group
             seq.items.append(Sequence(type=SequenceType.GROUP))
@@ -143,7 +143,7 @@ def parse_group_or_alt_or_perm(
         permuted_items: List[Expression] = []
 
         for permutation in permutations(seq.items):
-            permutation_with_spaces = add_spaces_between_items(list(permutation))
+            permutation_with_spaces = _add_spaces_between_items(list(permutation))
             permuted_items.append(
                 Sequence(type=SequenceType.GROUP, items=permutation_with_spaces)
             )
@@ -157,30 +157,28 @@ def parse_expression(
     chunk: ParseChunk, metadata: Optional[ParseMetadata] = None
 ) -> Expression:
     if chunk.parse_type == ParseType.WORD:
-        return TextChunk(text=normalize_text(chunk.text), original_text=chunk.text)
+        original_text = _remove_escapes(chunk.text)
+        text = normalize_text(original_text)
+        return TextChunk(text=text, original_text=original_text)
 
     if chunk.parse_type == ParseType.GROUP:
         return parse_group_or_alt_or_perm(chunk, metadata=metadata)
 
     if chunk.parse_type == ParseType.OPT:
         seq = parse_group_or_alt_or_perm(chunk, metadata=metadata)
-        ensure_alternative(seq)
+        _ensure_alternative(seq)
         seq.items.append(TextChunk(text="", parent=seq))
         seq.is_optional = True
         return seq
 
     if chunk.parse_type == ParseType.LIST:
-        return ListReference(
-            list_name=remove_delimiters(chunk.text, LIST_START, LIST_END),
-        )
+        text = _remove_escapes(chunk.text)
+        list_name = _remove_delimiters(text, LIST_START, LIST_END)
+        return ListReference(list_name=list_name)
 
     if chunk.parse_type == ParseType.RULE:
-        rule_name = remove_delimiters(
-            chunk.text,
-            RULE_START,
-            RULE_END,
-        )
-
+        text = _remove_escapes(chunk.text)
+        rule_name = _remove_delimiters(text, RULE_START, RULE_END)
         return RuleReference(rule_name=rule_name)
 
     raise ParseExpressionError(chunk, metadata=metadata)
@@ -358,7 +356,32 @@ def parse_sentence(
 #     return text
 
 
-def add_spaces_between_items(items: List[Expression]) -> List[Expression]:
+def _remove_delimiters(
+    text: str, start_char: str, end_char: Optional[str] = None
+) -> str:
+    """Removes the surrounding delimiters in text."""
+    if end_char is None:
+        assert len(text) > 1, "Text is too short"
+        assert text[0] == start_char, "Wrong start char"
+        return text[1:]
+
+    assert len(text) > 2, "Text is too short"
+    assert text[0] == start_char, "Wrong start char"
+    assert text[-1] == end_char, "Wrong end char"
+    return text[1:-1]
+
+
+def _remove_escapes(text: str) -> str:
+    """Remove backslash escape sequences"""
+    return re.sub(r"\\(.)", r"\1", text)
+
+
+def _escape_text(text: str) -> str:
+    """Escape parentheses, etc."""
+    return re.sub(r"([()\[\]{}<>])", r"\\\1", text)
+
+
+def _add_spaces_between_items(items: List[Expression]) -> List[Expression]:
     """Add spaces between each 2 items of a sequence, used for permutations"""
     spaced_items: List[Expression] = []
 

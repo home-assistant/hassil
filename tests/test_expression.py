@@ -24,6 +24,12 @@ def test_group_in_group():
     )
 
 
+def test_escapes():
+    assert parse_expression(next_chunk(r"(test\<\>\{\}\)\( test2)")) == group(
+        items=[t(text="test<>{})( "), t(text="test2")],
+    )
+
+
 def test_optional():
     assert parse_expression(next_chunk("[test test2]")) == alt(
         items=[
