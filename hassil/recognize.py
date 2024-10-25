@@ -7,7 +7,7 @@ import re
 from abc import ABC
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Union
 
 from unicode_rbnf import RbnfEngine
 
@@ -46,10 +46,8 @@ _LOGGER = logging.getLogger()
 # lang -> engine
 _ENGINE_CACHE: Dict[str, RbnfEngine] = {}
 
-# (lang, ruleset) -> number -> words
-_NUMBER_WORDS_CACHE: Dict[Tuple[str, Union[str, None]], Dict[int, str]] = defaultdict(
-    dict
-)
+# lang -> number -> words
+_NUMBER_WORDS_CACHE: Dict[str, Dict[int, Set[str]]] = defaultdict(dict)
 
 
 class HassilError(Exception):
@@ -1281,48 +1279,47 @@ def match_expression(
                                 engine = RbnfEngine.for_language(words_language)
                                 _ENGINE_CACHE[words_language] = engine
 
-                            words_cache = _NUMBER_WORDS_CACHE[
-                                (words_language, range_list.words_ruleset)
-                            ]
-
+                            words_cache = _NUMBER_WORDS_CACHE[words_language]
                             for word_number in range(
                                 range_list.start, range_list.stop + 1, range_list.step
                             ):
                                 number_words = words_cache.get(word_number)
                                 if number_words is None:
-                                    number_words = engine.format_number(
-                                        word_number,
-                                        ruleset_name=range_list.words_ruleset,
-                                    ).translate(BREAK_WORDS_TABLE)
+                                    format_result = engine.format_number(word_number)
+                                    number_words = {
+                                        t.translate(BREAK_WORDS_TABLE)
+                                        for t in format_result.text_by_ruleset.values()
+                                    }
                                     words_cache[word_number] = number_words
 
                                 range_value = word_number
                                 if range_list.multiplier is not None:
                                     range_value *= range_list.multiplier
 
-                                entities = context.entities + [
-                                    MatchEntity(
-                                        name=list_ref.slot_name,
-                                        value=range_value,
-                                        text=number_words,
+                                for number_text in number_words:
+                                    entities = context.entities + [
+                                        MatchEntity(
+                                            name=list_ref.slot_name,
+                                            value=range_value,
+                                            text=number_text,
+                                        )
+                                    ]
+                                    yield from match_expression(
+                                        settings,
+                                        MatchContext(
+                                            text=context.text,
+                                            entities=entities,
+                                            # Copy over
+                                            intent_context=context.intent_context,
+                                            is_start_of_word=context.is_start_of_word,
+                                            unmatched_entities=context.unmatched_entities,
+                                            edit_cost=context.edit_cost,
+                                            text_chunks_matched=context.text_chunks_matched,
+                                            intent_sentence=context.intent_sentence,
+                                            intent_metadata=context.intent_metadata,
+                                        ),
+                                        TextChunk(number_text),
                                     )
-                                ]
-                                yield from match_expression(
-                                    settings,
-                                    MatchContext(
-                                        text=context.text,
-                                        entities=entities,
-                                        # Copy over
-                                        intent_context=context.intent_context,
-                                        is_start_of_word=context.is_start_of_word,
-                                        unmatched_entities=context.unmatched_entities,
-                                        edit_cost=context.edit_cost,
-                                        text_chunks_matched=context.text_chunks_matched,
-                                        intent_sentence=context.intent_sentence,
-                                        intent_metadata=context.intent_metadata,
-                                    ),
-                                    TextChunk(number_words),
-                                )
                         except ValueError as error:
                             _LOGGER.debug(
                                 "Unexpected error converting numbers to words for language '%s': %s",

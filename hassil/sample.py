@@ -195,9 +195,11 @@ def sample_expression(
                     for word_number in range(
                         range_list.start, range_list.stop + 1, range_list.step
                     ):
-                        yield engine.format_number(
-                            word_number, ruleset_name=range_list.words_ruleset
-                        )
+                        # Use all unique words for a number, including different
+                        # genders, cases, etc.
+                        format_result = engine.format_number(word_number)
+                        unique_number_strs = set(format_result.text_by_ruleset.values())
+                        yield from unique_number_strs
                 else:
                     _LOGGER.warning(
                         "No language set, so cannot convert %s digits to words",
