@@ -1,3 +1,5 @@
+from unittest.mock import ANY
+
 from hassil.expression import (
     ListReference,
     RuleReference,
@@ -28,8 +30,9 @@ def test_optional():
             group(
                 items=[t(text="test "), t(text="test2")],
             ),
-            TextChunk.empty(),
+            t(text=""),
         ],
+        is_optional=True,
     )
 
 
@@ -42,24 +45,8 @@ def test_group_alternative():
 def test_group_permutation():
     assert parse_expression(next_chunk("(test; test2)")) == alt(
         items=[
-            group(
-                items=[
-                    t(text=" "),
-                    group(items=[t(text="test")]),
-                    t(text=" "),
-                    group(items=[t(text=" test2")]),
-                    t(text=" "),
-                ]
-            ),
-            group(
-                items=[
-                    t(text=" "),
-                    group(items=[t(text=" test2")]),
-                    t(text=" "),
-                    group(items=[t(text="test")]),
-                    t(text=" "),
-                ]
-            ),
+            group(items=[t(text="test"), t(text=" "), t(text=" test2")]),
+            group(items=[t(text=" test2"), t(text=" "), t(text="test")]),
         ],
     )
 
@@ -96,7 +83,18 @@ def test_sentence_optional():
                     t(text="test"),
                 ]
             ),
-            TextChunk.empty(),
+            t(text=""),
+        ],
+        is_optional=True,
+    )
+
+
+def test_sentence_optional_prefix():
+    assert parse_sentence("[t]est") == Sentence(
+        type=SequenceType.GROUP,
+        items=[
+            alt(items=[group(items=[t(text="t")]), t(text="")], is_optional=True),
+            t(text="est"),
         ],
     )
 
@@ -106,7 +104,7 @@ def test_sentence_optional_suffix():
         type=SequenceType.GROUP,
         items=[
             t(text="test"),
-            alt(items=[group(items=[t(text="s")]), TextChunk.empty()]),
+            alt(items=[group(items=[t(text="s")]), t(text="")], is_optional=True),
         ],
     )
 
@@ -125,7 +123,7 @@ def test_sentence_alternative_whitespace():
 
 
 def t(**kwargs):
-    return TextChunk(**kwargs)
+    return TextChunk(parent=ANY, **kwargs)
 
 
 def group(**kwargs):

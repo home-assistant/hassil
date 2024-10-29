@@ -112,6 +112,10 @@ def parse_group_or_alt_or_perm(
             else:
                 # Add to parent group
                 seq.items.append(item)
+
+                if isinstance(item, TextChunk):
+                    item_tc: TextChunk = item
+                    item_tc.parent = seq
         elif item_chunk.parse_type == ParseType.ALT:
             ensure_alternative(seq)
 
@@ -161,7 +165,8 @@ def parse_expression(
     if chunk.parse_type == ParseType.OPT:
         seq = parse_group_or_alt_or_perm(chunk, metadata=metadata)
         ensure_alternative(seq)
-        seq.items.append(TextChunk(text=""))
+        seq.items.append(TextChunk(text="", parent=seq))
+        seq.is_optional = True
         return seq
 
     if chunk.parse_type == ParseType.LIST:
@@ -215,19 +220,72 @@ def parse_sentence(
             seq = first_item
 
     return Sentence(
-        type=seq.type, items=seq.items, text=original_text if keep_text else None
+        type=seq.type,
+        items=seq.items,
+        text=original_text if keep_text else None,
+        is_optional=seq.is_optional,
     )
+
+
+def is_empty_text_chunk(exp: Expression) -> bool:
+    return isinstance(exp, TextChunk) and (not exp.text)
 
 
 def add_spaces_between_items(items: List[Expression]) -> List[Expression]:
     """Add spaces between each 2 items of a sequence, used for permutations"""
-
     spaced_items: List[Expression] = []
 
+    # Unpack single item sequences to make pattern matching easier below
+    unpacked_items: List[Expression] = []
     for item in items:
-        spaced_items = spaced_items + [TextChunk(text=" ")] + [item]
+        while (
+            isinstance(item, Sequence)
+            and (item.type == SequenceType.GROUP)
+            and (len(item.items) == 1)
+        ):
+            item = item.items[0]
 
-    spaced_items.append(TextChunk(text=" "))
-    items = spaced_items
+        unpacked_items.append(item)
 
-    return items
+    previous_item: Optional[Expression] = None
+    for item_idx, item in enumerate(unpacked_items):
+        if item_idx > 0:
+            # Only add whitespace after the first item
+            if isinstance(previous_item, Sequence) and previous_item.is_optional:
+                # Modify the previous optional to include a space at the end of
+                # each item.
+                opt: Sequence = previous_item
+                fixed_items: List[Expression] = []
+                for opt_item in opt.items:
+                    fix_item = True
+                    if isinstance(opt_item, TextChunk):
+                        opt_tc: TextChunk = opt_item
+                        if not opt_tc.text:
+                            # Don't fix empty text chunks
+                            fix_item = False
+                        else:
+                            # Remove ending whitespace since we'll be adding a
+                            # whitespace text chunk after.
+                            opt_tc.text = opt_tc.text.rstrip()
+
+                    if fix_item:
+                        fixed_items.append(
+                            Sequence(
+                                type=SequenceType.GROUP,
+                                items=[opt_item, TextChunk(" ")],
+                            )
+                        )
+                    else:
+                        fixed_items.append(opt_item)
+
+                spaced_items[-1] = Sequence(
+                    type=SequenceType.ALTERNATIVE, is_optional=True, items=fixed_items
+                )
+            else:
+                # Add a space in front
+                spaced_items.append(TextChunk(text=" "))
+
+        spaced_items.append(item)
+        previous_item = item
+
+    return spaced_items

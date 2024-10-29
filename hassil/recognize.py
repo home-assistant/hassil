@@ -373,6 +373,8 @@ def recognize_all(
         # Artifical word boundary
         text += " "
 
+    text_keywords = set(PUNCTUATION.sub(" ", text).split())
+
     if slot_lists is None:
         slot_lists = intents.slot_lists
     else:
@@ -498,6 +500,18 @@ def recognize_all(
 
             # Check each sentence template
             for intent_sentence in intent_data.sentences:
+                if (
+                    (settings.edit_budget == 0)
+                    and (not settings.ignore_whitespace)
+                    and (
+                        not intent_sentence.matches_required_keywords(
+                            text_keywords, local_settings.expansion_rules
+                        )
+                    )
+                ):
+                    # Sentence template cannot possibly match
+                    continue
+
                 # Create initial context
                 match_context = MatchContext(
                     text=text,
