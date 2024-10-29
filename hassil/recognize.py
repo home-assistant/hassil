@@ -30,7 +30,12 @@ from .intents import (
     TextSlotList,
     WildcardSlotList,
 )
-from .util import normalize_text, normalize_whitespace
+from .util import (
+    check_excluded_context,
+    check_required_context,
+    normalize_text,
+    normalize_whitespace,
+)
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
 BREAK_WORDS_TABLE = str.maketrans("-_", "  ")
@@ -412,75 +417,20 @@ def recognize_all(
                 #
                 # Additional context can be added during matching, so we can
                 # only be sure about keys that exist right now.
-                skip_data = False
-                if intent_data.requires_context:
-                    for (
-                        required_key,
-                        required_value,
-                    ) in intent_data.requires_context.items():
-                        if required_key not in intent_context:
-                            continue
-
-                        if isinstance(required_value, collections.abc.Mapping):
-                            # Unpack dict
-                            # <context_key>:
-                            #   value: ...
-                            required_value = required_value.get("value")
-
-                        # Ensure value matches
-                        actual_value = intent_context[required_key]
-
-                        if isinstance(actual_value, collections.abc.Mapping):
-                            # Unpack dict
-                            # <context_key>:
-                            #   value: ...
-                            actual_value = actual_value.get("value")
-
-                        if isinstance(required_value, collections.abc.Collection):
-                            if actual_value not in required_value:
-                                skip_data = True
-                                break
-                        elif (required_value is not None) and (
-                            actual_value != required_value
-                        ):
-                            skip_data = True
-                            break
-
-                if skip_data:
+                if intent_data.requires_context and (
+                    not check_required_context(
+                        intent_data.requires_context,
+                        intent_context,
+                        allow_missing_keys=True,
+                    )
+                ):
                     continue
 
-                if intent_data.excludes_context:
-                    for (
-                        excluded_key,
-                        excluded_value,
-                    ) in intent_data.excludes_context.items():
-                        if excluded_key not in intent_context:
-                            continue
-
-                        if isinstance(excluded_value, collections.abc.Mapping):
-                            # Unpack dict
-                            # <context_key>:
-                            #   value: ...
-                            excluded_value = excluded_value.get("value")
-
-                        # Ensure value does not match
-                        actual_value = intent_context[excluded_key]
-
-                        if isinstance(actual_value, collections.abc.Mapping):
-                            # Unpack dict
-                            # <context_key>:
-                            #   value: ...
-                            actual_value = actual_value.get("value")
-
-                        if isinstance(excluded_value, collections.abc.Collection):
-                            if actual_value in excluded_value:
-                                skip_data = True
-                                break
-                        elif actual_value == excluded_value:
-                            skip_data = True
-                            break
-
-                if skip_data:
+                if intent_data.excludes_context and (
+                    not check_excluded_context(
+                        intent_data.excludes_context, intent_context
+                    )
+                ):
                     continue
 
             local_settings = MatchSettings(
@@ -542,150 +492,25 @@ def recognize_all(
                         # Incomplete match with text still left at the end
                         continue
 
-                    skip_match = False
-
                     # Verify excluded context
-                    if intent_data.excludes_context:
-                        for (
-                            context_key,
-                            context_value,
-                        ) in intent_data.excludes_context.items():
-                            actual_value = maybe_match_context.intent_context.get(
-                                context_key
-                            )
-                            if actual_value == context_value:
-                                # Exact match to context value
-                                skip_match = True
-                                break
-
-                            if (
-                                isinstance(context_value, collections.abc.Collection)
-                                and not isinstance(context_value, str)
-                                and (actual_value in context_value)
-                            ):
-                                # Actual value was in context value list
-                                skip_match = True
-                                break
+                    if intent_data.excludes_context and (
+                        not check_excluded_context(
+                            intent_data.excludes_context,
+                            maybe_match_context.intent_context,
+                        )
+                    ):
+                        continue
 
                     # Verify required context
                     slots_from_context: List[MatchEntity] = []
-                    if (not skip_match) and intent_data.requires_context:
-                        for (
-                            context_key,
-                            context_value,
-                        ) in intent_data.requires_context.items():
-                            copy_to_slot: Optional[str] = None
-                            if isinstance(context_value, collections.abc.Mapping):
-                                # Unpack dict
-                                # <context_key>:
-                                #   value: ...
-                                #   slot: true/false or "name"
-                                maybe_copy_to_slot = context_value.get("slot")
-                                if isinstance(maybe_copy_to_slot, str):
-                                    # Slot name provided
-                                    copy_to_slot = maybe_copy_to_slot
-                                elif maybe_copy_to_slot:
-                                    # True
-                                    copy_to_slot = context_key
-
-                                context_value = context_value.get("value")
-
-                            actual_value = maybe_match_context.intent_context.get(
-                                context_key
-                            )
-                            actual_text = ""
-                            actual_metadata: Optional[Dict[str, Any]] = None
-
-                            if isinstance(actual_value, collections.abc.Mapping):
-                                # Unpack dict
-                                actual_text = actual_value.get("text", "")
-                                actual_metadata = actual_value.get("metadata")
-                                actual_value = actual_value.get("value")
-
-                            if allow_unmatched_entities and (actual_value is None):
-                                # Look in unmatched entities
-                                for (
-                                    unmatched_context_entity
-                                ) in maybe_match_context.unmatched_entities:
-                                    if (
-                                        unmatched_context_entity.name == context_key
-                                    ) and isinstance(
-                                        unmatched_context_entity, UnmatchedTextEntity
-                                    ):
-                                        actual_value = unmatched_context_entity.text
-                                        break
-
-                            if (
-                                actual_value == context_value
-                                and context_value is not None
-                            ):
-                                # Exact match to context value, except when context value is required and not provided
-                                if copy_to_slot:
-                                    slots_from_context.append(
-                                        MatchEntity(
-                                            name=copy_to_slot,
-                                            value=actual_value,
-                                            text=actual_text,
-                                            metadata=actual_metadata,
-                                        )
-                                    )
-                                continue
-
-                            if (context_value is None) and (actual_value is not None):
-                                # Any value matches, as long as it's set
-                                if copy_to_slot:
-                                    slots_from_context.append(
-                                        MatchEntity(
-                                            name=copy_to_slot,
-                                            value=actual_value,
-                                            text=actual_text,
-                                            metadata=actual_metadata,
-                                        )
-                                    )
-                                continue
-
-                            if (
-                                isinstance(context_value, collections.abc.Collection)
-                                and not isinstance(context_value, str)
-                                and (actual_value in context_value)
-                            ):
-                                # Actual value was in context value list
-                                if copy_to_slot:
-                                    slots_from_context.append(
-                                        MatchEntity(
-                                            name=copy_to_slot,
-                                            value=actual_value,
-                                            text=actual_text,
-                                            metadata=actual_metadata,
-                                        )
-                                    )
-                                continue
-
-                            if allow_unmatched_entities:
-                                # Create missing entity as unmatched
-                                has_unmatched_entity = False
-                                for (
-                                    unmatched_context_entity
-                                ) in maybe_match_context.unmatched_entities:
-                                    if unmatched_context_entity.name == context_key:
-                                        has_unmatched_entity = True
-                                        break
-
-                                if not has_unmatched_entity:
-                                    maybe_match_context.unmatched_entities.append(
-                                        UnmatchedTextEntity(
-                                            name=context_key,
-                                            text=MISSING_ENTITY,
-                                            is_open=False,
-                                        )
-                                    )
-                            else:
-                                # Did not match required context
-                                skip_match = True
-                                break
-
-                    if skip_match:
-                        # Intent context did not match
+                    if intent_data.requires_context and (
+                        not _copy_and_check_required_context(
+                            intent_data.requires_context,
+                            maybe_match_context,
+                            slots_from_context,
+                            allow_unmatched_entities=allow_unmatched_entities,
+                        )
+                    ):
                         continue
 
                     # Add fixed entities
@@ -804,6 +629,118 @@ def _remove_skip_words(
         text = text.strip()
 
     return text
+
+
+def _copy_and_check_required_context(
+    required_context: Dict[str, Any],
+    maybe_match_context: MatchContext,
+    slots_from_context: List[MatchEntity],
+    allow_unmatched_entities: bool = False,
+) -> bool:
+    """Check required context and copy slots into new entities."""
+    for (
+        context_key,
+        context_value,
+    ) in required_context.items():
+        copy_to_slot: Optional[str] = None
+        if isinstance(context_value, collections.abc.Mapping):
+            # Unpack dict
+            # <context_key>:
+            #   value: ...
+            #   slot: true/false or "name"
+            maybe_copy_to_slot = context_value.get("slot")
+            if isinstance(maybe_copy_to_slot, str):
+                # Slot name provided
+                copy_to_slot = maybe_copy_to_slot
+            elif maybe_copy_to_slot:
+                # True
+                copy_to_slot = context_key
+
+            context_value = context_value.get("value")
+
+        actual_value = maybe_match_context.intent_context.get(context_key)
+        actual_text = ""
+        actual_metadata: Optional[Dict[str, Any]] = None
+
+        if isinstance(actual_value, collections.abc.Mapping):
+            # Unpack dict
+            actual_text = actual_value.get("text", "")
+            actual_metadata = actual_value.get("metadata")
+            actual_value = actual_value.get("value")
+
+        if allow_unmatched_entities and (actual_value is None):
+            # Look in unmatched entities
+            for unmatched_context_entity in maybe_match_context.unmatched_entities:
+                if (unmatched_context_entity.name == context_key) and isinstance(
+                    unmatched_context_entity, UnmatchedTextEntity
+                ):
+                    actual_value = unmatched_context_entity.text
+                    break
+
+        if actual_value == context_value and context_value is not None:
+            # Exact match to context value, except when context value is required and not provided
+            if copy_to_slot:
+                slots_from_context.append(
+                    MatchEntity(
+                        name=copy_to_slot,
+                        value=actual_value,
+                        text=actual_text,
+                        metadata=actual_metadata,
+                    )
+                )
+            continue
+
+        if (context_value is None) and (actual_value is not None):
+            # Any value matches, as long as it's set
+            if copy_to_slot:
+                slots_from_context.append(
+                    MatchEntity(
+                        name=copy_to_slot,
+                        value=actual_value,
+                        text=actual_text,
+                        metadata=actual_metadata,
+                    )
+                )
+            continue
+
+        if (
+            isinstance(context_value, collections.abc.Collection)
+            and not isinstance(context_value, str)
+            and (actual_value in context_value)
+        ):
+            # Actual value was in context value list
+            if copy_to_slot:
+                slots_from_context.append(
+                    MatchEntity(
+                        name=copy_to_slot,
+                        value=actual_value,
+                        text=actual_text,
+                        metadata=actual_metadata,
+                    )
+                )
+            continue
+
+        if allow_unmatched_entities:
+            # Create missing entity as unmatched
+            has_unmatched_entity = False
+            for unmatched_context_entity in maybe_match_context.unmatched_entities:
+                if unmatched_context_entity.name == context_key:
+                    has_unmatched_entity = True
+                    break
+
+            if not has_unmatched_entity:
+                maybe_match_context.unmatched_entities.append(
+                    UnmatchedTextEntity(
+                        name=context_key,
+                        text=MISSING_ENTITY,
+                        is_open=False,
+                    )
+                )
+        else:
+            # Did not match required context
+            return False
+
+    return True
 
 
 def match_expression(
