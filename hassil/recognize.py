@@ -11,7 +11,6 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Union
 
 from unicode_rbnf import RbnfEngine
 
-from .edit_distance import edit_distance
 from .expression import (
     Expression,
     ListReference,
@@ -141,8 +140,6 @@ class MatchSettings:
     language: Optional[str] = None
     """Optional language to use when converting digits to words."""
 
-    edit_budget: int = 0
-
 
 @dataclass
 class MatchContext:
@@ -168,9 +165,6 @@ class MatchContext:
 
     close_unmatched: bool = False
     """True if open unmatched entities should be closed during init."""
-
-    edit_cost: int = 0
-    """Number of edits that were required to match."""
 
     text_chunks_matched: int = 0
     """Number of literal text chunks that were matched."""
@@ -269,9 +263,6 @@ class RecognizeResult:
     unmatched_entities_list: List[UnmatchedEntity] = field(default_factory=list)
     """Unmatched entities as a list (duplicates allowed)."""
 
-    edit_cost: int = 0
-    """Number of edits that were required for the match to succeed."""
-
     text_chunks_matched: int = 0
     """Number of literal text chunks that were successfully matched."""
 
@@ -292,7 +283,6 @@ def recognize(
     default_response: Optional[str] = "default",
     allow_unmatched_entities: bool = False,
     language: Optional[str] = None,
-    edit_budget: int = 0,
 ) -> Optional[RecognizeResult]:
     """Return the first match of input text/words against a collection of intents.
 
@@ -309,9 +299,6 @@ def recognize(
     Returns the first result.
     If allow_unmatched_entities is True, you should check for unmatched entities.
     """
-    best_result: Optional[RecognizeResult] = None
-    best_cost: Optional[int] = None
-
     for result in recognize_all(
         text,
         intents,
@@ -322,16 +309,10 @@ def recognize(
         default_response=default_response,
         allow_unmatched_entities=allow_unmatched_entities,
         language=language,
-        edit_budget=edit_budget,
     ):
-        if edit_budget <= 0:
-            return result
+        return result
 
-        if (best_cost is None) or (result.edit_cost < best_cost):
-            best_cost = result.edit_cost
-            best_result = result
-
-    return best_result
+    return None
 
 
 def recognize_all(
@@ -344,7 +325,6 @@ def recognize_all(
     default_response: Optional[str] = "default",
     allow_unmatched_entities: bool = False,
     language: Optional[str] = None,
-    edit_budget: int = 0,
 ) -> Iterable[RecognizeResult]:
     """Return all matches for input text/words against a collection of intents.
 
@@ -404,7 +384,6 @@ def recognize_all(
         ignore_whitespace=intents.settings.ignore_whitespace,
         allow_unmatched_entities=allow_unmatched_entities,
         language=language or intents.language,
-        edit_budget=edit_budget,
     )
 
     # Check sentence against each intent.
@@ -445,18 +424,13 @@ def recognize_all(
                 ignore_whitespace=settings.ignore_whitespace,
                 allow_unmatched_entities=allow_unmatched_entities,
                 language=language or intents.language,
-                edit_budget=settings.edit_budget,
             )
 
             # Check each sentence template
             for intent_sentence in intent_data.sentences:
-                if (
-                    (settings.edit_budget == 0)
-                    and (not settings.ignore_whitespace)
-                    and (
-                        not intent_sentence.matches_required_keywords(
-                            text_keywords, local_settings.expansion_rules
-                        )
+                if (not settings.ignore_whitespace) and (
+                    not intent_sentence.matches_required_keywords(
+                        text_keywords, local_settings.expansion_rules
                     )
                 ):
                     # Sentence template cannot possibly match
@@ -548,7 +522,6 @@ def recognize_all(
                             for entity in maybe_match_context.unmatched_entities
                         },
                         unmatched_entities_list=maybe_match_context.unmatched_entities,
-                        edit_cost=maybe_match_context.edit_cost,
                         text_chunks_matched=maybe_match_context.text_chunks_matched,
                         intent_sentence=maybe_match_context.intent_sentence,
                         intent_metadata=maybe_match_context.intent_metadata,
@@ -789,7 +762,6 @@ def match_expression(
                         entities=context.entities,
                         intent_context=context.intent_context,
                         unmatched_entities=context.unmatched_entities,
-                        edit_cost=context.edit_cost,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
                         intent_metadata=context.intent_metadata,
@@ -829,7 +801,6 @@ def match_expression(
                             # Copy over
                             intent_context=context.intent_context,
                             unmatched_entities=context.unmatched_entities,
-                            edit_cost=context.edit_cost,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
                             intent_metadata=context.intent_metadata,
@@ -861,7 +832,6 @@ def match_expression(
                     entities=context.entities,
                     intent_context=context.intent_context,
                     unmatched_entities=context.unmatched_entities,
-                    edit_cost=context.edit_cost,
                     intent_sentence=context.intent_sentence,
                     intent_metadata=context.intent_metadata,
                     #
@@ -887,31 +857,6 @@ def match_expression(
 
                 context_chars_to_remove = len(chunk_text)
 
-                # Fuzzy matching
-                if not context_starts_with and (
-                    context.edit_cost < settings.edit_budget
-                ):
-                    # See if we have the budget for a fuzzy match
-                    if settings.ignore_whitespace:
-                        # Compute cost against the next context chunk of the same size
-                        context_text_part = context_text[: len(chunk_text)]
-                    else:
-                        # Find the closest word boundary
-                        next_word_idx = context_text.rfind(" ", 0, len(chunk_text))
-                        if 0 < next_word_idx < len(chunk_text):
-                            # Compute cost against the closest word boundary
-                            context_text_part = context_text[: next_word_idx + 1]
-                        else:
-                            # Compute cost against the next context chunk of the same size
-                            context_text_part = context_text[: len(chunk_text)]
-
-                    match_cost = edit_distance(context_text_part, chunk_text)
-                    if (context.edit_cost + match_cost) <= settings.edit_budget:
-                        # Accept the fuzzy match
-                        context.edit_cost += match_cost
-                        context_chars_to_remove = len(context_text_part)
-                        context_starts_with = True
-
                 if context_starts_with:
                     context_text = context_text[context_chars_to_remove:]
 
@@ -925,7 +870,6 @@ def match_expression(
                         intent_context=context.intent_context,
                         is_start_of_word=context.is_start_of_word,
                         unmatched_entities=context.unmatched_entities,
-                        edit_cost=context.edit_cost,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
                         intent_metadata=context.intent_metadata,
@@ -961,7 +905,6 @@ def match_expression(
                                 intent_context=context.intent_context,
                                 is_start_of_word=True,
                                 unmatched_entities=context.unmatched_entities,
-                                edit_cost=context.edit_cost,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
                                 intent_metadata=context.intent_metadata,
@@ -1011,7 +954,6 @@ def match_expression(
                                 intent_context=context.intent_context,
                                 is_start_of_word=True,
                                 # unmatched_entities=context.unmatched_entities,
-                                edit_cost=context.edit_cost,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
                                 intent_metadata=context.intent_metadata,
@@ -1071,7 +1013,6 @@ def match_expression(
                             intent_context=context.intent_context,
                             is_start_of_word=context.is_start_of_word,
                             unmatched_entities=context.unmatched_entities,
-                            edit_cost=context.edit_cost,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
                             intent_metadata=context.intent_metadata,
@@ -1106,7 +1047,6 @@ def match_expression(
                                 text=value_context.text,
                                 is_start_of_word=context.is_start_of_word,
                                 unmatched_entities=context.unmatched_entities,
-                                edit_cost=context.edit_cost,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
                                 intent_metadata=context.intent_metadata,
@@ -1119,7 +1059,6 @@ def match_expression(
                                 intent_context=value_context.intent_context,
                                 is_start_of_word=context.is_start_of_word,
                                 unmatched_entities=context.unmatched_entities,
-                                edit_cost=context.edit_cost,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
                                 intent_metadata=context.intent_metadata,
@@ -1133,7 +1072,6 @@ def match_expression(
                         entities=context.entities,
                         intent_context=context.intent_context,
                         is_start_of_word=context.is_start_of_word,
-                        edit_cost=context.edit_cost,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
                         intent_metadata=context.intent_metadata,
@@ -1189,7 +1127,6 @@ def match_expression(
                             intent_context=context.intent_context,
                             is_start_of_word=context.is_start_of_word,
                             unmatched_entities=context.unmatched_entities,
-                            edit_cost=context.edit_cost,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
                             intent_metadata=context.intent_metadata,
@@ -1202,7 +1139,6 @@ def match_expression(
                             entities=context.entities,
                             intent_context=context.intent_context,
                             is_start_of_word=context.is_start_of_word,
-                            edit_cost=context.edit_cost,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
                             intent_metadata=context.intent_metadata,
@@ -1264,7 +1200,6 @@ def match_expression(
                                             intent_context=context.intent_context,
                                             is_start_of_word=context.is_start_of_word,
                                             unmatched_entities=context.unmatched_entities,
-                                            edit_cost=context.edit_cost,
                                             text_chunks_matched=context.text_chunks_matched,
                                             intent_sentence=context.intent_sentence,
                                             intent_metadata=context.intent_metadata,
@@ -1290,7 +1225,6 @@ def match_expression(
                         entities=context.entities,
                         intent_context=context.intent_context,
                         is_start_of_word=context.is_start_of_word,
-                        edit_cost=context.edit_cost,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
                         intent_metadata=context.intent_metadata,
@@ -1308,7 +1242,6 @@ def match_expression(
                     intent_context=context.intent_context,
                     is_start_of_word=context.is_start_of_word,
                     unmatched_entities=context.unmatched_entities,
-                    edit_cost=context.edit_cost,
                     text_chunks_matched=context.text_chunks_matched,
                     intent_sentence=context.intent_sentence,
                     intent_metadata=context.intent_metadata,
