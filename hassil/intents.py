@@ -1,6 +1,5 @@
 """Classes/methods for loading YAML intent files."""
 
-import itertools
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
@@ -10,7 +9,7 @@ from typing import IO, Any, Dict, Iterable, List, Optional, Set, Tuple, Union, c
 
 from yaml import safe_load
 
-from .expression import Expression, Sentence, Sequence, SequenceType, TextChunk
+from .expression import Expression, Sentence, TextChunk
 from .parse_expression import parse_sentence
 from .util import is_template, merge_dict, normalize_text
 
@@ -336,8 +335,10 @@ class Intents:
                             response=data_dict.get("response"),
                             wildcard_list_names=wildcard_list_names,
                             metadata=data_dict.get("metadata"),
-                            required_keywords=_parse_keywords(
-                                data_dict.get("required_keywords")
+                            required_keywords=(
+                                set(data_dict["required_keywords"])
+                                if "required_keywords" in data_dict
+                                else None
                             ),
                         )
                         for data_dict in intent_dict["data"]
@@ -429,41 +430,3 @@ def _maybe_parse_template(text: str, allow_template: bool = True) -> Expression:
         return parse_sentence(text)
 
     return TextChunk(normalize_text(text))
-
-
-def _parse_keywords(keyword_templates: Optional[List[str]]) -> Optional[Set[str]]:
-    """Parse list of required keywords (possibly templates with no lists or rules)."""
-    if not keyword_templates:
-        return None
-
-    keywords: Set[str] = set()
-    for template in keyword_templates:
-        if is_template(template):
-            for text in _sample_text(parse_sentence(template)):
-                keywords.update(text.strip())
-        else:
-            keywords.add(template)
-
-    return keywords
-
-
-def _sample_text(expression: Expression) -> Iterable[str]:
-    """Sample possible text strings from an expression (no lists or rules)."""
-    if isinstance(expression, TextChunk):
-        chunk: TextChunk = expression
-        yield chunk.original_text
-    elif isinstance(expression, Sequence):
-        seq: Sequence = expression
-        if seq.type == SequenceType.ALTERNATIVE:
-            for item in seq.items:
-                yield from _sample_text(item)
-        elif seq.type == SequenceType.GROUP:
-            seq_sentences = map(
-                _sample_text,
-                seq.items,
-            )
-            sentence_texts = itertools.product(*seq_sentences)
-            for sentence_words in sentence_texts:
-                yield "".join(sentence_words)
-    else:
-        yield ""
