@@ -1,12 +1,9 @@
 """Classes for representing sentence templates."""
 
-import itertools
 from abc import ABC
-from collections.abc import Collection
 from dataclasses import dataclass, field
 from enum import Enum
-from functools import partial
-from typing import Dict, Iterator, List, Optional, Set
+from typing import Dict, Iterator, List, Optional
 
 
 @dataclass
@@ -141,84 +138,3 @@ class Sentence(Sequence):
     """Sequence representing a complete sentence template."""
 
     text: Optional[str] = None
-    _required_keywords: Optional[List[Set[str]]] = None
-
-    def matches_required_keywords(
-        self,
-        keywords: Collection[str],
-        expansion_rules: Optional[Dict[str, "Sentence"]] = None,
-    ) -> bool:
-        """Return False if provided keywords could not possibly match the sentence template."""
-        if self._required_keywords is None:
-            # Generate lists of required keywords
-            self._required_keywords = []
-
-            # Process each alternative sentence separately because they may have
-            # very different keywords.
-            for sentence_text in self._sample_required_text(self, expansion_rules):
-                sentence_keywords = set(sentence_text.split())
-                if not sentence_keywords:
-                    # No required keywords
-                    self._required_keywords = []
-                    break
-
-                self._required_keywords.append(sentence_keywords)
-
-        if not self._required_keywords:
-            # No required keywords
-            return True
-
-        for sentence_keywords in self._required_keywords:
-            # We can't use issubset here because we skip optionals during text
-            # generation, and template fragments like "light[s]" will not
-            # generate "light" and "lights".
-            #
-            # Including optionals makes the keyword checking slower than the
-            # original recognizer.
-            if not sentence_keywords.isdisjoint(keywords):
-                return True
-
-        return False
-
-    def _sample_required_text(
-        self,
-        expression: Expression,
-        expansion_rules: Optional[Dict[str, "Sentence"]] = None,
-    ):
-        """Generate possible sentences, but skip optionals."""
-        if isinstance(expression, TextChunk):
-            chunk: TextChunk = expression
-            yield chunk.text
-        elif isinstance(expression, Sequence):
-            seq: Sequence = expression
-            if seq.is_optional:
-                # Skip optionals
-                yield ""
-            elif seq.type == SequenceType.ALTERNATIVE:
-                for item in seq.items:
-                    yield from self._sample_required_text(item, expansion_rules)
-            elif seq.type == SequenceType.GROUP:
-                seq_sentences = map(
-                    partial(
-                        self._sample_required_text,
-                        expansion_rules=expansion_rules,
-                    ),
-                    seq.items,
-                )
-                sentence_texts = itertools.product(*seq_sentences)
-                for sentence_words in sentence_texts:
-                    yield "".join(sentence_words)
-        elif isinstance(expression, RuleReference):
-            # <rule>
-            rule_ref: RuleReference = expression
-
-            rule_body: Optional[Sentence] = None
-            if expansion_rules:
-                rule_body = expansion_rules.get(rule_ref.rule_name)
-
-            if rule_body is None:
-                raise ValueError(f"Missing expansion rule <{rule_ref.rule_name}>")
-
-            yield from self._sample_required_text(rule_body, expansion_rules)
-        else:
-            yield ""

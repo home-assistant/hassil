@@ -7,7 +7,7 @@ import re
 from abc import ABC
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Set, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from unicode_rbnf import RbnfEngine
 
@@ -29,6 +29,7 @@ from .intents import (
     TextSlotList,
     WildcardSlotList,
 )
+from .trie import Trie
 from .util import (
     check_excluded_context,
     check_required_context,
@@ -51,7 +52,8 @@ _LOGGER = logging.getLogger()
 _ENGINE_CACHE: Dict[str, RbnfEngine] = {}
 
 # lang -> number -> words
-_NUMBER_WORDS_CACHE: Dict[str, Dict[int, Set[str]]] = defaultdict(dict)
+# _NUMBER_WORDS_CACHE: Dict[str, Dict[int, Set[str]]] = defaultdict(dict)
+_RANGE_TRIE_CACHE: Dict[str, Dict[Tuple[int, int, int], Trie]] = defaultdict(dict)
 
 
 class HassilError(Exception):
@@ -172,8 +174,8 @@ class MatchContext:
     intent_sentence: Optional[Sentence] = None
     """Sentence template that is being matched."""
 
-    intent_metadata: Optional[Dict[str, Any]] = None
-    """Metadata of sentence template that is being matched."""
+    intent_data: Optional[IntentData] = None
+    """Data from sentence template group in intents."""
 
     def __post_init__(self):
         if self.close_wildcards:
@@ -390,6 +392,13 @@ def recognize_all(
     # This should eventually be done in parallel.
     for intent in intents.intents.values():
         for intent_data in intent.data:
+            if (
+                intent_data.required_keywords
+                and intent_data.required_keywords.isdisjoint(text_keywords)
+            ):
+                # No keyword overlap
+                continue
+
             if intent_context:
                 # Skip sentence templates that can't possibly be matched due to
                 # requires/excludes context.
@@ -428,20 +437,12 @@ def recognize_all(
 
             # Check each sentence template
             for intent_sentence in intent_data.sentences:
-                if (not settings.ignore_whitespace) and (
-                    not intent_sentence.matches_required_keywords(
-                        text_keywords, local_settings.expansion_rules
-                    )
-                ):
-                    # Sentence template cannot possibly match
-                    continue
-
                 # Create initial context
                 match_context = MatchContext(
                     text=text,
                     intent_context=intent_context,
                     intent_sentence=intent_sentence,
-                    intent_metadata=intent_data.metadata,
+                    intent_data=intent_data,
                 )
                 maybe_match_contexts = match_expression(
                     local_settings, match_context, intent_sentence
@@ -507,6 +508,10 @@ def recognize_all(
                     if intent_data.response is not None:
                         response = intent_data.response
 
+                    intent_metadata: Optional[Dict[str, Any]] = None
+                    if maybe_match_context.intent_data is not None:
+                        intent_metadata = maybe_match_context.intent_data.metadata
+
                     yield RecognizeResult(
                         intent=intent,
                         intent_data=intent_data,
@@ -524,7 +529,7 @@ def recognize_all(
                         unmatched_entities_list=maybe_match_context.unmatched_entities,
                         text_chunks_matched=maybe_match_context.text_chunks_matched,
                         intent_sentence=maybe_match_context.intent_sentence,
-                        intent_metadata=maybe_match_context.intent_metadata,
+                        intent_metadata=intent_metadata,
                     )
 
 
@@ -764,7 +769,7 @@ def match_expression(
                         unmatched_entities=context.unmatched_entities,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
-                        intent_metadata=context.intent_metadata,
+                        intent_data=context.intent_data,
                     )
                     return
 
@@ -803,7 +808,7 @@ def match_expression(
                             unmatched_entities=context.unmatched_entities,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
-                            intent_metadata=context.intent_metadata,
+                            intent_data=context.intent_data,
                         ),
                         expression,
                     )
@@ -833,7 +838,7 @@ def match_expression(
                     intent_context=context.intent_context,
                     unmatched_entities=context.unmatched_entities,
                     intent_sentence=context.intent_sentence,
-                    intent_metadata=context.intent_metadata,
+                    intent_data=context.intent_data,
                     #
                     close_wildcards=is_chunk_non_empty,
                     close_unmatched=is_chunk_non_empty,
@@ -872,7 +877,7 @@ def match_expression(
                         unmatched_entities=context.unmatched_entities,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
-                        intent_metadata=context.intent_metadata,
+                        intent_data=context.intent_data,
                         #
                         close_wildcards=is_chunk_non_empty,
                         close_unmatched=is_chunk_non_empty,
@@ -907,7 +912,7 @@ def match_expression(
                                 unmatched_entities=context.unmatched_entities,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
-                                intent_metadata=context.intent_metadata,
+                                intent_data=context.intent_data,
                                 #
                                 entities=entities,
                             )
@@ -956,7 +961,7 @@ def match_expression(
                                 # unmatched_entities=context.unmatched_entities,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
-                                intent_metadata=context.intent_metadata,
+                                intent_data=context.intent_data,
                                 #
                                 unmatched_entities=unmatched_entities,
                             )
@@ -1003,7 +1008,35 @@ def match_expression(
                 text_list: TextSlotList = slot_list
                 # Any value may match
                 has_matches = False
+
+                required_context: Optional[Dict[str, Any]] = None
+                excluded_context: Optional[Dict[str, Any]] = None
+                if context.intent_data is not None:
+                    required_context = context.intent_data.requires_context
+                    excluded_context = context.intent_data.excludes_context
+
                 for slot_value in text_list.values:
+                    # Filter possible values with required/excluded context
+                    if required_context and (
+                        not check_required_context(
+                            required_context,
+                            slot_value.context,
+                            allow_missing_keys=True,
+                        )
+                    ):
+                        continue
+
+                    if excluded_context and (
+                        not check_excluded_context(excluded_context, slot_value.context)
+                    ):
+                        continue
+
+                    if (isinstance(slot_value.text_in, TextChunk)) and (
+                        len(context.text) < len(slot_value.text_in.text)
+                    ):
+                        # Not enough text left to match
+                        continue
+
                     value_contexts = match_expression(
                         settings,
                         MatchContext(
@@ -1015,7 +1048,7 @@ def match_expression(
                             unmatched_entities=context.unmatched_entities,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
-                            intent_metadata=context.intent_metadata,
+                            intent_data=context.intent_data,
                         ),
                         slot_value.text_in,
                     )
@@ -1049,7 +1082,7 @@ def match_expression(
                                 unmatched_entities=context.unmatched_entities,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
-                                intent_metadata=context.intent_metadata,
+                                intent_data=context.intent_data,
                             )
                         else:
                             yield MatchContext(
@@ -1061,7 +1094,7 @@ def match_expression(
                                 unmatched_entities=context.unmatched_entities,
                                 text_chunks_matched=context.text_chunks_matched,
                                 intent_sentence=context.intent_sentence,
-                                intent_metadata=context.intent_metadata,
+                                intent_data=context.intent_data,
                             )
 
                 if (not has_matches) and settings.allow_unmatched_entities:
@@ -1074,7 +1107,7 @@ def match_expression(
                         is_start_of_word=context.is_start_of_word,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
-                        intent_metadata=context.intent_metadata,
+                        intent_data=context.intent_data,
                         #
                         unmatched_entities=context.unmatched_entities
                         + [UnmatchedTextEntity(name=list_ref.slot_name, text="")],
@@ -1084,7 +1117,6 @@ def match_expression(
         elif isinstance(slot_list, RangeSlotList):
             if context.text:
                 # List that represents a number range.
-                # Numbers must currently be digits ("1" not "one").
                 range_list: RangeSlotList = slot_list
 
                 # Look for digits at the start of the incoming text
@@ -1129,7 +1161,7 @@ def match_expression(
                             unmatched_entities=context.unmatched_entities,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
-                            intent_metadata=context.intent_metadata,
+                            intent_data=context.intent_data,
                         )
                     elif settings.allow_unmatched_entities:
                         # Report out of range
@@ -1141,7 +1173,7 @@ def match_expression(
                             is_start_of_word=context.is_start_of_word,
                             text_chunks_matched=context.text_chunks_matched,
                             intent_sentence=context.intent_sentence,
-                            intent_metadata=context.intent_metadata,
+                            intent_data=context.intent_data,
                             #
                             unmatched_entities=context.unmatched_entities
                             + [
@@ -1159,53 +1191,48 @@ def match_expression(
                 if range_list.words and (not digits_match) and (number_match is None):
                     words_language = range_list.words_language or settings.language
                     if words_language:
-                        # Load number formatting engine
-                        engine = _ENGINE_CACHE.get(words_language)
+                        range_settings = (
+                            range_list.start,
+                            range_list.stop,
+                            range_list.step,
+                        )
+                        range_trie = _RANGE_TRIE_CACHE[words_language].get(
+                            range_settings
+                        )
                         try:
-                            if engine is None:
-                                engine = RbnfEngine.for_language(words_language)
-                                _ENGINE_CACHE[words_language] = engine
+                            if range_trie is None:
+                                range_trie = _build_range_trie(
+                                    words_language, range_list
+                                )
+                                _RANGE_TRIE_CACHE[words_language][
+                                    range_settings
+                                ] = range_trie
 
-                            words_cache = _NUMBER_WORDS_CACHE[words_language]
-                            for word_number in range(
-                                range_list.start, range_list.stop + 1, range_list.step
+                            for number_text, range_value in range_trie.find(
+                                context.text
                             ):
-                                number_words = words_cache.get(word_number)
-                                if number_words is None:
-                                    format_result = engine.format_number(word_number)
-                                    number_words = {
-                                        t.translate(BREAK_WORDS_TABLE)
-                                        for t in format_result.text_by_ruleset.values()
-                                    }
-                                    words_cache[word_number] = number_words
-
-                                range_value = word_number
-                                if range_list.multiplier is not None:
-                                    range_value *= range_list.multiplier
-
-                                for number_text in number_words:
-                                    entities = context.entities + [
-                                        MatchEntity(
-                                            name=list_ref.slot_name,
-                                            value=range_value,
-                                            text=number_text,
-                                        )
-                                    ]
-                                    yield from match_expression(
-                                        settings,
-                                        MatchContext(
-                                            text=context.text,
-                                            entities=entities,
-                                            # Copy over
-                                            intent_context=context.intent_context,
-                                            is_start_of_word=context.is_start_of_word,
-                                            unmatched_entities=context.unmatched_entities,
-                                            text_chunks_matched=context.text_chunks_matched,
-                                            intent_sentence=context.intent_sentence,
-                                            intent_metadata=context.intent_metadata,
-                                        ),
-                                        TextChunk(number_text),
+                                entities = context.entities + [
+                                    MatchEntity(
+                                        name=list_ref.slot_name,
+                                        value=range_value,
+                                        text=number_text,
                                     )
+                                ]
+                                yield from match_expression(
+                                    settings,
+                                    MatchContext(
+                                        text=context.text,
+                                        entities=entities,
+                                        # Copy over
+                                        intent_context=context.intent_context,
+                                        is_start_of_word=context.is_start_of_word,
+                                        unmatched_entities=context.unmatched_entities,
+                                        text_chunks_matched=context.text_chunks_matched,
+                                        intent_sentence=context.intent_sentence,
+                                        intent_data=context.intent_data,
+                                    ),
+                                    TextChunk(number_text),
+                                )
                         except ValueError as error:
                             _LOGGER.debug(
                                 "Unexpected error converting numbers to words for language '%s': %s",
@@ -1227,7 +1254,7 @@ def match_expression(
                         is_start_of_word=context.is_start_of_word,
                         text_chunks_matched=context.text_chunks_matched,
                         intent_sentence=context.intent_sentence,
-                        intent_metadata=context.intent_metadata,
+                        intent_data=context.intent_data,
                         #
                         unmatched_entities=context.unmatched_entities
                         + [UnmatchedTextEntity(name=list_ref.slot_name, text="")],
@@ -1244,7 +1271,7 @@ def match_expression(
                     unmatched_entities=context.unmatched_entities,
                     text_chunks_matched=context.text_chunks_matched,
                     intent_sentence=context.intent_sentence,
-                    intent_metadata=context.intent_metadata,
+                    intent_data=context.intent_data,
                     #
                     entities=context.entities
                     + [
@@ -1274,3 +1301,37 @@ def match_expression(
 
 def _normalize_whitespace(text: str) -> str:
     return WHITESPACE.sub(" ", text)
+
+
+def _build_range_trie(language: str, range_list: RangeSlotList) -> Trie:
+    range_trie = Trie()
+
+    # Load number formatting engine
+    engine = _ENGINE_CACHE.get(language)
+    if engine is None:
+        engine = RbnfEngine.for_language(language)
+        _ENGINE_CACHE[language] = engine
+
+    for word_number in range(range_list.start, range_list.stop + 1, range_list.step):
+        range_value: Union[float, int] = word_number
+        if range_list.multiplier is not None:
+            range_value *= range_list.multiplier
+
+        format_result = engine.format_number(word_number)
+        used_words = set()
+
+        for words in format_result.text_by_ruleset.values():
+            if words in used_words:
+                continue
+
+            range_trie.insert(words, range_value)
+            used_words.add(words)
+
+            words = words.translate(BREAK_WORDS_TABLE)
+            if words in used_words:
+                continue
+
+            range_trie.insert(words, range_value)
+            used_words.add(words)
+
+    return range_trie
