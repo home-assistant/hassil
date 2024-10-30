@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.0
+
+- Filter text slot list values by required/excluded context during matching
+- Use a trie to filter range slot list values based on remaining text to be matched
+- Add `required_keywords` section to intent data to skip sentences without specific keywords
+
 ## 1.8.0
 
 - Bump `unicode-rbnf` to 2.0.0
