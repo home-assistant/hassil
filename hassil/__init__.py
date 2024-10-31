@@ -10,4 +10,4 @@ from .expression import (
 )
 from .intents import Intents
 from .parse_expression import parse_sentence
-from .recognize import is_match, recognize, recognize_all
+from .recognize import is_match, recognize, recognize_all, recognize_best

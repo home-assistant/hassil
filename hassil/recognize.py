@@ -263,7 +263,8 @@ def recognize_all(
                     # Use string matcher to recognize list values
                     all_list_contexts.append(
                         filter(
-                            lambda mc: mc.is_match,
+                            lambda mc: mc.is_match
+                            or (mc.get_open_wildcard() is not None),
                             match_expression(
                                 match_settings,
                                 MatchContext(
@@ -339,6 +340,10 @@ def _merge_match_contexts(
     match_contexts: Iterable[MatchContext], merged_context: MatchContext
 ) -> MatchContext:
     for match_context in match_contexts:
+        if match_context.text:
+            # Needed for open wildcards
+            merged_context.text = match_context.text
+
         merged_context.entities.extend(match_context.entities)
         merged_context.intent_context.update(match_context.intent_context)
 
@@ -605,3 +610,109 @@ def _copy_and_check_required_context(
             return False
 
     return True
+
+
+def recognize_best(
+    text: str,
+    intents: Intents,
+    slot_lists: Optional[Dict[str, SlotList]] = None,
+    expansion_rules: Optional[Dict[str, Sentence]] = None,
+    skip_words: Optional[Iterable[str]] = None,
+    intent_context: Optional[Dict[str, Any]] = None,
+    default_response: Optional[str] = "default",
+    allow_unmatched_entities: bool = False,
+    language: Optional[str] = None,
+    best_metadata_key: Optional[str] = None,
+    best_slot_name: Optional[str] = None,
+) -> Optional[RecognizeResult]:
+    """Find the best result with the following priorities:
+
+    1. The result that has "best_metadata_key" in its metadata
+    2. The result that has an entity for "best_slot_name" and longest text
+    3. The result that matches the most literal text
+
+    See "recognize_all" for other parameters.
+    """
+    metadata_found = False
+    slot_found = False
+    best_results: list[RecognizeResult] = []
+    best_slot_quality: int | None = None
+    best_text_chunks_matched: int | None = None
+
+    for result in recognize_all(
+        text,
+        intents,
+        slot_lists=slot_lists,
+        expansion_rules=expansion_rules,
+        skip_words=skip_words,
+        intent_context=intent_context,
+        default_response=default_response,
+        allow_unmatched_entities=allow_unmatched_entities,
+        language=language,
+    ):
+        # Prioritize intents with a specific metadata key
+        if best_metadata_key is not None:
+            is_metadata = (
+                result.intent_metadata is not None
+                and result.intent_metadata.get(best_metadata_key)
+            )
+
+            if metadata_found and not is_metadata:
+                continue
+
+            if not metadata_found and is_metadata:
+                metadata_found = True
+
+                # Clear builtin results
+                slot_found = False
+                best_results = []
+                best_slot_quality = None
+                best_text_chunks_matched = None
+
+        # Prioritize results with a specific slot
+        if best_slot_name:
+            entity = result.entities.get(best_slot_name)
+            if entity is None:
+                continue
+
+            is_slot = entity and not entity.is_wildcard
+
+            if slot_found and not is_slot:
+                continue
+
+            if not slot_found and is_slot:
+                slot_found = True
+
+                # Clear non-slot results
+                best_results = []
+                best_text_chunks_matched = None
+
+            if is_slot and isinstance(entity.value, str):
+                # Prioritize results with a better slot value
+                slot_quality = len(entity.text)
+                if (best_slot_quality is None) or (slot_quality > best_slot_quality):
+                    best_slot_quality = slot_quality
+
+                    # Clear worse slot results
+                    best_results = []
+                    best_text_chunks_matched = None
+                elif slot_quality < best_slot_quality:
+                    continue
+
+        # Prioritize results with more literal text
+        # This causes wildcards to match last.
+        if (best_text_chunks_matched is None) or (
+            result.text_chunks_matched > best_text_chunks_matched
+        ):
+            best_results = [result]
+            best_text_chunks_matched = result.text_chunks_matched
+        elif result.text_chunks_matched == best_text_chunks_matched:
+            # Accumulate results with the same number of literal text matched.
+            # We will resolve the ambiguity below.
+            best_results.append(result)
+
+    if best_results:
+        # Successful strict match
+        return best_results[0]
+
+    return None

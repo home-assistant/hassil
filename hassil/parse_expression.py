@@ -295,7 +295,6 @@ def parse_sentence(
         match = re.search(rf"\s({re.escape(OPT_START)})", right_text)
 
     text = left_text + right_text
-    print(text)
 
     # Wrap in a group because sentences need to always be sequences.
     text = f"({text})"

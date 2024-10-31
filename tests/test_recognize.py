@@ -3,7 +3,7 @@ from typing import Set, cast
 
 import pytest
 
-from hassil import Intents, recognize, recognize_all
+from hassil import Intents, recognize, recognize_all, recognize_best
 from hassil.expression import TextChunk
 from hassil.intents import TextSlotList
 from hassil.models import MatchEntity, UnmatchedRangeEntity, UnmatchedTextEntity
@@ -1515,6 +1515,58 @@ def test_range_multiplier(intents, slot_lists):
     assert result.entities.keys() == {"volume_level"}
     assert result.entities["volume_level"].value == 0.5
     assert result.entities["volume_level"].text == "50"
+
+
+def test_recognize_best():
+    yaml_text = """
+    language: "en"
+    intents:
+      TurnOn:
+        data:
+          - sentences:
+              - "{anything} lamp"
+            metadata:
+              best_key: "best value"
+          - sentences:
+              - "turn on {area} lamp"
+              - "turn on {name}"
+    lists:
+      area:
+        values:
+          - bedroom
+      name:
+        values:
+          - bedroom lamp
+      anything:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    # Should match the sentence with the wildcard slot because it's listed first.
+    result = recognize("turn on bedroom lamp", intents)  # not best
+    assert result is not None
+    assert result.entities.keys() == {"anything"}
+
+    # Should match the sentence with the wildcard slot because of its metadata.
+    result = recognize_best(
+        "turn on bedroom lamp", intents, best_metadata_key="best_key"
+    )
+    assert result is not None
+    assert result.entities.keys() == {"anything"}
+
+    # Should match the sentence with the "area" slot because it has the most
+    # literal text matched.
+    result = recognize_best("turn on bedroom lamp", intents)
+    assert result is not None
+    assert result.entities.keys() == {"area"}
+
+    # Should match the sentence with the "name" slot because it's a priority
+    result = recognize_best("turn on bedroom lamp", intents, best_slot_name="name")
+    assert result is not None
+    assert result.entities.keys() == {"name"}
+    assert result.entities["name"].value == "bedroom lamp"
 
 
 # Fails because wildcards must be followed by literal text or end of sentence
