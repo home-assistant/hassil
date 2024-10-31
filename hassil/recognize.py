@@ -3,11 +3,12 @@
 import collections.abc
 import itertools
 import logging
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .expression import Sentence
-from .intents import Intent, IntentData, Intents, SlotList
+from .intents import Intent, IntentData, Intents, SlotList, WildcardSlotList
 from .models import MatchEntity, UnmatchedEntity, UnmatchedTextEntity
 from .string_matcher import MatchContext, MatchSettings, match_expression
 from .util import (
@@ -17,7 +18,9 @@ from .util import (
     check_required_context,
     normalize_text,
     remove_skip_words,
+    remove_punctuation,
 )
+from .errors import MissingListError
 
 MISSING_ENTITY = "<missing>"
 
@@ -141,13 +144,8 @@ def recognize_all(
     if skip_words:
         text = remove_skip_words(text, skip_words, intents.settings.ignore_whitespace)
 
-    if intents.settings.ignore_whitespace:
-        text = WHITESPACE.sub("", text)
-    else:
-        # Artifical word boundary
-        text += " "
-
-    text_keywords = set(PUNCTUATION_ALL.sub(" ", text).split())
+    text_without_punctuation = remove_punctuation(text)
+    text_keywords = text_without_punctuation.split()
 
     if slot_lists is None:
         slot_lists = intents.slot_lists
@@ -167,16 +165,8 @@ def recognize_all(
     if intent_context is None:
         intent_context = {}
 
-    settings = MatchSettings(
-        slot_lists=slot_lists,
-        expansion_rules=expansion_rules,
-        ignore_whitespace=intents.settings.ignore_whitespace,
-        allow_unmatched_entities=allow_unmatched_entities,
-        language=language or intents.language,
-    )
-
     # Filter intents based on context and keywords
-    available_intents: List[Tuple[Intent, IntentData]] = []
+    available_intents: List[Tuple[Intent, IntentData, MatchSettings]] = []
 
     for intent in intents.intents.values():
         for intent_data in intent.data:
@@ -209,23 +199,118 @@ def recognize_all(
                 ):
                     continue
 
-            available_intents.append((intent, intent_data))
+            match_settings = MatchSettings(
+                slot_lists={
+                    **slot_lists,
+                    **intent_data.slot_lists,
+                },
+                expansion_rules={
+                    **expansion_rules,
+                    **intent_data.expansion_rules,
+                },
+                ignore_whitespace=intents.settings.ignore_whitespace,
+                allow_unmatched_entities=allow_unmatched_entities,
+                language=language or intents.language,
+            )
 
-    for intent, intent_data in available_intents:
-        local_settings = MatchSettings(
-            slot_lists={
-                **settings.slot_lists,
-                **intent_data.slot_lists,
-            },
-            expansion_rules={
-                **settings.expansion_rules,
-                **intent_data.expansion_rules,
-            },
-            ignore_whitespace=settings.ignore_whitespace,
-            allow_unmatched_entities=allow_unmatched_entities,
-            language=language or intents.language,
-        )
+            available_intents.append((intent, intent_data, match_settings))
 
+    # Try regex matcher first
+    found_regex_match = False
+    if not allow_unmatched_entities:
+        for intent, intent_data, match_settings in available_intents:
+            response = default_response
+            if intent_data.response is not None:
+                response = intent_data.response
+
+            for intent_sentence in intent_data.sentences:
+                intent_sentence.compile(match_settings.expansion_rules)
+                assert intent_sentence.pattern is not None
+                assert intent_sentence.list_references is not None
+
+                regex_match = intent_sentence.pattern.match(text_without_punctuation)
+                if regex_match is None:
+                    continue
+
+                if not intent_sentence.list_references:
+                    # No entities
+                    found_regex_match = True
+                    yield RecognizeResult(
+                        intent=intent,
+                        intent_data=intent_data,
+                        response=response,
+                        context=intent_context,
+                        text_chunks_matched=len(text),
+                        intent_sentence=intent_sentence,
+                        intent_metadata=intent_data.metadata,
+                    )
+                    continue
+
+                # Match list values
+                all_list_values: Dict[str, List[MatchEntity]] = defaultdict(list)
+                for group_idx, list_ref in enumerate(intent_sentence.list_references):
+                    list_value = regex_match.group(group_idx + 1)
+                    if list_value is None:
+                        # List was part of an optional that wasn't used
+                        continue
+
+                    match_list = match_settings.slot_lists.get(list_ref.list_name)
+                    if match_list is None:
+                        raise MissingListError(
+                            f"Missing slot list {{{list_ref.list_name}}}"
+                        )
+
+                    possible_list_values = all_list_values[list_ref.list_name]
+
+                    if isinstance(match_list, WildcardSlotList):
+                        # Matched text is the value for wildcards
+                        possible_list_values.append(
+                            MatchEntity(
+                                name=list_ref.slot_name,
+                                value=list_value,
+                                text=list_value,
+                                is_wildcard=True,
+                            )
+                        )
+                        continue
+
+                    # Text and range lists
+                    list_context = MatchContext(
+                        text=list_value,
+                        intent_sentence=intent_sentence,
+                        intent_data=intent_data,
+                    )
+                    for value_context in match_expression(
+                        match_settings, list_context, list_ref
+                    ):
+                        possible_list_values.extend(value_context.entities)
+
+                import pdb
+
+                pdb.set_trace()
+                for value_combo in itertools.product(all_list_values.values()):
+                    match_entities = list(value_combo)
+                    match_intent_context = dict(intent_context)
+                    for entity in match_entities:
+                        match_intent_context.update(entity.context)
+
+                    maybe_match_context = MatchContext(
+                        text="",
+                        entities=match_entities,
+                        intent_context=match_intent_context,
+                    )
+
+    if found_regex_match:
+        return
+
+    # Fall back to string matcher
+    if intents.settings.ignore_whitespace:
+        text = WHITESPACE.sub("", text)
+    else:
+        # Artifical word boundary
+        text += " "
+
+    for intent, intent_data, match_settings in available_intents:
         # Check each sentence template
         for intent_sentence in intent_data.sentences:
             # Create initial context
@@ -236,100 +321,111 @@ def recognize_all(
                 intent_data=intent_data,
             )
             maybe_match_contexts = match_expression(
-                local_settings, match_context, intent_sentence
+                match_settings, match_context, intent_sentence
             )
-            for maybe_match_context in maybe_match_contexts:
-                # Close any open wildcards or unmatched entities
-                final_text = maybe_match_context.text.strip()
-                if final_text:
-                    if unmatched_entity := maybe_match_context.get_open_entity():
-                        # Consume the rest of the text (unmatched entity)
-                        unmatched_entity.text += final_text
-                        unmatched_entity.is_open = False
-                        maybe_match_context.text = ""
-                    elif wildcard := maybe_match_context.get_open_wildcard():
-                        # Consume the rest of the text (wildcard)
-                        wildcard.text += final_text
-                        wildcard.value = wildcard.text
-                        wildcard.is_wildcard_open = False
-                        maybe_match_context.text = ""
+            yield from _process_match_contexts(
+                maybe_match_contexts,
+                intent,
+                intent_data,
+                default_response=default_response,
+                allow_unmatched_entities=allow_unmatched_entities,
+            )
 
-                if not maybe_match_context.is_match:
-                    # Incomplete match with text still left at the end
-                    continue
 
-                # Verify excluded context
-                if intent_data.excludes_context and (
-                    not check_excluded_context(
-                        intent_data.excludes_context,
-                        maybe_match_context.intent_context,
-                    )
-                ):
-                    continue
+def _process_match_contexts(
+    match_contexts: Iterable[MatchContext],
+    intent: Intent,
+    intent_data: IntentData,
+    default_response: str | None = None,
+    allow_unmatched_entities: bool = False,
+) -> Iterable[RecognizeResult]:
+    for maybe_match_context in match_contexts:
+        # Close any open wildcards or unmatched entities
+        final_text = maybe_match_context.text.strip()
+        if final_text:
+            if unmatched_entity := maybe_match_context.get_open_entity():
+                # Consume the rest of the text (unmatched entity)
+                unmatched_entity.text += final_text
+                unmatched_entity.is_open = False
+                maybe_match_context.text = ""
+            elif wildcard := maybe_match_context.get_open_wildcard():
+                # Consume the rest of the text (wildcard)
+                wildcard.text += final_text
+                wildcard.value = wildcard.text
+                wildcard.is_wildcard_open = False
+                maybe_match_context.text = ""
 
-                # Verify required context
-                slots_from_context: List[MatchEntity] = []
-                if intent_data.requires_context and (
-                    not _copy_and_check_required_context(
-                        intent_data.requires_context,
-                        maybe_match_context,
-                        slots_from_context,
-                        allow_unmatched_entities=allow_unmatched_entities,
-                    )
-                ):
-                    continue
+        if not maybe_match_context.is_match:
+            # Incomplete match with text still left at the end
+            continue
 
-                # Clean up wildcard entities
-                for entity in maybe_match_context.entities:
-                    if not entity.is_wildcard:
-                        continue
+        # Verify excluded context
+        if intent_data.excludes_context and (
+            not check_excluded_context(
+                intent_data.excludes_context,
+                maybe_match_context.intent_context,
+            )
+        ):
+            continue
 
-                    entity.text = entity.text.strip()
-                    if isinstance(entity.value, str):
-                        entity.value = entity.value.strip()
+        # Verify required context
+        slots_from_context: List[MatchEntity] = []
+        if intent_data.requires_context and (
+            not _copy_and_check_required_context(
+                intent_data.requires_context,
+                maybe_match_context,
+                slots_from_context,
+                allow_unmatched_entities=allow_unmatched_entities,
+            )
+        ):
+            continue
 
-                # Add fixed entities
-                entity_names = set(
-                    entity.name for entity in maybe_match_context.entities
+        # Clean up wildcard entities
+        for entity in maybe_match_context.entities:
+            if not entity.is_wildcard:
+                continue
+
+            entity.text = entity.text.strip()
+            if isinstance(entity.value, str):
+                entity.value = entity.value.strip()
+
+        # Add fixed entities
+        entity_names = set(entity.name for entity in maybe_match_context.entities)
+        for slot_name, slot_value in intent_data.slots.items():
+            if slot_name not in entity_names:
+                maybe_match_context.entities.append(
+                    MatchEntity(name=slot_name, value=slot_value, text="")
                 )
-                for slot_name, slot_value in intent_data.slots.items():
-                    if slot_name not in entity_names:
-                        maybe_match_context.entities.append(
-                            MatchEntity(name=slot_name, value=slot_value, text="")
-                        )
 
-                # Add context slots
-                for slot_entity in slots_from_context:
-                    if slot_entity.name not in entity_names:
-                        maybe_match_context.entities.append(slot_entity)
+        # Add context slots
+        for slot_entity in slots_from_context:
+            if slot_entity.name not in entity_names:
+                maybe_match_context.entities.append(slot_entity)
 
-                # Return each match
-                response = default_response
-                if intent_data.response is not None:
-                    response = intent_data.response
+        # Return each match
+        response = default_response
+        if intent_data.response is not None:
+            response = intent_data.response
 
-                intent_metadata: Optional[Dict[str, Any]] = None
-                if maybe_match_context.intent_data is not None:
-                    intent_metadata = maybe_match_context.intent_data.metadata
+        intent_metadata: Optional[Dict[str, Any]] = None
+        if maybe_match_context.intent_data is not None:
+            intent_metadata = maybe_match_context.intent_data.metadata
 
-                yield RecognizeResult(
-                    intent=intent,
-                    intent_data=intent_data,
-                    entities={
-                        entity.name: entity for entity in maybe_match_context.entities
-                    },
-                    entities_list=maybe_match_context.entities,
-                    response=response,
-                    context=maybe_match_context.intent_context,
-                    unmatched_entities={
-                        entity.name: entity
-                        for entity in maybe_match_context.unmatched_entities
-                    },
-                    unmatched_entities_list=maybe_match_context.unmatched_entities,
-                    text_chunks_matched=maybe_match_context.text_chunks_matched,
-                    intent_sentence=maybe_match_context.intent_sentence,
-                    intent_metadata=intent_metadata,
-                )
+        yield RecognizeResult(
+            intent=intent,
+            intent_data=intent_data,
+            entities={entity.name: entity for entity in maybe_match_context.entities},
+            entities_list=maybe_match_context.entities,
+            response=response,
+            context=maybe_match_context.intent_context,
+            unmatched_entities={
+                entity.name: entity for entity in maybe_match_context.unmatched_entities
+            },
+            unmatched_entities_list=maybe_match_context.unmatched_entities,
+            text_chunks_matched=maybe_match_context.text_chunks_matched,
+            intent_sentence=maybe_match_context.intent_sentence,
+            intent_metadata=intent_metadata,
+        )
 
 
 def is_match(
