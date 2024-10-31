@@ -8,7 +8,11 @@ from hassil.expression import (
     SequenceType,
     TextChunk,
 )
-from hassil.parse_expression import parse_expression, parse_sentence
+from hassil.parse_expression import (
+    parse_expression,
+    parse_sentence,
+    fix_pattern_whitespace,
+)
 from hassil.parser import next_chunk
 
 # -----------------------------------------------------------------------------
@@ -116,6 +120,15 @@ def test_sentence_alternative_whitespace():
             t(text="test "),
             alt(items=[group(items=[t(text=" 1 ")]), group(items=[t(text=" 2")])]),
         ],
+    )
+
+
+def test_fix_pattern_whitespace():
+    assert fix_pattern_whitespace("[start] middle [end]") == "[(start) ]middle[ (end)]"
+    assert fix_pattern_whitespace("start [middle] end") == "start[ (middle)] end"
+    assert fix_pattern_whitespace("start (middle [end])") == "start (middle[ (end)])"
+    assert (
+        fix_pattern_whitespace("[start] (middle) [end]") == "[(start) ](middle)[ (end)]"
     )
 
 

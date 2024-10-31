@@ -219,7 +219,10 @@ def recognize_all(
         for intent, intent_data, match_settings in available_intents:
             for intent_sentence in intent_data.sentences:
                 # Compile to regex once
-                intent_sentence.compile(match_settings.expansion_rules)
+                if not intent_sentence.compile(match_settings.expansion_rules):
+                    # Failed to compile
+                    continue
+
                 assert intent_sentence.pattern is not None
                 assert intent_sentence.list_references is not None
 
@@ -297,10 +300,12 @@ def recognize_all(
                     allow_unmatched_entities=False,
                 )
 
+                has_result = False
                 for result in results:
                     result.text_chunks_matched = len(text_without_punctuation) - sum(
                         len(e.text) for e in result.entities_list
                     )
+                    has_result = True
                     found_regex_match = True
                     yield result
 
@@ -660,7 +665,7 @@ def recognize_best(
             if metadata_found and not is_metadata:
                 continue
 
-            if not metadata_found and is_metadata:
+            if (not metadata_found) and is_metadata:
                 metadata_found = True
 
                 # Clear builtin results
@@ -672,22 +677,19 @@ def recognize_best(
         # Prioritize results with a specific slot
         if best_slot_name:
             entity = result.entities.get(best_slot_name)
-            if entity is None:
-                continue
-
-            is_slot = entity and not entity.is_wildcard
+            is_slot = (entity is not None) and not entity.is_wildcard
 
             if slot_found and not is_slot:
                 continue
 
-            if not slot_found and is_slot:
+            if (not slot_found) and is_slot:
                 slot_found = True
 
                 # Clear non-slot results
                 best_results = []
                 best_text_chunks_matched = None
 
-            if is_slot and isinstance(entity.value, str):
+            if is_slot and (entity is not None) and isinstance(entity.value, str):
                 # Prioritize results with a better slot value
                 slot_quality = len(entity.text)
                 if (best_slot_quality is None) or (slot_quality > best_slot_quality):

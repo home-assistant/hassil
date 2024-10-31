@@ -1569,6 +1569,31 @@ def test_recognize_best():
     assert result.entities["name"].value == "bedroom lamp"
 
 
+def test_regex_branching():
+    yaml_text = """
+    language: "en"
+    intents:
+      TurnOn:
+        data:
+          - sentences:
+              - "turn on ({area} {name}|{name})"
+    lists:
+      area:
+        values:
+          - bedroom
+      name:
+        values:
+          - bedroom lamp
+          - lamp
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    results = list(recognize_all("turn on bedroom lamp", intents))
+    assert len(results) == 2
+
+
 # Fails because wildcards must be followed by literal text or end of sentence
 # def test_wildcard_then_expansion_rule() -> None:
 #     """Test wildcard followed by expansions rule."""

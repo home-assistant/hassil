@@ -193,7 +193,63 @@ def parse_sentence(
 ) -> Sentence:
     """Parse a single sentence."""
     original_text = text
-    text = text.strip()
+    text = fix_pattern_whitespace(text.strip())
+
+    # Wrap in a group because sentences need to always be sequences.
+    text = f"({text})"
+
+    chunk = next_chunk(text)
+    if chunk is None:
+        raise ParseError(f"Unexpected empty chunk in: {text}")
+
+    if chunk.parse_type != ParseType.GROUP:
+        raise ParseError(f"Expected (group) in: {text}")
+
+    if chunk.start_index != 0:
+        raise ParseError(f"Expected (group) to start at index 0 in: {text}")
+
+    if chunk.end_index != len(text):
+        raise ParseError(f"Expected chunk to end at index {chunk.end_index} in: {text}")
+
+    seq = parse_expression(chunk, metadata=metadata)
+    if not isinstance(seq, Sequence):
+        raise ParseError(f"Expected Sequence, got: {seq}")
+
+    # Unpack redundant sequence
+    if len(seq.items) == 1:
+        first_item = seq.items[0]
+        if isinstance(first_item, Sequence):
+            seq = first_item
+
+    return Sentence(
+        type=seq.type,
+        items=seq.items,
+        text=original_text if keep_text else None,
+        is_optional=seq.is_optional,
+    )
+
+
+def fix_pattern_whitespace(text: str) -> str:
+    group_start_index = text.find(GROUP_START)
+    while group_start_index > 0:
+        group_end_index = find_end_delimiter(
+            text, group_start_index + 1, GROUP_START, GROUP_END
+        )
+        if group_end_index is None:
+            return text  # will fail parsing
+
+        before_group, text_without_group, after_group = (
+            text[:group_start_index],
+            text[group_start_index + 1 : group_end_index - 1],
+            text[group_end_index:],
+        )
+        return (
+            fix_pattern_whitespace(before_group)
+            + GROUP_START
+            + fix_pattern_whitespace(text_without_group)
+            + GROUP_END
+            + fix_pattern_whitespace(after_group)
+        )
 
     # Fix whitespace after optional (beginning of sentence)
     left_text, right_text = "", text
@@ -210,7 +266,7 @@ def parse_sentence(
         left_text += (
             OPT_START
             + GROUP_START
-            + right_text[len(OPT_START) : opt_end_index - len(OPT_END)]
+            + right_text[1 : opt_end_index - 1]
             + GROUP_END
             + " "
             + OPT_END
@@ -246,12 +302,7 @@ def parse_sentence(
 
         # Move whitespace into optional and group
         right_text = (
-            (
-                OPT_START
-                + " "
-                + GROUP_START
-                + left_text[opt_start_index + len(OPT_START) : -len(OPT_END)]
-            )
+            (OPT_START + " " + GROUP_START + left_text[opt_start_index + 1 : -1])
             + GROUP_END
             + OPT_END
             + right_text
@@ -275,13 +326,11 @@ def parse_sentence(
         if right_text[opt_end_index].isspace():
             # Move whitespace inside optional, add group
             left_text += (
-                right_text[: opt_start_index - len(OPT_END)]
+                right_text[: opt_start_index - 1]
                 + OPT_START
                 + " "
                 + GROUP_START
-                + right_text[
-                    opt_start_index + len(OPT_END) : opt_end_index - len(OPT_END)
-                ].lstrip()
+                + right_text[opt_start_index + 1 : opt_end_index - 1].lstrip()
                 + GROUP_END
                 + OPT_END
             )
@@ -296,38 +345,7 @@ def parse_sentence(
 
     text = left_text + right_text
 
-    # Wrap in a group because sentences need to always be sequences.
-    text = f"({text})"
-
-    chunk = next_chunk(text)
-    if chunk is None:
-        raise ParseError(f"Unexpected empty chunk in: {text}")
-
-    if chunk.parse_type != ParseType.GROUP:
-        raise ParseError(f"Expected (group) in: {text}")
-
-    if chunk.start_index != 0:
-        raise ParseError(f"Expected (group) to start at index 0 in: {text}")
-
-    if chunk.end_index != len(text):
-        raise ParseError(f"Expected chunk to end at index {chunk.end_index} in: {text}")
-
-    seq = parse_expression(chunk, metadata=metadata)
-    if not isinstance(seq, Sequence):
-        raise ParseError(f"Expected Sequence, got: {seq}")
-
-    # Unpack redundant sequence
-    if len(seq.items) == 1:
-        first_item = seq.items[0]
-        if isinstance(first_item, Sequence):
-            seq = first_item
-
-    return Sentence(
-        type=seq.type,
-        items=seq.items,
-        text=original_text if keep_text else None,
-        is_optional=seq.is_optional,
-    )
+    return text
 
 
 def is_empty_text_chunk(exp: Expression) -> bool:

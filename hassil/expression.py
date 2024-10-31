@@ -142,21 +142,35 @@ class Sentence(Sequence):
 
     pattern: Optional[re.Pattern] = None
     list_references: Optional[List[ListReference]] = None
+    _pattern_disabled: bool = False
 
-    def compile(self, expansion_rules: Dict[str, "Sentence"]):
+    def compile(self, expansion_rules: Dict[str, "Sentence"]) -> bool:
+        if self._pattern_disabled:
+            return False
+
         if self.pattern is not None:
             # Already compiled
-            return
+            return True
 
         self.list_references = []
         pattern_chunks: List[str] = []
         self._compile_expression(self, pattern_chunks, expansion_rules)
 
+        if self._pattern_disabled:
+            # Failed to compile
+            return False
+
         pattern_str = "".join(pattern_chunks)
         self.pattern = re.compile(f"^{pattern_str}$")
 
+        return True
+
     def _compile_expression(
-        self, exp: Expression, pattern_chunks: List[str], rules: Dict[str, "Sentence"]
+        self,
+        exp: Expression,
+        pattern_chunks: List[str],
+        rules: Dict[str, "Sentence"],
+        in_alternative: bool = False,
     ):
         if isinstance(exp, TextChunk):
             # Literal text
@@ -170,18 +184,27 @@ class Sentence(Sequence):
             if seq.type == SequenceType.GROUP:
                 # Linear sequence
                 for item in seq.items:
-                    self._compile_expression(item, pattern_chunks, rules)
+                    self._compile_expression(
+                        item, pattern_chunks, rules, in_alternative
+                    )
             elif seq.type == SequenceType.ALTERNATIVE:
                 # Alternative choices
                 if seq.items:
+                    # TODO: Split into two patterns if a branch contains a list
                     pattern_chunks.append("(?:")
                     for item in seq.items:
-                        self._compile_expression(item, pattern_chunks, rules)
+                        self._compile_expression(
+                            item, pattern_chunks, rules, in_alternative=True
+                        )
                         pattern_chunks.append("|")
                     pattern_chunks[-1] = ")"
             else:
                 raise ValueError(seq)
         elif isinstance(exp, ListReference):
+            if in_alternative:
+                self._pattern_disabled = True
+                return
+
             # Slot list
             list_ref: ListReference = exp
 
@@ -199,6 +222,6 @@ class Sentence(Sequence):
                 raise ValueError(rule_ref)
 
             e_rule = rules[rule_ref.rule_name]
-            self._compile_expression(e_rule, pattern_chunks, rules)
+            self._compile_expression(e_rule, pattern_chunks, rules, in_alternative)
         else:
             raise ValueError(exp)
