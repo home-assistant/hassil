@@ -3,12 +3,24 @@
 import collections
 import re
 import unicodedata
+from collections.abc import Iterable
 from typing import Any, Dict, Optional
 
-_WHITESPACE_PATTERN = re.compile(r"(\s+)")
-_WHITESPACE_SEPARATOR = " "
+WHITESPACE = re.compile(r"\s+")
+WHITESPACE_CAPTURE = re.compile(r"(\s+)")
+WHITESPACE_SEPARATOR = " "
 
-_TEMPLATE_SYNTAX = re.compile(r".*[(){}<>\[\]|].*")
+TEMPLATE_SYNTAX = re.compile(r".*[(){}<>\[\]|].*")
+
+PUNCTUATION_STR = ".。,，?¿？؟!¡！;；:：’"
+PUNCTUATION_PATTERN = rf"[{re.escape(PUNCTUATION_STR)}]+"
+PUNCTUATION_ALL = re.compile(rf"{PUNCTUATION_PATTERN}")
+PUNCTUATION_START = re.compile(rf"^{PUNCTUATION_PATTERN}")
+PUNCTUATION_END = re.compile(rf"{PUNCTUATION_PATTERN}$")
+PUNCTUATION_END_SPACE = re.compile(rf"{PUNCTUATION_PATTERN}\s*$")
+PUNCTUATION_START_WORD = re.compile(rf"(?<=\W){PUNCTUATION_PATTERN}(?=\w)")
+PUNCTUATION_END_WORD = re.compile(rf"(?<=\w){PUNCTUATION_PATTERN}(?=\W)")
+PUNCTUATION_WORD = re.compile(rf"(?<=\W){PUNCTUATION_PATTERN}(?=\W)")
 
 
 def merge_dict(base_dict, new_dict):
@@ -42,13 +54,12 @@ def remove_escapes(text: str) -> str:
 
 def normalize_whitespace(text: str) -> str:
     """Makes all whitespace inside a string single spaced."""
-    return _WHITESPACE_PATTERN.sub(_WHITESPACE_SEPARATOR, text)
+    return WHITESPACE_CAPTURE.sub(WHITESPACE_SEPARATOR, text)
 
 
 def normalize_text(text: str) -> str:
     """Normalize whitespace and unicode forms."""
     text = normalize_whitespace(text)
-    text = text.casefold()
     text = unicodedata.normalize("NFC", text)
 
     return text
@@ -56,7 +67,7 @@ def normalize_text(text: str) -> str:
 
 def is_template(text: str) -> bool:
     """True if text contains template syntax"""
-    return _TEMPLATE_SYNTAX.match(text) is not None
+    return TEMPLATE_SYNTAX.match(text) is not None
 
 
 def check_required_context(
@@ -146,3 +157,69 @@ def check_excluded_context(
             return False
 
     return True
+
+
+# def remove_skip_words(text: str, skip_words: List[str]) -> str:
+#     if not skip_words:
+#         return text
+
+#     skip_words_pattern = re.compile(
+#         r"(?<=\W)("
+#         + "|".join(
+#             re.escape(w.strip()) for w in sorted(skip_words, key=len, reverse=True)
+#         )
+#         + r")(?=\W)"
+#     )
+
+#     return skip_words_pattern.sub(" ", f" {text} ")
+
+
+def remove_skip_words(
+    text: str, skip_words: Iterable[str], ignore_whitespace: bool
+) -> str:
+    """Remove skip words from text."""
+
+    # It's critical that skip words are processed longest first, since they may
+    # share prefixes.
+    for skip_word in sorted(skip_words, key=len, reverse=True):
+        skip_word = normalize_text(skip_word)
+        if ignore_whitespace:
+            text = text.replace(skip_word, "")
+        else:
+            # Use word boundaries
+            text = re.sub(rf"\b{re.escape(skip_word)}\b", "", text)
+
+    if not ignore_whitespace:
+        text = normalize_whitespace(text)
+        text = text.strip()
+
+    return text
+
+
+def remove_punctuation(text: str) -> str:
+    text = PUNCTUATION_START.sub("", text)
+    text = PUNCTUATION_END.sub("", text)
+    text = PUNCTUATION_START_WORD.sub("", text)
+    text = PUNCTUATION_END_WORD.sub("", text)
+    text = PUNCTUATION_WORD.sub("", text)
+
+    return text
+
+
+def match_start(text: str, prefix: str) -> Optional[int]:
+    match = re.match(rf"^{re.escape(prefix)}", text, re.IGNORECASE)
+    if match is None:
+        return None
+
+    return match.end()
+
+
+def match_first(text: str, prefix: str, start_idx: int = 0) -> int:
+    if start_idx > 0:
+        text = text[start_idx:]
+
+    match = re.search(rf"{re.escape(prefix)}", text, re.IGNORECASE)
+    if match is None:
+        return -1
+
+    return start_idx + match.start()

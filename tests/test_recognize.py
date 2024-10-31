@@ -593,7 +593,7 @@ def test_local_slot_lists() -> None:
         track = result.entities.get("track")
         volume = result.entities.get("volume")
         assert isinstance(track, MatchEntity)
-        assert track.value == "paint it black "
+        assert track.value == "paint it black"
         assert isinstance(volume, MatchEntity)
         assert volume.value == 90
 
@@ -1005,13 +1005,14 @@ def test_wildcard() -> None:
     with io.StringIO(yaml_text) as test_file:
         intents = Intents.from_yaml(test_file)
 
-    sentence = "play the white album by the beatles please now"
+    # Case should be kept
+    sentence = "play The White Album by The Beatles please now"
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "the white album "
+    assert result.entities["album"].value == "The White Album"
     assert result.entities["album"].is_wildcard
-    assert result.entities["artist"].value == "the beatles "
+    assert result.entities["artist"].value == "The Beatles"
     assert result.entities["artist"].is_wildcard
 
     # Wildcards cannot be empty
@@ -1024,7 +1025,7 @@ def test_wildcard() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "the white album "
+    assert result.entities["album"].value == "the white album"
     assert result.entities["album"].is_wildcard
     assert result.entities["artist"].value == "the beatles"
     assert result.entities["artist"].is_wildcard
@@ -1041,9 +1042,9 @@ def test_wildcard() -> None:
         for result in results
     }
     assert album_artist == {
-        ("day ", "day by taken by trees "),
-        ("day by day ", "taken by trees "),
-        ("day by day by taken ", "trees "),
+        ("day", "day by taken by trees"),
+        ("day by day", "taken by trees"),
+        ("day by day by taken", "trees"),
     }
     for result in results:
         assert result.entities["album"].is_wildcard
@@ -1054,7 +1055,7 @@ def test_wildcard() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "day by day "
+    assert result.entities["album"].value == "day by day"
     assert result.entities["album"].is_wildcard
     assert result.entities["artist"].value == "taken by trees"
     assert result.entities["artist"].is_wildcard
@@ -1090,9 +1091,9 @@ def test_wildcard_degenerate() -> None:
         for result in results
     }
     assert album_artist == {
-        ("by ", "by by by"),
-        ("by by ", "by by"),
-        ("by by by ", "by"),
+        ("by", "by by by"),
+        ("by by", "by by"),
+        ("by by by", "by"),
     }
 
 
@@ -1120,7 +1121,7 @@ def test_optional_wildcard() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "the white album "
+    assert result.entities["album"].value == "the white album"
     assert result.entities["artist"].value == "the beatles"
 
     # Missing one wildcard
@@ -1181,8 +1182,8 @@ def test_wildcard_ordering() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist", "room"}
-    assert result.entities["album"].value == "the white album "
-    assert result.entities["artist"].value == "the beatles "
+    assert result.entities["album"].value == "the white album"
+    assert result.entities["artist"].value == "the beatles"
     assert result.entities["room"].value == "the living room"
 
     # Check that the first sentence can still be used
@@ -1190,7 +1191,7 @@ def test_wildcard_ordering() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "the white album "
+    assert result.entities["album"].value == "the white album"
     assert result.entities["artist"].value == "the beatles"
 
 
@@ -1248,8 +1249,8 @@ def test_wildcard_punctuation() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"name", "zone"}
-    assert result.entities["name"].value == "alice "
-    assert result.entities["zone"].value == "new york"
+    assert result.entities["name"].value == "Alice"
+    assert result.entities["zone"].value == "New York"
 
 
 def test_entity_metadata() -> None:

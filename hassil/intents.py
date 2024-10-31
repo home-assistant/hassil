@@ -189,6 +189,7 @@ class IntentData:
     """Metadata that will be passed into the result if matched."""
 
     required_keywords: Optional[Set[str]] = None
+    """Keywords that must be present for any sentence to match."""
 
     @cached_property
     def sentences(self) -> List[Sentence]:

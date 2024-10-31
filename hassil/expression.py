@@ -1,5 +1,6 @@
 """Classes for representing sentence templates."""
 
+import re
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
@@ -138,3 +139,66 @@ class Sentence(Sequence):
     """Sequence representing a complete sentence template."""
 
     text: Optional[str] = None
+
+    pattern: Optional[re.Pattern] = None
+    list_references: Optional[List[ListReference]] = None
+
+    def compile(self, expansion_rules: Dict[str, "Sentence"]):
+        if self.pattern is not None:
+            # Already compiled
+            return
+
+        self.list_references = []
+        pattern_chunks: List[str] = []
+        self._compile_expression(self, pattern_chunks, expansion_rules)
+
+        pattern_str = "".join(pattern_chunks)
+        self.pattern = re.compile(f"^{pattern_str}$")
+
+    def _compile_expression(
+        self, exp: Expression, pattern_chunks: List[str], rules: Dict[str, "Sentence"]
+    ):
+        if isinstance(exp, TextChunk):
+            # Literal text
+            chunk: TextChunk = exp
+            if chunk.text:
+                escaped_text = re.escape(chunk.text)
+                pattern_chunks.append(escaped_text)
+        elif isinstance(exp, Sequence):
+            # Linear sequence or alternative choices
+            seq: Sequence = exp
+            if seq.type == SequenceType.GROUP:
+                # Linear sequence
+                for item in seq.items:
+                    self._compile_expression(item, pattern_chunks, rules)
+            elif seq.type == SequenceType.ALTERNATIVE:
+                # Alternative choices
+                if seq.items:
+                    pattern_chunks.append("(?:")
+                    for item in seq.items:
+                        self._compile_expression(item, pattern_chunks, rules)
+                        pattern_chunks.append("|")
+                    pattern_chunks[-1] = ")"
+            else:
+                raise ValueError(seq)
+        elif isinstance(exp, ListReference):
+            # Slot list
+            list_ref: ListReference = exp
+
+            assert self.list_references is not None
+            self.list_references.append(list_ref)
+
+            # Using non-greedy form ".+?" because the pattern will span the
+            # entire input string (^...$).
+            pattern_chunks.append("(.+?)")
+
+        elif isinstance(exp, RuleReference):
+            # Expansion rule
+            rule_ref: RuleReference = exp
+            if rule_ref.rule_name not in rules:
+                raise ValueError(rule_ref)
+
+            e_rule = rules[rule_ref.rule_name]
+            self._compile_expression(e_rule, pattern_chunks, rules)
+        else:
+            raise ValueError(exp)
