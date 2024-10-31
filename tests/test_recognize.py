@@ -6,8 +6,8 @@ import pytest
 from hassil import Intents, recognize, recognize_all
 from hassil.expression import TextChunk
 from hassil.intents import TextSlotList
-from hassil.recognize import (
-    MISSING_ENTITY,
+from hassil.recognize import MISSING_ENTITY
+from hassil.models import (
     MatchEntity,
     UnmatchedRangeEntity,
     UnmatchedTextEntity,
