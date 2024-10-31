@@ -12,6 +12,7 @@ from typing import Dict, Iterable, Optional, Set, Tuple
 import yaml
 from unicode_rbnf import RbnfEngine
 
+from .errors import MissingListError, MissingRuleError
 from .expression import (
     Expression,
     ListReference,
@@ -22,7 +23,6 @@ from .expression import (
     TextChunk,
 )
 from .intents import Intents, RangeSlotList, SlotList, TextSlotList, WildcardSlotList
-from .errors import MissingListError, MissingRuleError
 from .util import merge_dict, normalize_whitespace
 
 _LOGGER = logging.getLogger("hassil.sample")

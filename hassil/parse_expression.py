@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from itertools import permutations
 from typing import List, Optional
@@ -23,6 +24,7 @@ from .parser import (
     ParseChunk,
     ParseError,
     ParseType,
+    find_end_delimiter,
     next_chunk,
     remove_delimiters,
 )
@@ -192,6 +194,108 @@ def parse_sentence(
     """Parse a single sentence."""
     original_text = text
     text = text.strip()
+
+    # Fix whitespace after optional (beginning of sentence)
+    left_text, right_text = "", text
+    while right_text.startswith(OPT_START):
+        opt_end_index = find_end_delimiter(right_text, 1, OPT_START, OPT_END)
+        if (opt_end_index is None) or (opt_end_index >= len(right_text)):
+            break
+
+        if not right_text[opt_end_index].isspace():
+            # No adjustment needed
+            break
+
+        # Move whitespace into optional and group
+        left_text += (
+            OPT_START
+            + GROUP_START
+            + right_text[len(OPT_START) : opt_end_index - len(OPT_END)]
+            + GROUP_END
+            + " "
+            + OPT_END
+        )
+        right_text = right_text[opt_end_index:].lstrip()
+
+    text = left_text + right_text
+
+    # Fix whitespace before optional (end of sentence)
+    left_text, right_text = text, ""
+    while left_text.endswith(OPT_END):
+        opt_end_index = len(left_text)
+        opt_start_index = left_text.rfind(OPT_START)
+        maybe_opt_end_index: Optional[int] = None
+
+        # Keep looking back for the "[" that starts this optional
+        while opt_start_index > 0:
+            maybe_opt_end_index = find_end_delimiter(
+                left_text, opt_start_index + 1, OPT_START, OPT_END
+            )
+            if maybe_opt_end_index == opt_end_index:
+                break  # found the matching "["
+
+            # Look farther back
+            opt_start_index = left_text.rfind(OPT_START, 0, opt_start_index)
+
+        if (maybe_opt_end_index != opt_end_index) or (opt_start_index <= 0):
+            break
+
+        if not left_text[opt_start_index - 1].isspace():
+            # No adjustment needed
+            break
+
+        # Move whitespace into optional and group
+        right_text = (
+            (
+                OPT_START
+                + " "
+                + GROUP_START
+                + left_text[opt_start_index + len(OPT_START) : -len(OPT_END)]
+            )
+            + GROUP_END
+            + OPT_END
+            + right_text
+        )
+
+        left_text = left_text[:opt_start_index].rstrip()
+
+    text = left_text + right_text
+
+    # Fix whitespace around optional (middle of a sentence)
+    left_text, right_text = "", text
+    match = re.search(rf"\s({re.escape(OPT_START)})", right_text)
+    while match is not None:
+        opt_start_index = match.start(1)
+        opt_end_index = find_end_delimiter(
+            right_text, opt_start_index + 1, OPT_START, OPT_END
+        )
+        if (opt_end_index is None) or (opt_end_index >= len(text)):
+            break
+
+        if right_text[opt_end_index].isspace():
+            # Move whitespace inside optional, add group
+            left_text += (
+                right_text[: opt_start_index - len(OPT_END)]
+                + OPT_START
+                + " "
+                + GROUP_START
+                + right_text[
+                    opt_start_index + len(OPT_END) : opt_end_index - len(OPT_END)
+                ].lstrip()
+                + GROUP_END
+                + OPT_END
+            )
+        else:
+            left_text += right_text[:opt_end_index]
+
+        right_text = right_text[opt_end_index:]
+        if not right_text:
+            break
+
+        match = re.search(rf"\s({re.escape(OPT_START)})", right_text)
+
+    text = left_text + right_text
+    print(text)
 
     # Wrap in a group because sentences need to always be sequences.
     text = f"({text})"

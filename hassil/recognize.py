@@ -3,24 +3,22 @@
 import collections.abc
 import itertools
 import logging
-from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from .errors import MissingListError
 from .expression import Sentence
-from .intents import Intent, IntentData, Intents, SlotList, WildcardSlotList
+from .intents import Intent, IntentData, Intents, SlotList
 from .models import MatchEntity, UnmatchedEntity, UnmatchedTextEntity
 from .string_matcher import MatchContext, MatchSettings, match_expression
 from .util import (
-    PUNCTUATION_ALL,
     WHITESPACE,
     check_excluded_context,
     check_required_context,
     normalize_text,
-    remove_skip_words,
     remove_punctuation,
+    remove_skip_words,
 )
-from .errors import MissingListError
 
 MISSING_ENTITY = "<missing>"
 
@@ -219,11 +217,8 @@ def recognize_all(
     found_regex_match = False
     if not allow_unmatched_entities:
         for intent, intent_data, match_settings in available_intents:
-            response = default_response
-            if intent_data.response is not None:
-                response = intent_data.response
-
             for intent_sentence in intent_data.sentences:
+                # Compile to regex once
                 intent_sentence.compile(match_settings.expansion_rules)
                 assert intent_sentence.pattern is not None
                 assert intent_sentence.list_references is not None
@@ -235,19 +230,24 @@ def recognize_all(
                 if not intent_sentence.list_references:
                     # No entities
                     found_regex_match = True
-                    yield RecognizeResult(
+                    yield from _process_match_contexts(
+                        [
+                            MatchContext(
+                                text="",
+                                intent_context=intent_context,
+                                intent_sentence=intent_sentence,
+                                intent_data=intent_data,
+                            )
+                        ],
                         intent=intent,
                         intent_data=intent_data,
-                        response=response,
-                        context=intent_context,
-                        text_chunks_matched=len(text),
-                        intent_sentence=intent_sentence,
-                        intent_metadata=intent_data.metadata,
+                        default_response=default_response,
+                        allow_unmatched_entities=False,
                     )
                     continue
 
                 # Match list values
-                all_list_values: Dict[str, List[MatchEntity]] = defaultdict(list)
+                all_list_contexts: List[Iterable[MatchContext]] = []
                 for group_idx, list_ref in enumerate(intent_sentence.list_references):
                     list_value = regex_match.group(group_idx + 1)
                     if list_value is None:
@@ -260,45 +260,48 @@ def recognize_all(
                             f"Missing slot list {{{list_ref.list_name}}}"
                         )
 
-                    possible_list_values = all_list_values[list_ref.list_name]
-
-                    if isinstance(match_list, WildcardSlotList):
-                        # Matched text is the value for wildcards
-                        possible_list_values.append(
-                            MatchEntity(
-                                name=list_ref.slot_name,
-                                value=list_value,
-                                text=list_value,
-                                is_wildcard=True,
-                            )
+                    # Use string matcher to recognize list values
+                    all_list_contexts.append(
+                        filter(
+                            lambda mc: mc.is_match,
+                            match_expression(
+                                match_settings,
+                                MatchContext(
+                                    text=list_value,
+                                    intent_sentence=intent_sentence,
+                                    intent_data=intent_data,
+                                ),
+                                list_ref,
+                            ),
                         )
-                        continue
-
-                    # Text and range lists
-                    list_context = MatchContext(
-                        text=list_value,
-                        intent_sentence=intent_sentence,
-                        intent_data=intent_data,
                     )
-                    for value_context in match_expression(
-                        match_settings, list_context, list_ref
-                    ):
-                        possible_list_values.extend(value_context.entities)
 
-                import pdb
+                # Try each combination of slot list values
+                results = _process_match_contexts(
+                    (
+                        _merge_match_contexts(
+                            context_combo,
+                            MatchContext(
+                                text="",
+                                intent_context=intent_context,
+                                intent_sentence=intent_sentence,
+                                intent_data=intent_data,
+                            ),
+                        )
+                        for context_combo in itertools.product(*all_list_contexts)
+                    ),
+                    intent=intent,
+                    intent_data=intent_data,
+                    default_response=default_response,
+                    allow_unmatched_entities=False,
+                )
 
-                pdb.set_trace()
-                for value_combo in itertools.product(all_list_values.values()):
-                    match_entities = list(value_combo)
-                    match_intent_context = dict(intent_context)
-                    for entity in match_entities:
-                        match_intent_context.update(entity.context)
-
-                    maybe_match_context = MatchContext(
-                        text="",
-                        entities=match_entities,
-                        intent_context=match_intent_context,
+                for result in results:
+                    result.text_chunks_matched = len(text_without_punctuation) - sum(
+                        len(e.text) for e in result.entities_list
                     )
+                    found_regex_match = True
+                    yield result
 
     if found_regex_match:
         return
@@ -330,6 +333,16 @@ def recognize_all(
                 default_response=default_response,
                 allow_unmatched_entities=allow_unmatched_entities,
             )
+
+
+def _merge_match_contexts(
+    match_contexts: Iterable[MatchContext], merged_context: MatchContext
+) -> MatchContext:
+    for match_context in match_contexts:
+        merged_context.entities.extend(match_context.entities)
+        merged_context.intent_context.update(match_context.intent_context)
+
+    return merged_context
 
 
 def _process_match_contexts(
