@@ -215,12 +215,17 @@ def recognize_all(
             available_intents.append((intent, intent_data, match_settings, None))
 
     # Filter with regex
-    if not allow_unmatched_entities:
+    if intents.settings.filter_with_regex and (not allow_unmatched_entities):
         matching_intents: collections.abc.MutableSequence[
             Tuple[Intent, IntentData, MatchSettings, Optional[List[Sentence]]]
         ] = []
 
         for intent, intent_data, match_settings, _intent_sentences in available_intents:
+            if not intent_data.settings.filter_with_regex:
+                # All sentences
+                matching_intents.append((intent, intent_data, match_settings, None))
+                continue
+
             matching_intent_sentences = []
             for intent_sentence in intent_data.sentences:
                 # Compile to regex once

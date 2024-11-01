@@ -157,6 +157,14 @@ class WildcardSlotList(SlotList):
     """Matches as much text as possible."""
 
 
+@dataclass
+class IntentDataSettings:
+    """Settings for intent data."""
+
+    filter_with_regex: bool = True
+    """Use regular expressions compiled from sentence patterns to filter possible matches."""
+
+
 @dataclass(frozen=True)
 class IntentData:
     """Block of sentences and known slots for an intent."""
@@ -190,6 +198,9 @@ class IntentData:
 
     required_keywords: Optional[Set[str]] = None
     """Keywords that must be present for any sentence to match."""
+
+    settings: IntentDataSettings = field(default_factory=IntentDataSettings)
+    """Settings for block of sentences."""
 
     @cached_property
     def sentences(self) -> List[Sentence]:
@@ -243,6 +254,9 @@ class IntentsSettings:
     ignore_whitespace: bool = False
     """True if whitespace should be ignored during matching."""
 
+    filter_with_regex: bool = True
+    """Use regular expressions compiled from sentence patterns to filter possible matches."""
+
 
 @dataclass
 class Intents:
@@ -287,6 +301,7 @@ class Intents:
         # language: "<code>"
         # settings:
         #   ignore_whitespace: false
+        #   filter_with_regex: false
         # intents:
         #   IntentName:
         #     data:
@@ -341,6 +356,7 @@ class Intents:
                                 if "required_keywords" in data_dict
                                 else None
                             ),
+                            settings=_parse_data_settings(data_dict.get("settings", {})),
                         )
                         for data_dict in intent_dict["data"]
                     ],
@@ -421,7 +437,15 @@ def _parse_list(
 def _parse_settings(settings_dict: Dict[str, Any]) -> IntentsSettings:
     """Parse intent settings."""
     return IntentsSettings(
-        ignore_whitespace=settings_dict.get("ignore_whitespace", False)
+        ignore_whitespace=settings_dict.get("ignore_whitespace", False),
+        filter_with_regex=settings_dict.get("filter_with_regex", True),
+    )
+
+
+def _parse_data_settings(settings_dict: Dict[str, Any]) -> IntentDataSettings:
+    """Parse intent data settings."""
+    return IntentDataSettings(
+        filter_with_regex=settings_dict.get("filter_with_regex", True),
     )
 
 
