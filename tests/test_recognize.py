@@ -451,7 +451,7 @@ def test_number_text() -> None:
         result = recognize(sentence, intents)
         assert result is not None, sentence
         assert result.entities["percentage"].value == 50
-        assert result.entities["percentage"].text.strip() == "50"
+        assert result.entities["percentage"].text.strip() == "50%"
 
 
 def test_recognize_all() -> None:

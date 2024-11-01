@@ -139,38 +139,21 @@ class Sentence(Sequence):
     """Sequence representing a complete sentence template."""
 
     text: Optional[str] = None
-
     pattern: Optional[re.Pattern] = None
-    list_references: Optional[List[ListReference]] = None
-    _pattern_disabled: bool = False
 
-    def compile(self, expansion_rules: Dict[str, "Sentence"]) -> bool:
-        if self._pattern_disabled:
-            return False
-
+    def compile(self, expansion_rules: Dict[str, "Sentence"]) -> None:
         if self.pattern is not None:
             # Already compiled
-            return True
+            return
 
-        self.list_references = []
         pattern_chunks: List[str] = []
         self._compile_expression(self, pattern_chunks, expansion_rules)
 
-        if self._pattern_disabled:
-            # Failed to compile
-            return False
-
-        pattern_str = "".join(pattern_chunks)
-        self.pattern = re.compile(f"^{pattern_str}$")
-
-        return True
+        pattern_str = "".join(pattern_chunks).replace(r"\ ", r"[ ]*")
+        self.pattern = re.compile(f"^{pattern_str}$", re.IGNORECASE)
 
     def _compile_expression(
-        self,
-        exp: Expression,
-        pattern_chunks: List[str],
-        rules: Dict[str, "Sentence"],
-        in_alternative: bool = False,
+        self, exp: Expression, pattern_chunks: List[str], rules: Dict[str, "Sentence"]
     ):
         if isinstance(exp, TextChunk):
             # Literal text
@@ -184,36 +167,20 @@ class Sentence(Sequence):
             if seq.type == SequenceType.GROUP:
                 # Linear sequence
                 for item in seq.items:
-                    self._compile_expression(
-                        item, pattern_chunks, rules, in_alternative
-                    )
+                    self._compile_expression(item, pattern_chunks, rules)
             elif seq.type == SequenceType.ALTERNATIVE:
                 # Alternative choices
                 if seq.items:
-                    # TODO: Split into two patterns if a branch contains a list
                     pattern_chunks.append("(?:")
                     for item in seq.items:
-                        self._compile_expression(
-                            item, pattern_chunks, rules, in_alternative=True
-                        )
+                        self._compile_expression(item, pattern_chunks, rules)
                         pattern_chunks.append("|")
                     pattern_chunks[-1] = ")"
             else:
                 raise ValueError(seq)
         elif isinstance(exp, ListReference):
-            if in_alternative:
-                self._pattern_disabled = True
-                return
-
             # Slot list
-            list_ref: ListReference = exp
-
-            assert self.list_references is not None
-            self.list_references.append(list_ref)
-
-            # Using non-greedy form ".+?" because the pattern will span the
-            # entire input string (^...$).
-            pattern_chunks.append("(.+?)")
+            pattern_chunks.append("(?:.+)")
 
         elif isinstance(exp, RuleReference):
             # Expansion rule
@@ -222,6 +189,6 @@ class Sentence(Sequence):
                 raise ValueError(rule_ref)
 
             e_rule = rules[rule_ref.rule_name]
-            self._compile_expression(e_rule, pattern_chunks, rules, in_alternative)
+            self._compile_expression(e_rule, pattern_chunks, rules)
         else:
             raise ValueError(exp)
