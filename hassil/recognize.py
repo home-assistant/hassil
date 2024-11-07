@@ -67,7 +67,7 @@ def recognize(
     intents: Intents,
     slot_lists: Optional[Dict[str, SlotList]] = None,
     expansion_rules: Optional[Dict[str, Sentence]] = None,
-    skip_words: Optional[Iterable[str]] = None,
+    skip_words: Optional[List[str]] = None,
     intent_context: Optional[Dict[str, Any]] = None,
     default_response: Optional[str] = "default",
     allow_unmatched_entities: bool = False,
@@ -293,7 +293,7 @@ def _process_match_contexts(
     match_contexts: Iterable[MatchContext],
     intent: Intent,
     intent_data: IntentData,
-    default_response: str | None = None,
+    default_response: Optional[str] = None,
     allow_unmatched_entities: bool = False,
 ) -> Iterable[RecognizeResult]:
     for maybe_match_context in match_contexts:

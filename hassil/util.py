@@ -3,8 +3,7 @@
 import collections
 import re
 import unicodedata
-from collections.abc import Iterable
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 
 WHITESPACE = re.compile(r"\s+")
 WHITESPACE_CAPTURE = re.compile(r"(\s+)")

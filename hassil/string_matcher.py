@@ -3,9 +3,8 @@
 import logging
 import re
 from collections import defaultdict
-from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from unicode_rbnf import RbnfEngine
 

@@ -4,12 +4,11 @@ See: https://en.wikipedia.org/wiki/Trie
 """
 
 from collections import deque
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 
-@dataclass(slots=True)
+@dataclass
 class TrieNode:
     """Node in trie."""
 
