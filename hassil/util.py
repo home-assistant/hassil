@@ -4,7 +4,7 @@ import collections
 import re
 import unicodedata
 from collections.abc import Iterable
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional
 
 WHITESPACE = re.compile(r"\s+")
 WHITESPACE_CAPTURE = re.compile(r"(\s+)")
@@ -159,7 +159,9 @@ def check_excluded_context(
     return True
 
 
-def remove_skip_words(text: str, skip_words: List[str], ignore_whitespace: bool) -> str:
+def remove_skip_words(
+    text: str, skip_words: Iterable[str], ignore_whitespace: bool
+) -> str:
     if not skip_words:
         return text
 
