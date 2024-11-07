@@ -4,7 +4,9 @@
 
 - Use regular expressions to filter sentence templates
 - Add `filter_with_regex` to intent settings and intent data (`false` disables regex filtering)
+- Preserve case during matching 
 - Strip punctuation before text processing
+- Remove extraneous whitespace from the end of wildcards
 - Refactor string matching code into `string_matcher.py`
 
 ## 1.9.0

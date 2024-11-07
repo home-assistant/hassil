@@ -4,7 +4,7 @@ import collections
 import re
 import unicodedata
 from collections.abc import Iterable
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 WHITESPACE = re.compile(r"\s+")
 WHITESPACE_CAPTURE = re.compile(r"(\s+)")
@@ -159,41 +159,31 @@ def check_excluded_context(
     return True
 
 
-# def remove_skip_words(text: str, skip_words: List[str]) -> str:
-#     if not skip_words:
-#         return text
+def remove_skip_words(text: str, skip_words: List[str], ignore_whitespace: bool) -> str:
+    if not skip_words:
+        return text
 
-#     skip_words_pattern = re.compile(
-#         r"(?<=\W)("
-#         + "|".join(
-#             re.escape(w.strip()) for w in sorted(skip_words, key=len, reverse=True)
-#         )
-#         + r")(?=\W)"
-#     )
+    if ignore_whitespace:
+        skip_words_pattern = re.compile(
+            r"("
+            + "|".join(
+                re.escape(w.strip()) for w in sorted(skip_words, key=len, reverse=True)
+            )
+            + r")",
+            re.IGNORECASE,
+        )
+        return skip_words_pattern.sub("", text)
 
-#     return skip_words_pattern.sub(" ", f" {text} ")
-
-
-def remove_skip_words(
-    text: str, skip_words: Iterable[str], ignore_whitespace: bool
-) -> str:
-    """Remove skip words from text."""
-
-    # It's critical that skip words are processed longest first, since they may
-    # share prefixes.
-    for skip_word in sorted(skip_words, key=len, reverse=True):
-        skip_word = normalize_text(skip_word)
-        if ignore_whitespace:
-            text = text.replace(skip_word, "")
-        else:
-            # Use word boundaries
-            text = re.sub(rf"\b{re.escape(skip_word)}\b", "", text)
-
-    if not ignore_whitespace:
-        text = normalize_whitespace(text)
-        text = text.strip()
-
-    return text
+    skip_words_pattern = re.compile(
+        r"(?<=\W)("
+        + "|".join(
+            re.escape(w.strip()) for w in sorted(skip_words, key=len, reverse=True)
+        )
+        + r")(?=\W)",
+        re.IGNORECASE,
+    )
+    text = skip_words_pattern.sub(" ", f" {text} ").strip()
+    return normalize_whitespace(text)
 
 
 def remove_punctuation(text: str) -> str:
