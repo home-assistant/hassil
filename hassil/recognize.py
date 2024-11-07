@@ -4,7 +4,7 @@ import collections.abc
 import itertools
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, MutableSequence, Optional, Tuple
 
 from .expression import Sentence
 from .intents import Intent, IntentData, Intents, SlotList
@@ -162,7 +162,7 @@ def recognize_all(
         intent_context = {}
 
     # Filter intents based on context and keywords
-    available_intents: collections.abc.MutableSequence[
+    available_intents: MutableSequence[
         Tuple[Intent, IntentData, MatchSettings, Optional[List[Sentence]]]
     ] = []
 
@@ -215,7 +215,7 @@ def recognize_all(
 
     # Filter with regex
     if intents.settings.filter_with_regex and (not allow_unmatched_entities):
-        matching_intents: collections.abc.MutableSequence[
+        matching_intents: MutableSequence[
             Tuple[Intent, IntentData, MatchSettings, Optional[List[Sentence]]]
         ] = []
 
@@ -574,9 +574,9 @@ def recognize_best(
     """
     metadata_found = False
     slot_found = False
-    best_results: list[RecognizeResult] = []
-    best_slot_quality: int | None = None
-    best_text_chunks_matched: int | None = None
+    best_results: List[RecognizeResult] = []
+    best_slot_quality: Optional[int] = None
+    best_text_chunks_matched: Optional[int] = None
 
     for result in recognize_all(
         text,
