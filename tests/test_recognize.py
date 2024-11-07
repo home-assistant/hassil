@@ -451,7 +451,7 @@ def test_number_text() -> None:
         result = recognize(sentence, intents)
         assert result is not None, sentence
         assert result.entities["percentage"].value == 50
-        assert result.entities["percentage"].text.strip() == "50%"
+        assert result.entities["percentage"].text.strip() == "50"
 
 
 def test_recognize_all() -> None:
@@ -1628,33 +1628,72 @@ def test_commas_dont_change() -> None:
         assert result.entities.keys() == {"area"}
 
 
-# Fails because wildcards must be followed by literal text or end of sentence
-# def test_wildcard_then_expansion_rule() -> None:
-#     """Test wildcard followed by expansions rule."""
+# def test_wildcards_before_expansion_rule_fi() -> None:
 #     yaml_text = """
 #     language: "en"
 #     intents:
-#       Test:
+#       TurnOn:
 #         data:
 #           - sentences:
-#               - "set timer {timer_name:name} <timer_duration>"
+#               - "(vähennä|pienennä|lyhennä) [minun|mun] (ajastinta|ajastusta|ajastimesta|ajastuksesta) [nimeltä] {timer_name:name} <timer_duration>"
 #     lists:
 #       timer_name:
 #         wildcard: true
 #       minutes:
 #         range:
 #           from: 1
-#           to: 59
+#           to: 10
 #     expansion_rules:
-#       timer_duration: "{minutes} minute[s]"
+#       timer_duration: "{minutes} minuutilla"
 #     """
 
 #     with io.StringIO(yaml_text) as test_file:
 #         intents = Intents.from_yaml(test_file)
 
-#     sentence = "set timer pizza 5 minutes"
-#     result = recognize(sentence, intents)
-#     assert result is not None, f"{sentence} should match"
-#     assert set(result.entities.keys()) == {"name", "minutes"}
-#     assert result.entities["name"].value == "pizza"
-#     assert result.entities["minutes"].value == 5
+#     result = recognize("lyhennä minun ajastusta nimeltä pizza 5 minuutilla", intents)
+#     assert result is not None
+
+
+def test_wildcard_then_other_stuff() -> None:
+    """Test wildcard followed by expansion rule and list."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "set timer {timer_name:name} <timer_duration>"
+              - "set timer {timer_name:name} {timer_state:state} [now]"
+    lists:
+      timer_name:
+        wildcard: true
+      minutes:
+        range:
+          from: 1
+          to: 59
+      timer_state:
+        values:
+          - "on"
+          - "off"
+    expansion_rules:
+      timer_duration: "{minutes} minute[s]"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    # Check ranges
+    for sentence in ("set timer pizza 5 minutes", "set timer pizza five minutes"):
+        result = recognize(sentence, intents)
+        assert result is not None, f"{sentence} should match"
+        assert set(result.entities.keys()) == {"name", "minutes"}
+        assert result.entities["name"].value == "pizza"
+        assert result.entities["minutes"].value == 5
+
+    # Check value list
+    sentence = "set timer a big long name on now"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"name", "state"}
+    assert result.entities["name"].value == "a big long name"
+    assert result.entities["state"].value == "on"

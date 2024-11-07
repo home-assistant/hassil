@@ -47,32 +47,32 @@ class Trie:
 
             current_children = current_node.children
 
-    def find(self, text: str) -> Iterable[Tuple[str, Any]]:
-        """Yield (text, value) pairs of all words found in the string."""
-        q = deque([(self.roots, text)])
+    def find(self, text: str) -> Iterable[Tuple[int, str, Any]]:
+        """Yield (end_pos, text, value) pairs of all words found in the string."""
+        q = deque([(self.roots, 0)])
         visited = set()
 
         while q:
             item = q.popleft()
-            current_children, current_text = item
-            if not current_text:
+            current_children, current_position = item
+            if current_position >= len(text):
                 continue
 
-            current_char = current_text[0]
-            next_text = current_text[1:]
+            current_char = text[current_position]
 
-            if next_text:
-                q.append((current_children, next_text))
+            if current_position < len(text):
+                q.append((current_children, current_position + 1))
 
             node = current_children.get(current_char)
             if (node is not None) and (node.id not in visited):
                 visited.add(node.id)
 
                 if node.text is not None:
-                    yield (node.text, node.value)
+                    # End is one past the current position
+                    yield (current_position + 1, node.text, node.value)
 
-                if node.children and next_text:
-                    q.append((node.children, next_text))
+                if node.children and (current_position < len(text)):
+                    q.append((node.children, current_position + 1))
 
     def next_id(self) -> int:
         current_id = self._next_id

@@ -36,6 +36,7 @@ from .util import (
 )
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
+NUMBER_ANYWHERE = re.compile(r"(\s*-?[0-9]+)")
 BREAK_WORDS_TABLE = str.maketrans("-_", "  ")
 
 # lang -> engine
@@ -221,6 +222,9 @@ def match_expression(
                         # Cannot possibly match
                         return
 
+                # Produce all possible matches where the wildcard consumes text
+                # up to where the chunk matches in the string.
+                entities_without_wildcard = context.entities[:-1]
                 while start_idx > 0:
                     wildcard_text = context_text[:start_idx]
                     yield from match_expression(
@@ -228,13 +232,14 @@ def match_expression(
                         MatchContext(
                             text=context_text[start_idx:],
                             is_start_of_word=True,
-                            entities=context.entities[:-1]
+                            entities=entities_without_wildcard
                             + [
                                 MatchEntity(
                                     name=wildcard.name,
                                     text=wildcard_text,
                                     value=wildcard_text,
                                     is_wildcard=True,
+                                    is_wildcard_open=False,  # always close
                                 )
                             ],
                             # Copy over
@@ -426,6 +431,7 @@ def match_expression(
         if (not settings.slot_lists) or (list_ref.list_name not in settings.slot_lists):
             raise MissingListError(f"Missing slot list {{{list_ref.list_name}}}")
 
+        wildcard = context.get_open_wildcard()
         slot_list = settings.slot_lists[list_ref.list_name]
         if isinstance(slot_list, TextSlotList):
             if context.text:
@@ -479,14 +485,24 @@ def match_expression(
 
                     for value_context in value_contexts:
                         has_matches = True
-                        entities = context.entities + [
+                        if (
+                            value_context.entities
+                            and value_context.entities[-1].is_wildcard
+                        ):
+                            # Remove wildcard text from value
+                            value_wildcard = value_context.entities[-1]
+                            remaining_text = context.text[len(value_wildcard.text) :]
+                        else:
+                            remaining_text = context.text
+
+                        entities = value_context.entities + [
                             MatchEntity(
                                 name=list_ref.slot_name,
                                 value=slot_value.value_out,
                                 text=(
-                                    context.text[: -len(value_context.text)]
+                                    remaining_text[: -len(value_context.text)]
                                     if value_context.text
-                                    else context.text
+                                    else remaining_text
                                 ),
                                 metadata=slot_value.metadata,
                             )
@@ -543,76 +559,105 @@ def match_expression(
                 # List that represents a number range.
                 range_list: RangeSlotList = slot_list
 
-                # Look for digits at the start of the incoming text
-                number_match = NUMBER_START.match(context.text)
+                number_matches: List[re.Match] = []
+                if wildcard is None:
+                    # Look for digits at the start of the incoming text
+                    number_match = NUMBER_START.match(context.text)
+                    if number_match is not None:
+                        number_matches.append(number_match)
+                else:
+                    # Look for digit(s) anywhere in the string.
+                    # The wildcard will consume text up to that point.
+                    number_matches.extend(NUMBER_ANYWHERE.finditer(context.text))
 
                 digits_match = False
-                if range_list.digits and (number_match is not None):
-                    number_text = number_match[1]
-                    word_number: Union[int, float] = int(number_text)
+                if range_list.digits and number_matches:
+                    for number_match in number_matches:
+                        number_text = number_match[1]
+                        word_number: Union[int, float] = int(number_text)
 
-                    # Check if number is within range of our list
-                    if range_list.step == 1:
-                        # Unit step
-                        in_range = range_list.start <= word_number <= range_list.stop
-                    else:
-                        # Non-unit step
-                        in_range = word_number in range(
-                            range_list.start, range_list.stop + 1, range_list.step
-                        )
-
-                    if in_range:
-                        # Number is in range
-                        digits_match = True
-                        range_value = word_number
-                        if range_list.multiplier is not None:
-                            range_value *= range_list.multiplier
-
-                        entities = context.entities + [
-                            MatchEntity(
-                                name=list_ref.slot_name,
-                                value=range_value,
-                                text=context.text.split()[0],
+                        # Check if number is within range of our list
+                        if range_list.step == 1:
+                            # Unit step
+                            in_range = (
+                                range_list.start <= word_number <= range_list.stop
                             )
-                        ]
+                        else:
+                            # Non-unit step
+                            in_range = word_number in range(
+                                range_list.start, range_list.stop + 1, range_list.step
+                            )
 
-                        yield MatchContext(
-                            text=context.text[len(number_text) :],
-                            entities=entities,
-                            # Copy over
-                            intent_context=context.intent_context,
-                            is_start_of_word=context.is_start_of_word,
-                            unmatched_entities=context.unmatched_entities,
-                            text_chunks_matched=context.text_chunks_matched,
-                            intent_sentence=context.intent_sentence,
-                            intent_data=context.intent_data,
-                        )
-                    elif settings.allow_unmatched_entities:
-                        # Report out of range
-                        yield MatchContext(
-                            # Copy over
-                            text=context.text[len(number_text) :],
-                            entities=context.entities,
-                            intent_context=context.intent_context,
-                            is_start_of_word=context.is_start_of_word,
-                            text_chunks_matched=context.text_chunks_matched,
-                            intent_sentence=context.intent_sentence,
-                            intent_data=context.intent_data,
-                            #
-                            unmatched_entities=context.unmatched_entities
-                            + [
-                                UnmatchedRangeEntity(
-                                    name=list_ref.slot_name, value=word_number
+                        if in_range:
+                            # Number is in range
+                            digits_match = True
+                            range_value = word_number
+                            if range_list.multiplier is not None:
+                                range_value *= range_list.multiplier
+
+                            entities = context.entities + [
+                                MatchEntity(
+                                    name=list_ref.slot_name,
+                                    value=range_value,
+                                    text=number_match.group(1),
                                 )
-                            ],
-                        )
+                            ]
+
+                            if wildcard is None:
+                                yield MatchContext(
+                                    text=context.text[number_match.end() :],
+                                    entities=entities,
+                                    # Copy over
+                                    intent_context=context.intent_context,
+                                    is_start_of_word=context.is_start_of_word,
+                                    unmatched_entities=context.unmatched_entities,
+                                    text_chunks_matched=context.text_chunks_matched,
+                                    intent_sentence=context.intent_sentence,
+                                    intent_data=context.intent_data,
+                                )
+                            else:
+                                # Wildcard consumes text before number
+                                wildcard.text += context.text[: number_match.end() - 1]
+                                wildcard.value = wildcard.text
+                                yield MatchContext(
+                                    text=context.text[number_match.end() :],
+                                    entities=entities,
+                                    # Copy over
+                                    intent_context=context.intent_context,
+                                    is_start_of_word=context.is_start_of_word,
+                                    unmatched_entities=context.unmatched_entities,
+                                    text_chunks_matched=context.text_chunks_matched,
+                                    intent_sentence=context.intent_sentence,
+                                    intent_data=context.intent_data,
+                                    #
+                                    close_wildcards=True,
+                                )
+                        elif settings.allow_unmatched_entities and (wildcard is None):
+                            # Report out of range
+                            yield MatchContext(
+                                # Copy over
+                                text=context.text[len(number_text) :],
+                                entities=context.entities,
+                                intent_context=context.intent_context,
+                                is_start_of_word=context.is_start_of_word,
+                                text_chunks_matched=context.text_chunks_matched,
+                                intent_sentence=context.intent_sentence,
+                                intent_data=context.intent_data,
+                                #
+                                unmatched_entities=context.unmatched_entities
+                                + [
+                                    UnmatchedRangeEntity(
+                                        name=list_ref.slot_name, value=word_number
+                                    )
+                                ],
+                            )
 
                 # Only check number words if:
                 # 1. Words are enabled for this list
                 # 2. We didn't already match digits
                 # 3. the incoming text doesn't start with digits
                 words_match: bool = False
-                if range_list.words and (not digits_match) and (number_match is None):
+                if range_list.words and (not digits_match) and (not number_matches):
                     words_language = range_list.words_language or settings.language
                     if words_language:
                         range_settings = (
@@ -632,9 +677,17 @@ def match_expression(
                                     range_settings
                                 ] = range_trie
 
-                            for number_text, range_value in range_trie.find(
-                                context.text
-                            ):
+                            for (
+                                number_end_pos,
+                                number_text,
+                                range_value,
+                            ) in range_trie.find(context.text):
+                                number_start_pos = number_end_pos - len(number_text)
+                                if (wildcard is None) and (number_start_pos > 0):
+                                    # Can't possibly match because the number
+                                    # string isn't at the start of the text.
+                                    continue
+
                                 entities = context.entities + [
                                     MatchEntity(
                                         name=list_ref.slot_name,
@@ -642,21 +695,43 @@ def match_expression(
                                         text=number_text,
                                     )
                                 ]
-                                yield from match_expression(
-                                    settings,
-                                    MatchContext(
-                                        text=context.text,
-                                        entities=entities,
-                                        # Copy over
-                                        intent_context=context.intent_context,
-                                        is_start_of_word=context.is_start_of_word,
-                                        unmatched_entities=context.unmatched_entities,
-                                        text_chunks_matched=context.text_chunks_matched,
-                                        intent_sentence=context.intent_sentence,
-                                        intent_data=context.intent_data,
-                                    ),
-                                    TextChunk(number_text),
-                                )
+                                if wildcard is None:
+                                    yield from match_expression(
+                                        settings,
+                                        MatchContext(
+                                            text=context.text,
+                                            entities=entities,
+                                            # Copy over
+                                            intent_context=context.intent_context,
+                                            is_start_of_word=context.is_start_of_word,
+                                            unmatched_entities=context.unmatched_entities,
+                                            text_chunks_matched=context.text_chunks_matched,
+                                            intent_sentence=context.intent_sentence,
+                                            intent_data=context.intent_data,
+                                        ),
+                                        TextChunk(number_text),
+                                    )
+                                else:
+                                    # Wildcard consumes text before number
+                                    wildcard.text += context.text[:number_start_pos]
+                                    wildcard.value = wildcard.text
+                                    yield from match_expression(
+                                        settings,
+                                        MatchContext(
+                                            text=context.text[number_start_pos:],
+                                            entities=entities,
+                                            # Copy over
+                                            intent_context=context.intent_context,
+                                            is_start_of_word=context.is_start_of_word,
+                                            unmatched_entities=context.unmatched_entities,
+                                            text_chunks_matched=context.text_chunks_matched,
+                                            intent_sentence=context.intent_sentence,
+                                            intent_data=context.intent_data,
+                                            #
+                                            close_wildcards=True,
+                                        ),
+                                        TextChunk(number_text),
+                                    )
                         except ValueError as error:
                             _LOGGER.debug(
                                 "Unexpected error converting numbers to words for language '%s': %s",
