@@ -2,6 +2,7 @@
 
 ## 2.0.0
 
+- Allow wildcards to be followed by expansion rules and lists
 - Use regular expressions to filter sentence templates
 - Add `filter_with_regex` to intent settings and intent data (`false` disables regex filtering)
 - Filter text slot list values by required/excluded context during matching
