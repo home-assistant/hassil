@@ -1,3 +1,8 @@
+"""Specialized implementation of a trie.
+
+See: https://en.wikipedia.org/wiki/Trie
+"""
+
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -20,11 +25,6 @@ class Trie:
     def __init__(self) -> None:
         self.roots: Dict[str, TrieNode] = {}
         self._next_id = 0
-
-    def next_id(self) -> int:
-        current_id = self._next_id
-        self._next_id += 1
-        return current_id
 
     def insert(self, text: str, value: Any) -> None:
         """Insert a word and value into the trie."""
@@ -74,3 +74,8 @@ class Trie:
 
                 if node.children and next_text:
                     q.append((node.children, next_text))
+
+    def next_id(self) -> int:
+        current_id = self._next_id
+        self._next_id += 1
+        return current_id
