@@ -1594,6 +1594,40 @@ def test_regex_branching():
     assert len(results) == 2
 
 
+def test_commas_dont_change() -> None:
+    """Ensure commas don't change the interpretation of a sentence."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TurnOn:
+        data:
+          - sentences:
+              - "turn on [the] {name}"
+              - "turn on [the] {area} lights"
+    lists:
+      name:
+        values:
+          - lamp
+      area:
+        values:
+          - living room
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for sentence in (
+        "turn on the living room lights",
+        "turn, on the, living room lights",
+        "turn on, the living room lights",
+        "turn on the, living room lights",
+        "turn on the living room, lights",
+    ):
+        result = recognize(sentence, intents)
+        assert result is not None, sentence
+        assert result.entities.keys() == {"area"}
+
+
 # Fails because wildcards must be followed by literal text or end of sentence
 # def test_wildcard_then_expansion_rule() -> None:
 #     """Test wildcard followed by expansions rule."""

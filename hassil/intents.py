@@ -356,7 +356,9 @@ class Intents:
                                 if "required_keywords" in data_dict
                                 else None
                             ),
-                            settings=_parse_data_settings(data_dict.get("settings", {})),
+                            settings=_parse_data_settings(
+                                data_dict.get("settings", {})
+                            ),
                         )
                         for data_dict in intent_dict["data"]
                     ],

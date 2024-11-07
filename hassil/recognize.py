@@ -130,7 +130,7 @@ def recognize_all(
     Yields results as they're matched.
     If allow_unmatched_entities is True, you should check for unmatched entities.
     """
-    text = normalize_text(text).strip()
+    text = normalize_text(remove_punctuation(text)).strip()
 
     if skip_words is None:
         skip_words = intents.skip_words
@@ -141,8 +141,7 @@ def recognize_all(
     if skip_words:
         text = remove_skip_words(text, skip_words, intents.settings.ignore_whitespace)
 
-    text_without_punctuation = remove_punctuation(text)
-    text_keywords = text_without_punctuation.split()
+    text_keywords = text.split()
 
     if slot_lists is None:
         slot_lists = intents.slot_lists
@@ -232,7 +231,7 @@ def recognize_all(
                 intent_sentence.compile(match_settings.expansion_rules)
                 assert intent_sentence.pattern is not None
 
-                regex_match = intent_sentence.pattern.match(text_without_punctuation)
+                regex_match = intent_sentence.pattern.match(text)
                 if regex_match is not None:
                     matching_intent_sentences.append(intent_sentence)
 
@@ -399,7 +398,7 @@ def is_match(
     language: Optional[str] = None,
 ) -> Optional[MatchContext]:
     """Return the first match of input text/words against a sentence expression."""
-    text = normalize_text(text).strip()
+    text = normalize_text(remove_punctuation(text)).strip()
 
     if skip_words:
         text = remove_skip_words(text, skip_words, ignore_whitespace)

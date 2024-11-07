@@ -29,7 +29,6 @@ from .models import (
 from .trie import Trie
 from .util import (
     PUNCTUATION_ALL,
-    PUNCTUATION_END_SPACE,
     WHITESPACE,
     check_excluded_context,
     check_required_context,
@@ -122,14 +121,8 @@ class MatchContext:
 
         # Wildcards cannot be empty
         for entity in self.entities:
-            if entity.is_wildcard:
-                # Remove punctuation from the end
-                if isinstance(entity.value, str):
-                    entity.value = PUNCTUATION_END_SPACE.sub("", entity.value)
-                entity.text = PUNCTUATION_END_SPACE.sub("", entity.text)
-
-                if not entity.text.strip():
-                    return False
+            if entity.is_wildcard and (not entity.text.strip()):
+                return False
 
         # Unmatched entities cannot be empty
         for unmatched_entity in self.unmatched_entities:
@@ -290,18 +283,9 @@ def match_expression(
                 # No text left to match, so extra whitespace is OK to skip
                 yield context
             else:
-                # Remove punctuation and try again
-                context_text = PUNCTUATION_ALL.sub("", context.text)
+                # Try breaking words apart
+                context_text = context_text.translate(BREAK_WORDS_TABLE)
                 end_pos = match_start(context_text, chunk_text)
-                if (end_pos is None) and context.is_start_of_word:
-                    # Try stripping whitespace
-                    context_text = context_text.lstrip()
-                    end_pos = match_start(context_text, chunk_text)
-
-                if end_pos is None:
-                    # Try breaking words apart
-                    context_text = context_text.translate(BREAK_WORDS_TABLE)
-                    end_pos = match_start(context_text, chunk_text)
 
                 if end_pos is not None:
                     context_text = context_text[end_pos:]
