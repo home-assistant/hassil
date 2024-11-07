@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.0
+
+- Use regular expressions to filter sentence templates
+- Add `filter_with_regex` to intent settings and intent data (`false` disables regex filtering)
+- Strip punctuation before text processing
+- Refactor string matching code into `string_matcher.py`
+
 ## 1.9.0
 
 - Filter text slot list values by required/excluded context during matching
