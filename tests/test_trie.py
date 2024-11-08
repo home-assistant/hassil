@@ -16,8 +16,14 @@ def test_insert_find() -> None:
         assert text[start_pos:end_pos] == number_text
         assert int(number_text) == number_value
 
-    assert list(trie.find("set to 1, then two, then finally twenty two please")) == [
+    assert list(trie.find("set to 1, then *two*, then finally twenty two please!")) == [
         (8, "1", 1),
-        (18, "two", 2),
-        (43, "twenty two", 22),
+        (19, "two", 2),
+        (45, "twenty two", 22),
     ]
+
+    # Test non-existent value
+    assert not list(trie.find("three"))
+
+    # Test empty string
+    assert not list(trie.find(""))
