@@ -266,7 +266,7 @@ def match_expression(
 
                 text_chunks_matched = context.text_chunks_matched
                 if is_chunk_non_empty:
-                    text_chunks_matched += 1
+                    text_chunks_matched += len(chunk_text)
 
                 yield MatchContext(
                     text=context_text,

@@ -576,7 +576,6 @@ def recognize_best(
     slot_found = False
     best_results: List[RecognizeResult] = []
     best_slot_quality: Optional[int] = None
-    best_text_chunks_matched: Optional[int] = None
 
     for result in recognize_all(
         text,
@@ -606,7 +605,6 @@ def recognize_best(
                 slot_found = False
                 best_results = []
                 best_slot_quality = None
-                best_text_chunks_matched = None
 
         # Prioritize results with a specific slot
         if best_slot_name:
@@ -621,7 +619,6 @@ def recognize_best(
 
                 # Clear non-slot results
                 best_results = []
-                best_text_chunks_matched = None
 
             if is_slot and (entity is not None) and isinstance(entity.value, str):
                 # Prioritize results with a better slot value
@@ -631,24 +628,23 @@ def recognize_best(
 
                     # Clear worse slot results
                     best_results = []
-                    best_text_chunks_matched = None
                 elif slot_quality < best_slot_quality:
                     continue
 
-        # Prioritize results with more literal text
-        # This causes wildcards to match last.
-        if (best_text_chunks_matched is None) or (
-            result.text_chunks_matched > best_text_chunks_matched
-        ):
-            best_results = [result]
-            best_text_chunks_matched = result.text_chunks_matched
-        elif result.text_chunks_matched == best_text_chunks_matched:
-            # Accumulate results with the same number of literal text matched.
-            # We will resolve the ambiguity below.
-            best_results.append(result)
+        # Accumulate results. We will resolve the ambiguity below.
+        best_results.append(result)
 
     if best_results:
-        # Successful strict match
-        return best_results[0]
+        # Prioritize matches with fewer wildcards and more literal text matched.
+        return sorted(best_results, key=_get_result_score)[0]
 
     return None
+
+
+def _get_result_score(result: RecognizeResult) -> Tuple[int, int]:
+    """Get sort score for a result with (wildcards, -text_matched).
+
+    text_matched is negated since we are sorting with lowest first.
+    """
+    num_wildcards = sum(1 for e in result.entities_list if e.is_wildcard)
+    return (num_wildcards, -result.text_chunks_matched)
