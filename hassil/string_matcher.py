@@ -485,12 +485,17 @@ def match_expression(
 
                     for value_context in value_contexts:
                         has_matches = True
+                        value_wildcard: Optional[MatchEntity] = None
                         if (
                             value_context.entities
                             and value_context.entities[-1].is_wildcard
                         ):
-                            # Remove wildcard text from value
                             value_wildcard = value_context.entities[-1]
+
+                        if value_wildcard is not None and context.text.startswith(
+                            value_wildcard.text
+                        ):
+                            # Remove wildcard text from value
                             remaining_text = context.text[len(value_wildcard.text) :]
                         else:
                             remaining_text = context.text

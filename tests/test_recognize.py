@@ -1628,44 +1628,24 @@ def test_commas_dont_change() -> None:
         assert result.entities.keys() == {"area"}
 
 
-# def test_wildcards_before_expansion_rule_fi() -> None:
-#     yaml_text = """
-#     language: "en"
-#     intents:
-#       TurnOn:
-#         data:
-#           - sentences:
-#               - "(vähennä|pienennä|lyhennä) [minun|mun] (ajastinta|ajastusta|ajastimesta|ajastuksesta) [nimeltä] {timer_name:name} <timer_duration>"
-#     lists:
-#       timer_name:
-#         wildcard: true
-#       minutes:
-#         range:
-#           from: 1
-#           to: 10
-#     expansion_rules:
-#       timer_duration: "{minutes} minuutilla"
-#     """
-
-#     with io.StringIO(yaml_text) as test_file:
-#         intents = Intents.from_yaml(test_file)
-
-#     result = recognize("lyhennä minun ajastusta nimeltä pizza 5 minuutilla", intents)
-#     assert result is not None
-
-
 def test_wildcard_then_other_stuff() -> None:
     """Test wildcard followed by expansion rule and list."""
     yaml_text = """
     language: "en"
     intents:
-      Test:
+      SetTimer:
         data:
           - sentences:
               - "set timer {timer_name:name} <timer_duration>"
               - "set timer {timer_name:name} {timer_state:state} [now]"
+      AddItem:
+        data:
+          - sentences:
+              - "add {item} [to [my]] {todo_list}"
     lists:
       timer_name:
+        wildcard: true
+      item:
         wildcard: true
       minutes:
         range:
@@ -1675,6 +1655,9 @@ def test_wildcard_then_other_stuff() -> None:
         values:
           - "on"
           - "off"
+      todo_list:
+        values:
+          - "shopping list"
     expansion_rules:
       timer_duration: "{minutes} minute[s]"
     """
@@ -1687,7 +1670,9 @@ def test_wildcard_then_other_stuff() -> None:
         result = recognize(sentence, intents)
         assert result is not None, f"{sentence} should match"
         assert set(result.entities.keys()) == {"name", "minutes"}
+        assert result.entities["name"].text == "pizza"
         assert result.entities["name"].value == "pizza"
+        assert result.entities["minutes"].text.strip() in {"5", "five"}
         assert result.entities["minutes"].value == 5
 
     # Check value list
@@ -1695,5 +1680,16 @@ def test_wildcard_then_other_stuff() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"name", "state"}
+    assert result.entities["name"].text == "a big long name"
     assert result.entities["name"].value == "a big long name"
+    assert result.entities["state"].text == "on"
     assert result.entities["state"].value == "on"
+
+    sentence = "add apples to my shopping list"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"item", "todo_list"}
+    assert result.entities["item"].text == "apples"
+    assert result.entities["item"].value == "apples"
+    assert result.entities["todo_list"].text == "shopping list"
+    assert result.entities["todo_list"].value == "shopping list"

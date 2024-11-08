@@ -62,11 +62,11 @@ Exclude the `-n` argument to sample all possible sentences.
 Uses a custom parser written in Python.
 
 * Alternative words or phrases
-  * `(red | green | blue)`
-  * `turn(s | ed | ing)`
+  * `(red|green|blue)`
+  * `turn(s|ed|ing)`
 * Optional words or phrases
   * `[the]`
-  * `[this | that]`
+  * `[this|that]`
   * `light[s]`
 * Permutations of words or phrases
   * `(patience; you must have) my young Padawan`
