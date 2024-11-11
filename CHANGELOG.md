@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.0
+
+- Allow wildcards to be followed by expansion rules and lists
+- Use regular expressions to filter sentence templates
+- Add `filter_with_regex` to intent settings and intent data (`false` disables regex filtering)
+- Filter text slot list values by required/excluded context during matching
+- Use a trie to filter range slot list values based on remaining text to be matched
+- Add `required_keywords` section to intent data to skip sentences without specific keywords
+- Preserve case during matching 
+- Strip punctuation before text processing
+- Remove extraneous whitespace from the end of wildcards
+- Refactor string matching code into `string_matcher.py`
+
 ## 1.8.0
 
 - Bump `unicode-rbnf` to 2.0.0

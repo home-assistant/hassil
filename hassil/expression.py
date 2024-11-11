@@ -1,5 +1,6 @@
 """Classes for representing sentence templates."""
 
+import re
 from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
@@ -20,6 +21,8 @@ class TextChunk(Expression):
 
     # Set in __post_init__
     original_text: str = None  # type: ignore
+
+    parent: "Optional[Sequence]" = None
 
     def __post_init__(self):
         if self.original_text is None:
@@ -58,6 +61,8 @@ class Sequence(Expression):
 
     # Group or alternative
     type: SequenceType = SequenceType.GROUP
+
+    is_optional: bool = False
 
     def text_chunk_count(self) -> int:
         """Return the number of TextChunk expressions in this sequence (recursive)."""
@@ -134,3 +139,56 @@ class Sentence(Sequence):
     """Sequence representing a complete sentence template."""
 
     text: Optional[str] = None
+    pattern: Optional[re.Pattern] = None
+
+    def compile(self, expansion_rules: Dict[str, "Sentence"]) -> None:
+        if self.pattern is not None:
+            # Already compiled
+            return
+
+        pattern_chunks: List[str] = []
+        self._compile_expression(self, pattern_chunks, expansion_rules)
+
+        pattern_str = "".join(pattern_chunks).replace(r"\ ", r"[ ]*")
+        self.pattern = re.compile(f"^{pattern_str}$", re.IGNORECASE)
+
+    def _compile_expression(
+        self, exp: Expression, pattern_chunks: List[str], rules: Dict[str, "Sentence"]
+    ):
+        if isinstance(exp, TextChunk):
+            # Literal text
+            chunk: TextChunk = exp
+            if chunk.text:
+                escaped_text = re.escape(chunk.text)
+                pattern_chunks.append(escaped_text)
+        elif isinstance(exp, Sequence):
+            # Linear sequence or alternative choices
+            seq: Sequence = exp
+            if seq.type == SequenceType.GROUP:
+                # Linear sequence
+                for item in seq.items:
+                    self._compile_expression(item, pattern_chunks, rules)
+            elif seq.type == SequenceType.ALTERNATIVE:
+                # Alternative choices
+                if seq.items:
+                    pattern_chunks.append("(?:")
+                    for item in seq.items:
+                        self._compile_expression(item, pattern_chunks, rules)
+                        pattern_chunks.append("|")
+                    pattern_chunks[-1] = ")"
+            else:
+                raise ValueError(seq)
+        elif isinstance(exp, ListReference):
+            # Slot list
+            pattern_chunks.append("(?:.+)")
+
+        elif isinstance(exp, RuleReference):
+            # Expansion rule
+            rule_ref: RuleReference = exp
+            if rule_ref.rule_name not in rules:
+                raise ValueError(rule_ref)
+
+            e_rule = rules[rule_ref.rule_name]
+            self._compile_expression(e_rule, pattern_chunks, rules)
+        else:
+            raise ValueError(exp)

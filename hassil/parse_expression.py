@@ -112,6 +112,10 @@ def parse_group_or_alt_or_perm(
             else:
                 # Add to parent group
                 seq.items.append(item)
+
+                if isinstance(item, TextChunk):
+                    item_tc: TextChunk = item
+                    item_tc.parent = seq
         elif item_chunk.parse_type == ParseType.ALT:
             ensure_alternative(seq)
 
@@ -161,7 +165,8 @@ def parse_expression(
     if chunk.parse_type == ParseType.OPT:
         seq = parse_group_or_alt_or_perm(chunk, metadata=metadata)
         ensure_alternative(seq)
-        seq.items.append(TextChunk(text=""))
+        seq.items.append(TextChunk(text="", parent=seq))
+        seq.is_optional = True
         return seq
 
     if chunk.parse_type == ParseType.LIST:
@@ -187,6 +192,7 @@ def parse_sentence(
     """Parse a single sentence."""
     original_text = text
     text = text.strip()
+    # text = fix_pattern_whitespace(text.strip())
 
     # Wrap in a group because sentences need to always be sequences.
     text = f"({text})"
@@ -215,19 +221,198 @@ def parse_sentence(
             seq = first_item
 
     return Sentence(
-        type=seq.type, items=seq.items, text=original_text if keep_text else None
+        type=seq.type,
+        items=seq.items,
+        text=original_text if keep_text else None,
+        is_optional=seq.is_optional,
     )
+
+
+# def fix_pattern_whitespace(text: str) -> str:
+#     if PERM_SEP in text:
+#         # Fix within permutations
+#         text = PERM_SEP.join(
+#             GROUP_START + fix_pattern_whitespace(perm_chunk) + GROUP_END
+#             for perm_chunk in text.split(PERM_SEP)
+#         )
+
+#     # Recursively process (group)
+#     group_start_index = text.find(GROUP_START)
+#     while group_start_index > 0:
+#         # TODO: Can't cross OPT boundary
+#         group_end_index = find_end_delimiter(
+#             text, group_start_index + 1, GROUP_START, GROUP_END
+#         )
+#         if group_end_index is None:
+#             return text  # will fail parsing
+
+#         before_group, text_without_group, after_group = (
+#             text[:group_start_index],
+#             text[group_start_index + 1 : group_end_index - 1],
+#             text[group_end_index:],
+#         )
+
+#         text = (
+#             fix_pattern_whitespace(before_group)
+#             + GROUP_START
+#             + fix_pattern_whitespace(text_without_group)
+#             + GROUP_END
+#             + fix_pattern_whitespace(after_group)
+#         )
+#         group_start_index = text.find(GROUP_START, group_end_index)
+
+#     # Fix whitespace after optional (beginning of sentence)
+#     left_text, right_text = "", text
+#     while right_text.startswith(OPT_START):
+#         opt_end_index = find_end_delimiter(right_text, 1, OPT_START, OPT_END)
+#         if (opt_end_index is None) or (opt_end_index >= len(right_text)):
+#             break
+
+#         if not right_text[opt_end_index].isspace():
+#             # No adjustment needed
+#             break
+
+#         # Move whitespace into optional and group
+#         left_text += (
+#             OPT_START
+#             + GROUP_START
+#             + right_text[1 : opt_end_index - 1]
+#             + GROUP_END
+#             + " "
+#             + OPT_END
+#         )
+#         right_text = right_text[opt_end_index:].lstrip()
+
+#     text = left_text + right_text
+
+#     # Fix whitespace before optional (end of sentence)
+#     left_text, right_text = text, ""
+#     while left_text.endswith(OPT_END):
+#         opt_end_index = len(left_text)
+#         opt_start_index = left_text.rfind(OPT_START)
+#         maybe_opt_end_index: Optional[int] = None
+
+#         # Keep looking back for the "[" that starts this optional
+#         while opt_start_index > 0:
+#             maybe_opt_end_index = find_end_delimiter(
+#                 left_text, opt_start_index + 1, OPT_START, OPT_END
+#             )
+#             if maybe_opt_end_index == opt_end_index:
+#                 break  # found the matching "["
+
+#             # Look farther back
+#             opt_start_index = left_text.rfind(OPT_START, 0, opt_start_index)
+
+#         if (maybe_opt_end_index != opt_end_index) or (opt_start_index <= 0):
+#             break
+
+#         if not left_text[opt_start_index - 1].isspace():
+#             # No adjustment needed
+#             break
+
+#         # Move whitespace into optional and group
+#         right_text = (
+#             (OPT_START + " " + GROUP_START + left_text[opt_start_index + 1 : -1])
+#             + GROUP_END
+#             + OPT_END
+#             + right_text
+#         )
+
+#         left_text = left_text[:opt_start_index].rstrip()
+
+#     text = left_text + right_text
+
+#     # Fix whitespace around optional (middle of a sentence)
+#     left_text, right_text = "", text
+#     match = re.search(rf"\s({re.escape(OPT_START)})", right_text)
+#     while match is not None:
+#         opt_start_index = match.start(1)
+#         opt_end_index = find_end_delimiter(
+#             right_text, opt_start_index + 1, OPT_START, OPT_END
+#         )
+#         if (opt_end_index is None) or (opt_end_index >= len(text)):
+#             break
+
+#         if right_text[opt_end_index].isspace():
+#             # Move whitespace inside optional, add group
+#             left_text += (
+#                 right_text[: opt_start_index - 1]
+#                 + OPT_START
+#                 + " "
+#                 + GROUP_START
+#                 + right_text[opt_start_index + 1 : opt_end_index - 1].lstrip()
+#                 + GROUP_END
+#                 + OPT_END
+#             )
+#         else:
+#             left_text += right_text[:opt_end_index]
+
+#         right_text = right_text[opt_end_index:]
+#         if not right_text:
+#             break
+
+#         match = re.search(rf"\s({re.escape(OPT_START)})", right_text)
+
+#     text = left_text + right_text
+
+#     return text
 
 
 def add_spaces_between_items(items: List[Expression]) -> List[Expression]:
     """Add spaces between each 2 items of a sequence, used for permutations"""
-
     spaced_items: List[Expression] = []
 
+    # Unpack single item sequences to make pattern matching easier below
+    unpacked_items: List[Expression] = []
     for item in items:
-        spaced_items = spaced_items + [TextChunk(text=" ")] + [item]
+        while (
+            isinstance(item, Sequence)
+            and (item.type == SequenceType.GROUP)
+            and (len(item.items) == 1)
+        ):
+            item = item.items[0]
 
-    spaced_items.append(TextChunk(text=" "))
-    items = spaced_items
+        unpacked_items.append(item)
 
-    return items
+    previous_item: Optional[Expression] = None
+    for item_idx, item in enumerate(unpacked_items):
+        if item_idx > 0:
+            # Only add whitespace after the first item
+            if isinstance(previous_item, Sequence) and previous_item.is_optional:
+                # Modify the previous optional to include a space at the end of
+                # each item.
+                opt: Sequence = previous_item
+                fixed_items: List[Expression] = []
+                for opt_item in opt.items:
+                    fix_item = True
+                    if isinstance(opt_item, TextChunk):
+                        opt_tc: TextChunk = opt_item
+                        if not opt_tc.text:
+                            # Don't fix empty text chunks
+                            fix_item = False
+                        else:
+                            # Remove ending whitespace since we'll be adding a
+                            # whitespace text chunk after.
+                            opt_tc.text = opt_tc.text.rstrip()
+
+                    if fix_item:
+                        fixed_items.append(
+                            Sequence(
+                                type=SequenceType.GROUP,
+                                items=[opt_item, TextChunk(" ")],
+                            )
+                        )
+                    else:
+                        fixed_items.append(opt_item)
+
+                spaced_items[-1] = Sequence(
+                    type=SequenceType.ALTERNATIVE, is_optional=True, items=fixed_items
+                )
+            else:
+                # Add a space in front
+                spaced_items.append(TextChunk(text=" "))
+
+        spaced_items.append(item)
+        previous_item = item
+
+    return spaced_items

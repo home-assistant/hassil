@@ -12,6 +12,7 @@ from typing import Dict, Iterable, Optional, Set, Tuple
 import yaml
 from unicode_rbnf import RbnfEngine
 
+from .errors import MissingListError, MissingRuleError
 from .expression import (
     Expression,
     ListReference,
@@ -22,7 +23,6 @@ from .expression import (
     TextChunk,
 )
 from .intents import Intents, RangeSlotList, SlotList, TextSlotList, WildcardSlotList
-from .recognize import MissingListError, MissingRuleError
 from .util import merge_dict, normalize_whitespace
 
 _LOGGER = logging.getLogger("hassil.sample")
@@ -110,6 +110,7 @@ def sample_expression(
     slot_lists: Optional[Dict[str, SlotList]] = None,
     expansion_rules: Optional[Dict[str, Sentence]] = None,
     language: Optional[str] = None,
+    expand_lists: bool = True,
     expand_ranges: bool = True,
 ) -> Iterable[str]:
     """Sample possible text strings from an expression."""
@@ -125,6 +126,7 @@ def sample_expression(
                     slot_lists,
                     expansion_rules,
                     language=language,
+                    expand_lists=expand_lists,
                     expand_ranges=expand_ranges,
                 )
         elif seq.type == SequenceType.GROUP:
@@ -134,6 +136,7 @@ def sample_expression(
                     slot_lists=slot_lists,
                     expansion_rules=expansion_rules,
                     language=language,
+                    expand_lists=expand_lists,
                     expand_ranges=expand_ranges,
                 ),
                 seq.items,
@@ -146,6 +149,11 @@ def sample_expression(
     elif isinstance(expression, ListReference):
         # {list}
         list_ref: ListReference = expression
+
+        if not expand_lists:
+            yield f"{{{list_ref.list_name}}}"
+            return
+
         if (not slot_lists) or (list_ref.list_name not in slot_lists):
             raise MissingListError(f"Missing slot list {{{list_ref.list_name}}}")
 
@@ -163,6 +171,7 @@ def sample_expression(
                     slot_lists,
                     expansion_rules,
                     language=language,
+                    expand_lists=expand_lists,
                     expand_ranges=expand_ranges,
                 )
         elif isinstance(slot_list, RangeSlotList):
@@ -225,6 +234,7 @@ def sample_expression(
             slot_lists,
             expansion_rules,
             language=language,
+            expand_lists=expand_lists,
             expand_ranges=expand_ranges,
         )
     else:

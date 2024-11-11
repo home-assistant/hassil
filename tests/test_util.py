@@ -22,7 +22,7 @@ def test_normalize_whitespace():
 
 
 def test_normalize_text():
-    assert normalize_text("tHIS    is A      Test") == "this is a test"
+    assert normalize_text("tHIS    is A      Test") == "tHIS is A Test"
 
 
 def test_is_template():

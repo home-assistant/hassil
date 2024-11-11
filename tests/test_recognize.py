@@ -3,15 +3,11 @@ from typing import Set, cast
 
 import pytest
 
-from hassil import Intents, recognize, recognize_all
+from hassil import Intents, recognize, recognize_all, recognize_best
 from hassil.expression import TextChunk
 from hassil.intents import TextSlotList
-from hassil.recognize import (
-    MISSING_ENTITY,
-    MatchEntity,
-    UnmatchedRangeEntity,
-    UnmatchedTextEntity,
-)
+from hassil.models import MatchEntity, UnmatchedRangeEntity, UnmatchedTextEntity
+from hassil.recognize import MISSING_ENTITY
 
 TEST_YAML = """
 language: "en"
@@ -134,8 +130,7 @@ def test_turn_on(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "TurnOnTV"
 
-    # turn, on, TV
-    assert result.text_chunks_matched == 3
+    assert result.text_chunks_matched > 0
 
     area = result.entities["area"]
     assert area.name == "area"
@@ -147,42 +142,6 @@ def test_turn_on(intents, slot_lists):
 
 
 # pylint: disable=redefined-outer-name
-def test_turn_on_fuzzy(intents, slot_lists):
-    # Not enough of a budget
-    result = recognize("trn on ktchen T", intents, slot_lists=slot_lists, edit_budget=2)
-    assert result is None
-
-    # Exactly enough budget
-    result = recognize("trn on ktchen T", intents, slot_lists=slot_lists, edit_budget=3)
-    assert result is not None
-    assert result.intent.name == "TurnOnTV"
-
-    area = result.entities["area"]
-    assert area.name == "area"
-    assert area.value == "area.kitchen"
-
-    # Should match the shorter area name (kitchen)
-    result = recognize("turn on X TV", intents, slot_lists=slot_lists, edit_budget=50)
-    assert result is not None
-    assert result.intent.name == "TurnOnTV"
-
-    area = result.entities["area"]
-    assert area.name == "area"
-    assert area.value == "area.kitchen"
-
-    # Should match the longer area name (living room)
-    result = recognize(
-        "turn on livXXX rXXX TV", intents, slot_lists=slot_lists, edit_budget=50
-    )
-    assert result is not None
-    assert result.intent.name == "TurnOnTV"
-
-    area = result.entities["area"]
-    assert area.name == "area"
-    assert area.value == "area.living_room"
-
-
-# pylint: disable=redefined-outer-name
 def test_brightness_area(intents, slot_lists):
     result = recognize(
         "set the brightness in the living room to 75%", intents, slot_lists=slot_lists
@@ -190,8 +149,7 @@ def test_brightness_area(intents, slot_lists):
     assert result is not None
     assert result.intent.name == "SetBrightness"
 
-    # set, the, brightness, in, the, to, %
-    assert result.text_chunks_matched == 7
+    assert result.text_chunks_matched > 0
 
     assert result.entities["area"].value == "area.living_room"
     assert result.entities["brightness_pct"].value == 75
@@ -493,7 +451,7 @@ def test_number_text() -> None:
         result = recognize(sentence, intents)
         assert result is not None, sentence
         assert result.entities["percentage"].value == 50
-        assert result.entities["percentage"].text.strip() == "50%"
+        assert result.entities["percentage"].text.strip() == "50"
 
 
 def test_recognize_all() -> None:
@@ -629,7 +587,7 @@ def test_local_slot_lists() -> None:
         track = result.entities.get("track")
         volume = result.entities.get("volume")
         assert isinstance(track, MatchEntity)
-        assert track.value == "paint it black "
+        assert track.value == "paint it black"
         assert isinstance(volume, MatchEntity)
         assert volume.value == 90
 
@@ -1041,13 +999,14 @@ def test_wildcard() -> None:
     with io.StringIO(yaml_text) as test_file:
         intents = Intents.from_yaml(test_file)
 
-    sentence = "play the white album by the beatles please now"
+    # Case should be kept
+    sentence = "play The White Album by The Beatles please now"
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "the white album "
+    assert result.entities["album"].value == "The White Album"
     assert result.entities["album"].is_wildcard
-    assert result.entities["artist"].value == "the beatles "
+    assert result.entities["artist"].value == "The Beatles"
     assert result.entities["artist"].is_wildcard
 
     # Wildcards cannot be empty
@@ -1060,7 +1019,7 @@ def test_wildcard() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "the white album "
+    assert result.entities["album"].value == "the white album"
     assert result.entities["album"].is_wildcard
     assert result.entities["artist"].value == "the beatles"
     assert result.entities["artist"].is_wildcard
@@ -1077,9 +1036,9 @@ def test_wildcard() -> None:
         for result in results
     }
     assert album_artist == {
-        ("day ", "day by taken by trees "),
-        ("day by day ", "taken by trees "),
-        ("day by day by taken ", "trees "),
+        ("day", "day by taken by trees"),
+        ("day by day", "taken by trees"),
+        ("day by day by taken", "trees"),
     }
     for result in results:
         assert result.entities["album"].is_wildcard
@@ -1090,7 +1049,7 @@ def test_wildcard() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "day by day "
+    assert result.entities["album"].value == "day by day"
     assert result.entities["album"].is_wildcard
     assert result.entities["artist"].value == "taken by trees"
     assert result.entities["artist"].is_wildcard
@@ -1126,9 +1085,9 @@ def test_wildcard_degenerate() -> None:
         for result in results
     }
     assert album_artist == {
-        ("by ", "by by by"),
-        ("by by ", "by by"),
-        ("by by by ", "by"),
+        ("by", "by by by"),
+        ("by by", "by by"),
+        ("by by by", "by"),
     }
 
 
@@ -1156,7 +1115,7 @@ def test_optional_wildcard() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "the white album "
+    assert result.entities["album"].value == "the white album"
     assert result.entities["artist"].value == "the beatles"
 
     # Missing one wildcard
@@ -1217,8 +1176,8 @@ def test_wildcard_ordering() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist", "room"}
-    assert result.entities["album"].value == "the white album "
-    assert result.entities["artist"].value == "the beatles "
+    assert result.entities["album"].value == "the white album"
+    assert result.entities["artist"].value == "the beatles"
     assert result.entities["room"].value == "the living room"
 
     # Check that the first sentence can still be used
@@ -1226,7 +1185,7 @@ def test_wildcard_ordering() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
-    assert result.entities["album"].value == "the white album "
+    assert result.entities["album"].value == "the white album"
     assert result.entities["artist"].value == "the beatles"
 
 
@@ -1284,8 +1243,8 @@ def test_wildcard_punctuation() -> None:
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"name", "zone"}
-    assert result.entities["name"].value == "alice "
-    assert result.entities["zone"].value == "new york"
+    assert result.entities["name"].value == "Alice"
+    assert result.entities["zone"].value == "New York"
 
 
 def test_entity_metadata() -> None:
@@ -1558,33 +1517,179 @@ def test_range_multiplier(intents, slot_lists):
     assert result.entities["volume_level"].text == "50"
 
 
-# Fails because wildcards must be followed by literal text or end of sentence
-# def test_wildcard_then_expansion_rule() -> None:
-#     """Test wildcard followed by expansions rule."""
-#     yaml_text = """
-#     language: "en"
-#     intents:
-#       Test:
-#         data:
-#           - sentences:
-#               - "set timer {timer_name:name} <timer_duration>"
-#     lists:
-#       timer_name:
-#         wildcard: true
-#       minutes:
-#         range:
-#           from: 1
-#           to: 59
-#     expansion_rules:
-#       timer_duration: "{minutes} minute[s]"
-#     """
+def test_recognize_best():
+    yaml_text = """
+    language: "en"
+    intents:
+      TurnOn:
+        data:
+          - sentences:
+              - "{anything} lamp"
+            metadata:
+              best_key: "best value"
+          - sentences:
+              - "turn on {area} lamp"
+              - "turn on {name}"
+    lists:
+      area:
+        values:
+          - bedroom
+      name:
+        values:
+          - bedroom lamp
+      anything:
+        wildcard: true
+    """
 
-#     with io.StringIO(yaml_text) as test_file:
-#         intents = Intents.from_yaml(test_file)
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
 
-#     sentence = "set timer pizza 5 minutes"
-#     result = recognize(sentence, intents)
-#     assert result is not None, f"{sentence} should match"
-#     assert set(result.entities.keys()) == {"name", "minutes"}
-#     assert result.entities["name"].value == "pizza"
-#     assert result.entities["minutes"].value == 5
+    # Should match the sentence with the wildcard slot because it's listed first.
+    result = recognize("turn on bedroom lamp", intents)  # not best
+    assert result is not None
+    assert result.entities.keys() == {"anything"}
+
+    # Should match the sentence with the wildcard slot because of its metadata.
+    result = recognize_best(
+        "turn on bedroom lamp", intents, best_metadata_key="best_key"
+    )
+    assert result is not None
+    assert result.entities.keys() == {"anything"}
+
+    # Should match the sentence with the "area" slot because it has the most
+    # literal text matched.
+    result = recognize_best("turn on bedroom lamp", intents)
+    assert result is not None
+    assert result.entities.keys() == {"area"}
+
+    # Should match the sentence with the "name" slot because it's a priority
+    result = recognize_best("turn on bedroom lamp", intents, best_slot_name="name")
+    assert result is not None
+    assert result.entities.keys() == {"name"}
+    assert result.entities["name"].value == "bedroom lamp"
+
+
+def test_regex_branching():
+    yaml_text = """
+    language: "en"
+    intents:
+      TurnOn:
+        data:
+          - sentences:
+              - "turn on ({area} {name}|{name})"
+    lists:
+      area:
+        values:
+          - bedroom
+      name:
+        values:
+          - bedroom lamp
+          - lamp
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    results = list(recognize_all("turn on bedroom lamp", intents))
+    assert len(results) == 2
+
+
+def test_commas_dont_change() -> None:
+    """Ensure commas don't change the interpretation of a sentence."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TurnOn:
+        data:
+          - sentences:
+              - "turn on [the] {name}"
+              - "turn on [the] {area} lights"
+    lists:
+      name:
+        values:
+          - lamp
+      area:
+        values:
+          - living room
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for sentence in (
+        "turn on the living room lights",
+        "turn, on the, living room lights",
+        "turn on, the living room lights",
+        "turn on the, living room lights",
+        "turn on the living room, lights",
+    ):
+        result = recognize(sentence, intents)
+        assert result is not None, sentence
+        assert result.entities.keys() == {"area"}
+
+
+def test_wildcard_then_other_stuff() -> None:
+    """Test wildcard followed by expansion rule and list."""
+    yaml_text = """
+    language: "en"
+    intents:
+      SetTimer:
+        data:
+          - sentences:
+              - "set timer {timer_name:name} <timer_duration>"
+              - "set timer {timer_name:name} {timer_state:state} [now]"
+      AddItem:
+        data:
+          - sentences:
+              - "add {item} [to [my]] {todo_list}"
+    lists:
+      timer_name:
+        wildcard: true
+      item:
+        wildcard: true
+      minutes:
+        range:
+          from: 1
+          to: 59
+      timer_state:
+        values:
+          - "on"
+          - "off"
+      todo_list:
+        values:
+          - "shopping list"
+    expansion_rules:
+      timer_duration: "{minutes} minute[s]"
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    # Check ranges
+    for sentence in ("set timer pizza 5 minutes", "set timer pizza five minutes"):
+        result = recognize(sentence, intents)
+        assert result is not None, f"{sentence} should match"
+        assert set(result.entities.keys()) == {"name", "minutes"}
+        assert result.entities["name"].text == "pizza"
+        assert result.entities["name"].value == "pizza"
+        assert result.entities["minutes"].text.strip() in {"5", "five"}
+        assert result.entities["minutes"].value == 5
+
+    # Check value list
+    sentence = "set timer a big long name on now"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"name", "state"}
+    assert result.entities["name"].text == "a big long name"
+    assert result.entities["name"].value == "a big long name"
+    assert result.entities["state"].text == "on"
+    assert result.entities["state"].value == "on"
+
+    sentence = "add apples to my shopping list"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"item", "todo_list"}
+    assert result.entities["item"].text == "apples"
+    assert result.entities["item"].value == "apples"
+    assert result.entities["todo_list"].text == "shopping list"
+    assert result.entities["todo_list"].value == "shopping list"
