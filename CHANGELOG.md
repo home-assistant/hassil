@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1
+
+- Count stripped text in `text_chunks_matched`
+
 ## 2.0.0
 
 - Allow wildcards to be followed by expansion rules and lists
