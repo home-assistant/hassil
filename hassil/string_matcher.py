@@ -262,11 +262,12 @@ def match_expression(
                 context_text = context_text[end_pos:]
 
                 # Close wildcards/unmatched entities on non-empty chunk
-                is_chunk_non_empty = len(chunk_text.strip()) > 0
+                chunk_text_stripped = chunk_text.strip()
+                is_chunk_non_empty = len(chunk_text_stripped) > 0
 
                 text_chunks_matched = context.text_chunks_matched
                 if is_chunk_non_empty:
-                    text_chunks_matched += len(chunk_text)
+                    text_chunks_matched += len(chunk_text_stripped)
 
                 yield MatchContext(
                     text=context_text,
