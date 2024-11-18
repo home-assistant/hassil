@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.2
+
+- Require `unicode-rbnf>=2.1` which includes important bugfixes
+
 ## 2.0.1
 
 - Count stripped text in `text_chunks_matched`
