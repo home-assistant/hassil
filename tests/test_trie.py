@@ -22,6 +22,19 @@ def test_insert_find() -> None:
         (45, "twenty two", 22),
     ]
 
+    # Without unique, *[two]* and twenty [two] will return 2
+    assert list(
+        trie.find("set to 1, then *two*, then finally twenty two please!", unique=False)
+    ) == [
+        (8, "1", 1),
+        (19, "two", 2),
+        (45, "two", 2),
+        (45, "twenty two", 22),
+    ]
+
+    # Test a character in between
+    assert not list(trie.find("tw|o"))
+
     # Test non-existent value
     assert not list(trie.find("three"))
 

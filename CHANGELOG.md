@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.3
+
+- Make trie more restrictive (`two` will not match `t|wo`)
+
 ## 2.0.2
 
 - Require `unicode-rbnf>=2.1` which includes important bugfixes
