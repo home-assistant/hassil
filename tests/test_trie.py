@@ -2,6 +2,7 @@ from hassil.trie import Trie
 
 
 def test_insert_find() -> None:
+    """Test inserting and finding values in the trie."""
     trie = Trie()
     trie.insert("1", 1)
     trie.insert("two", 2)
@@ -40,3 +41,12 @@ def test_insert_find() -> None:
 
     # Test empty string
     assert not list(trie.find(""))
+
+
+def test_multiple_values() -> None:
+    """Test that we can insert multiple values for the same string."""
+    trie = Trie()
+    trie.insert("test", 1)
+    trie.insert("test", 2)
+
+    assert list(trie.find("this is a test")) == [(14, "test", 1), (14, "test", 2)]

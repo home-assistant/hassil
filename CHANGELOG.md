@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.4
+
+- Trie values are accumulated on `insert` instead of being overwritten
+
 ## 2.0.3
 
 - Make trie more restrictive (`two` will not match `t|wo`)

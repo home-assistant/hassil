@@ -5,7 +5,7 @@ See: https://en.wikipedia.org/wiki/Trie
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
 @dataclass
@@ -14,7 +14,7 @@ class TrieNode:
 
     id: int
     text: Optional[str] = None
-    value: Any = None
+    values: Optional[List[Any]] = None
     children: "Optional[Dict[str, TrieNode]]" = None
 
 
@@ -43,7 +43,10 @@ class Trie:
 
             if i == last_idx:
                 current_node.text = text
-                current_node.value = value
+                if current_node.values is None:
+                    current_node.values = [value]
+                else:
+                    current_node.values.append(value)
 
             current_children = current_node.children
 
@@ -67,7 +70,13 @@ class Trie:
                     # End is one past the current position
                     if unique:
                         visited.add(node.id)
-                    yield (current_position + 1, node.text, node.value)
+
+                    if node.values:
+                        for value in node.values:
+                            yield (current_position + 1, node.text, value)
+                    else:
+                        # null value
+                        yield (current_position + 1, node.text, None)
 
                 if node.children and (current_position < len(text)):
                     q.append((node.children, current_position + 1))
