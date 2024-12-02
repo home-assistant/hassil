@@ -978,6 +978,38 @@ def test_unmatched_entities_cant_skip_words() -> None:
     assert len(results) == 0
 
 
+def test_unmatched_entities_text_chunks_matched() -> None:
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "[turn] on {name}"
+              - "[turn] on {name} light"
+    lists:
+      name:
+        values:
+          - test
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "turn on unknown light"
+
+    results = list(recognize_all(sentence, intents, allow_unmatched_entities=True))
+    assert len(results) == 2
+
+    # '[turn] on {name} light' should have more literal text matched
+    result_1, result_2 = results
+    assert result_1.intent_sentence is not None
+    if result_1.intent_sentence.text == "[turn] on {name}":
+        assert result_1.text_chunks_matched < result_2.text_chunks_matched
+    else:
+        assert result_2.text_chunks_matched < result_1.text_chunks_matched
+
+
 def test_wildcard() -> None:
     """Test wildcard slot lists/entities."""
     yaml_text = """
