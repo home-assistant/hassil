@@ -388,8 +388,8 @@ def match_expression(
                                 entities=context.entities,
                                 intent_context=context.intent_context,
                                 is_start_of_word=True,
-                                # unmatched_entities=context.unmatched_entities,
-                                text_chunks_matched=context.text_chunks_matched,
+                                text_chunks_matched=context.text_chunks_matched
+                                + len(chunk.text.strip()),
                                 intent_sentence=context.intent_sentence,
                                 intent_data=context.intent_data,
                                 #
