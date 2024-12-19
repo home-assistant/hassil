@@ -14,12 +14,13 @@ from unicode_rbnf import RbnfEngine
 
 from .errors import MissingListError, MissingRuleError
 from .expression import (
+    Alternative,
     Expression,
     Group,
-    GroupType,
     ListReference,
     RuleReference,
     Sentence,
+    Sequence,
     TextChunk,
 )
 from .intents import Intents, RangeSlotList, SlotList, TextSlotList, WildcardSlotList
@@ -81,7 +82,7 @@ def sample_intents(
                 ):
                     continue
 
-                sentence_texts = sample_expression(
+                sentence_texts = sample_sentence(
                     intent_sentence,
                     slot_lists,
                     local_expansion_rules,
@@ -105,6 +106,19 @@ def sample_intents(
                 break
 
 
+def sample_sentence(
+    sentence: Sentence,
+    slot_lists: Optional[Dict[str, SlotList]] = None,
+    expansion_rules: Optional[Dict[str, Sentence]] = None,
+    language: Optional[str] = None,
+    expand_lists: bool = True,
+    expand_ranges: bool = True,
+) -> Iterable[str]:
+    return sample_expression(
+        sentence.exp, slot_lists, expansion_rules, language, expand_lists, expand_ranges
+    )
+
+
 def sample_expression(
     expression: Expression,
     slot_lists: Optional[Dict[str, SlotList]] = None,
@@ -119,7 +133,7 @@ def sample_expression(
         yield chunk.original_text
     elif isinstance(expression, Group):
         grp: Group = expression
-        if grp.type == GroupType.ALTERNATIVE:
+        if isinstance(grp, Alternative):
             for item in grp.items:
                 yield from sample_expression(
                     item,
@@ -129,7 +143,7 @@ def sample_expression(
                     expand_lists=expand_lists,
                     expand_ranges=expand_ranges,
                 )
-        elif grp.type == GroupType.SEQUENCE:
+        elif isinstance(grp, Sequence):
             seq_sentences = map(
                 partial(
                     sample_expression,
@@ -228,7 +242,7 @@ def sample_expression(
         if (not expansion_rules) or (rule_ref.rule_name not in expansion_rules):
             raise MissingRuleError(f"Missing expansion rule <{rule_ref.rule_name}>")
 
-        rule_body = expansion_rules[rule_ref.rule_name]
+        rule_body = expansion_rules[rule_ref.rule_name].exp
         yield from sample_expression(
             rule_body,
             slot_lists,

@@ -3,12 +3,14 @@ from dataclasses import dataclass
 from typing import Optional
 
 from .expression import (
+    Alternative,
     Expression,
     Group,
-    GroupType,
     ListReference,
+    Permutation,
     RuleReference,
     Sentence,
+    Sequence,
     TextChunk,
 )
 from .parser import (
@@ -47,36 +49,24 @@ class ParseExpressionError(ParseError):
         return f"Error in chunk {self.chunk} at {self.metadata}"
 
 
-def _ensure_alternative(grp: Group):
-    if grp.type != GroupType.ALTERNATIVE:
-        grp.type = GroupType.ALTERNATIVE
-
-        # Collapse items into a single group
-        grp.items = [
-            Group(
-                type=GroupType.SEQUENCE,
-                items=grp.items,
-            )
-        ]
+def _ensure_alternative(grp: Group, **kw) -> Alternative:
+    if isinstance(grp, Alternative):
+        return grp
+    # Collapse items into a single group
+    return Alternative(items=[Sequence(items=grp.items)], **kw)
 
 
-def _ensure_permutation(grp: Group):
-    if grp.type != GroupType.PERMUTATION:
-        grp.type = GroupType.PERMUTATION
-
-        # Collapse items into a single group
-        grp.items = [
-            Group(
-                type=GroupType.SEQUENCE,
-                items=grp.items,
-            )
-        ]
+def _ensure_permutation(grp: Group) -> Permutation:
+    if isinstance(grp, Permutation):
+        return grp
+    # Collapse items into a single group
+    return Permutation(items=[Sequence(items=grp.items)])
 
 
 def parse_group(
     grp_chunk: ParseChunk, metadata: Optional[ParseMetadata] = None
 ) -> Group:
-    grp = Group(type=GroupType.SEQUENCE)
+    grp: Group = Sequence()
     if grp_chunk.parse_type == ParseType.GROUP:
         grp_text = _remove_delimiters(grp_chunk.text, GROUP_START, GROUP_END)
     elif grp_chunk.parse_type == ParseType.OPT:
@@ -97,7 +87,7 @@ def parse_group(
         ):
             item = parse_expression(item_chunk, metadata=metadata)
 
-            if grp.type in (GroupType.ALTERNATIVE, GroupType.PERMUTATION):
+            if isinstance(grp, (Alternative, Permutation)):
                 # Add to most recent group
                 last_item = grp.items[-1]
                 if not isinstance(last_item, Group):
@@ -113,15 +103,15 @@ def parse_group(
                     item_tc.parent = grp
 
         elif item_chunk.parse_type == ParseType.ALT:
-            _ensure_alternative(grp)
+            grp = _ensure_alternative(grp)
 
             # Begin new group
-            grp.items.append(Group(type=GroupType.SEQUENCE))
+            grp.items.append(Sequence())
         elif item_chunk.parse_type == ParseType.PERM:
-            _ensure_permutation(grp)
+            grp = _ensure_permutation(grp)
 
             # Begin new group
-            grp.items.append(Group(type=GroupType.SEQUENCE))
+            grp.items.append(Sequence())
         else:
             raise ParseExpressionError(grp_chunk, metadata=metadata)
 
@@ -135,7 +125,7 @@ def parse_group(
         item_chunk = next_chunk(grp_text)
         last_grp_text = grp_text
 
-    if grp.type == GroupType.PERMUTATION:
+    if isinstance(grp, Permutation):
         _add_spaces_between_items(grp)
 
     return grp
@@ -154,9 +144,8 @@ def parse_expression(
 
     if chunk.parse_type == ParseType.OPT:
         grp = parse_group(chunk, metadata=metadata)
-        _ensure_alternative(grp)
+        grp = _ensure_alternative(grp, is_optional=True)
         grp.items.append(TextChunk(text="", parent=grp))
-        grp.is_optional = True
         return grp
 
     if chunk.parse_type == ParseType.LIST:
@@ -207,10 +196,8 @@ def parse_sentence(
             grp = first_item
 
     return Sentence(
-        type=grp.type,
-        items=grp.items,
+        exp=grp,
         text=original_text if keep_text else None,
-        is_optional=grp.is_optional,
     )
 
 
@@ -369,10 +356,9 @@ def _escape_text(text: str) -> str:
     return re.sub(r"([()\[\]{}<>])", r"\\\1", text)
 
 
-def _add_spaces_between_items(grp: Group) -> None:
-    """Add spaces between each 2 items of a group, used for permutations"""
-    for seq in grp.items:
-        assert isinstance(seq, Group), "Item is not a group"
-        assert seq.type == GroupType.SEQUENCE, "Item is not a sequence"
+def _add_spaces_between_items(perm: Permutation) -> None:
+    """Add spaces between each 2 items of a permutation"""
+    for seq in perm.items:
+        assert isinstance(seq, Sequence), "Item is not a sequence"
         seq.items.insert(0, TextChunk(text=" "))
         seq.items.append(TextChunk(text=" "))

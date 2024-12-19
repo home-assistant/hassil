@@ -3,7 +3,6 @@
 import re
 from abc import ABC
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Dict, Iterator, List, Optional
 
 
@@ -39,29 +38,12 @@ class TextChunk(Expression):
         return TextChunk()
 
 
-class GroupType(str, Enum):
-    """Type of a group. Optionals are alternatives with an empty option."""
-
-    # Sequence of expressions
-    SEQUENCE = "sequence"
-
-    # Expressions where only one will be recognized
-    ALTERNATIVE = "alternative"
-
-    # Permutations of a set of expressions
-    PERMUTATION = "permutation"
-
-
 @dataclass
 class Group(Expression):
     """Ordered group of expressions. Supports sequences, optionals, and alternatives."""
 
     # Items in the group
     items: List[Expression] = field(default_factory=list)
-
-    type: GroupType = GroupType.SEQUENCE
-
-    is_optional: bool = False
 
     def text_chunk_count(self) -> int:
         """Return the number of TextChunk expressions in this group (recursive)."""
@@ -98,8 +80,25 @@ class Group(Expression):
         elif isinstance(item, RuleReference):
             rule_ref: RuleReference = item
             if expansion_rules and (rule_ref.rule_name in expansion_rules):
-                rule_body = expansion_rules[rule_ref.rule_name]
+                rule_body = expansion_rules[rule_ref.rule_name].exp
                 yield from self._list_names(rule_body, expansion_rules)
+
+
+@dataclass
+class Sequence(Group):
+    """Sequence of expressions"""
+
+
+@dataclass
+class Alternative(Group):
+    """Expressions where only one will be recognized"""
+
+    is_optional: bool = False
+
+
+@dataclass
+class Permutation(Group):
+    """Permutations of a set of expressions"""
 
 
 @dataclass
@@ -134,11 +133,25 @@ class ListReference(Expression):
 
 
 @dataclass
-class Sentence(Group):
-    """Group representing a complete sentence template."""
+class Sentence:
+    """A complete sentence template."""
 
+    exp: Expression
     text: Optional[str] = None
     pattern: Optional[re.Pattern] = None
+
+    def text_chunk_count(self) -> int:
+        """Return the number of TextChunk expressions in this sentence."""
+        assert isinstance(self.exp, Group)
+        return self.exp.text_chunk_count()  # pylint: disable=no-member
+
+    def list_names(
+        self,
+        expansion_rules: Optional[Dict[str, "Sentence"]] = None,
+    ) -> Iterator[str]:
+        """Return names of list references in this sentence."""
+        assert isinstance(self.exp, Group)
+        return self.exp.list_names(expansion_rules)  # pylint: disable=no-member
 
     def compile(self, expansion_rules: Dict[str, "Sentence"]) -> None:
         if self.pattern is not None:
@@ -146,7 +159,7 @@ class Sentence(Group):
             return
 
         pattern_chunks: List[str] = []
-        self._compile_expression(self, pattern_chunks, expansion_rules)
+        self._compile_expression(self.exp, pattern_chunks, expansion_rules)
         pattern_str = "".join(pattern_chunks).replace(r"\ ", r"[ ]*")
         self.pattern = re.compile(f"^{pattern_str}$", re.IGNORECASE)
 
@@ -161,20 +174,17 @@ class Sentence(Group):
                 pattern_chunks.append(escaped_text)
         elif isinstance(exp, Group):
             grp: Group = exp
-            if grp.type == GroupType.SEQUENCE:
-                # Linear sequence
+            if isinstance(grp, Sequence):
                 for item in grp.items:
                     self._compile_expression(item, pattern_chunks, rules)
-            elif grp.type == GroupType.ALTERNATIVE:
-                # Alternative choices
+            elif isinstance(grp, Alternative):
                 if grp.items:
                     pattern_chunks.append("(?:")
                     for item in grp.items:
                         self._compile_expression(item, pattern_chunks, rules)
                         pattern_chunks.append("|")
                     pattern_chunks[-1] = ")"
-            elif grp.type == GroupType.PERMUTATION:
-                # Permutation
+            elif isinstance(grp, Permutation):
                 if grp.items:
                     pattern_chunks.append("(?:")
                     for item in grp.items:
@@ -194,6 +204,6 @@ class Sentence(Group):
                 raise ValueError(rule_ref)
 
             e_rule = rules[rule_ref.rule_name]
-            self._compile_expression(e_rule, pattern_chunks, rules)
+            self._compile_expression(e_rule.exp, pattern_chunks, rules)
         else:
             raise ValueError(exp)

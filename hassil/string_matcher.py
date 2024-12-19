@@ -10,12 +10,14 @@ from unicode_rbnf import RbnfEngine
 
 from .errors import MissingListError, MissingRuleError
 from .expression import (
+    Alternative,
     Expression,
     Group,
-    GroupType,
     ListReference,
+    Permutation,
     RuleReference,
     Sentence,
+    Sequence,
     TextChunk,
 )
 from .intents import IntentData, RangeSlotList, SlotList, TextSlotList, WildcardSlotList
@@ -400,13 +402,13 @@ def match_expression(
                     pass
     elif isinstance(expression, Group):
         grp: Group = expression
-        if grp.type == GroupType.ALTERNATIVE:
+        if isinstance(grp, Alternative):
             # Any may match (words | in | alternative)
             # NOTE: [optional] = (optional | )
             for item in grp.items:
                 yield from match_expression(settings, context, item)
 
-        elif grp.type == GroupType.SEQUENCE:
+        elif isinstance(grp, Sequence):
             if grp.items:
                 # All must match (words in group)
                 group_contexts = [context]
@@ -424,7 +426,7 @@ def match_expression(
 
                 yield from group_contexts
 
-        elif grp.type == GroupType.PERMUTATION:
+        elif isinstance(grp, Permutation):
             if len(grp.items) == 1:
                 yield from match_expression(settings, context, grp.items[0])
             else:
@@ -432,7 +434,7 @@ def match_expression(
                 for i, item in enumerate(grp.items):
                     items = grp.items[:]
                     del items[i]
-                    perm = Group(type=GroupType.PERMUTATION, items=items)
+                    perm = Permutation(items=items)
 
                     for item_context in match_expression(settings, context, item):
                         yield from match_expression(settings, item_context, perm)
@@ -812,7 +814,7 @@ def match_expression(
             raise MissingRuleError(f"Missing expansion rule <{rule_ref.rule_name}>")
 
         yield from match_expression(
-            settings, context, settings.expansion_rules[rule_ref.rule_name]
+            settings, context, settings.expansion_rules[rule_ref.rule_name].exp
         )
     else:
         raise ValueError(f"Unexpected expression: {expression}")
