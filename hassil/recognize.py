@@ -264,7 +264,7 @@ def recognize_all(
                 intent_data=intent_data,
             )
             maybe_match_contexts = match_expression(
-                match_settings, match_context, intent_sentence
+                match_settings, match_context, intent_sentence.exp
             )
             yield from _process_match_contexts(
                 maybe_match_contexts,
@@ -432,7 +432,7 @@ def is_match(
         intent_sentence=sentence,
     )
 
-    for maybe_match_context in match_expression(settings, match_context, sentence):
+    for maybe_match_context in match_expression(settings, match_context, sentence.exp):
         if maybe_match_context.is_match:
             return maybe_match_context
 
