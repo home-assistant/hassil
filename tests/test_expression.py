@@ -19,7 +19,7 @@ def test_word():
     assert parse_expression(next_chunk("test")) == t(text="test")
 
 
-def test_group_in_group():
+def test_sequence_in_sequence():
     assert parse_expression(next_chunk("((test test2))")) == Sequence(
         items=[Sequence(items=[t(text="test "), t(text="test2")])],
     )
@@ -43,18 +43,44 @@ def test_optional():
     )
 
 
-def test_group_alternative():
+def test_alternative():
     assert parse_expression(next_chunk("(test | test2)")) == Alternative(
         items=[Sequence(items=[t(text="test ")]), Sequence(items=[t(text=" test2")])],
     )
 
 
-def test_group_permutation():
+def test_permutation():
     assert parse_expression(next_chunk("(test; test2)")) == Permutation(
         items=[
             Sequence(items=[t(text=" "), t(text="test"), t(text=" ")]),
             Sequence(items=[t(text=" "), t(text=" test2"), t(text=" ")]),
         ],
+    )
+
+
+def test_optional_alternative():
+    assert parse_expression(next_chunk("[test | test2]")) == Alternative(
+        items=[
+            Sequence(items=[t(text="test ")]),
+            Sequence(items=[t(text=" test2")]),
+            t(text=""),
+        ],
+        is_optional=True,
+    )
+
+
+def test_optional_permutation():
+    assert parse_expression(next_chunk("[test; test2]")) == Alternative(
+        items=[
+            Permutation(
+                items=[
+                    Sequence(items=[t(text=" "), t(text="test"), t(text=" ")]),
+                    Sequence(items=[t(text=" "), t(text=" test2"), t(text=" ")]),
+                ],
+            ),
+            t(text=""),
+        ],
+        is_optional=True,
     )
 
 

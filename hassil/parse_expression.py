@@ -49,18 +49,18 @@ class ParseExpressionError(ParseError):
         return f"Error in chunk {self.chunk} at {self.metadata}"
 
 
-def _ensure_alternative(grp: Group, **kw) -> Alternative:
+def _ensure_alternative(grp: Group) -> Alternative:
     if isinstance(grp, Alternative):
         return grp
     # Collapse items into a single group
-    return Alternative(items=[Sequence(items=grp.items)], **kw)
+    return Alternative(items=[grp])
 
 
 def _ensure_permutation(grp: Group) -> Permutation:
     if isinstance(grp, Permutation):
         return grp
     # Collapse items into a single group
-    return Permutation(items=[Sequence(items=grp.items)])
+    return Permutation(items=[grp])
 
 
 def parse_group(
@@ -88,9 +88,9 @@ def parse_group(
             item = parse_expression(item_chunk, metadata=metadata)
 
             if isinstance(grp, (Alternative, Permutation)):
-                # Add to most recent group
+                # Add to the most recent sequence
                 last_item = grp.items[-1]
-                if not isinstance(last_item, Group):
+                if not isinstance(last_item, Sequence):
                     raise ParseExpressionError(grp_chunk, metadata=metadata)
 
                 last_item.items.append(item)
@@ -105,12 +105,12 @@ def parse_group(
         elif item_chunk.parse_type == ParseType.ALT:
             grp = _ensure_alternative(grp)
 
-            # Begin new group
+            # Begin new sequence
             grp.items.append(Sequence())
         elif item_chunk.parse_type == ParseType.PERM:
             grp = _ensure_permutation(grp)
 
-            # Begin new group
+            # Begin new sequence
             grp.items.append(Sequence())
         else:
             raise ParseExpressionError(grp_chunk, metadata=metadata)
@@ -144,8 +144,10 @@ def parse_expression(
 
     if chunk.parse_type == ParseType.OPT:
         grp = parse_group(chunk, metadata=metadata)
-        grp = _ensure_alternative(grp, is_optional=True)
-        grp.items.append(TextChunk(text="", parent=grp))
+        alt = _ensure_alternative(grp)
+        alt.is_optional = True
+        alt.items.append(TextChunk(text="", parent=grp))
+        grp = alt
         return grp
 
     if chunk.parse_type == ParseType.LIST:
