@@ -1,10 +1,11 @@
 """Classes for representing sentence templates."""
 
+from __future__ import annotations
+
 import re
 from abc import ABC
-from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Dict, Iterable, Iterator, List, Optional, Tuple
 
 
 @dataclass
@@ -34,7 +35,7 @@ class TextChunk(Expression):
         return self.text == ""
 
     @staticmethod
-    def empty() -> "TextChunk":
+    def empty() -> TextChunk:
         """Returns an empty text chunk"""
         return TextChunk()
 
@@ -60,7 +61,7 @@ class Group(Expression):
 
     def list_names(
         self,
-        expansion_rules: Optional[Dict[str, "Sentence"]] = None,
+        expansion_rules: Optional[Dict[str, Sentence]] = None,
     ) -> Iterator[str]:
         """Return names of list references (recursive)."""
         for item in self.items:
@@ -69,7 +70,7 @@ class Group(Expression):
     def _list_names(
         self,
         item: Expression,
-        expansion_rules: Optional[Dict[str, "Sentence"]] = None,
+        expansion_rules: Optional[Dict[str, Sentence]] = None,
     ) -> Iterator[str]:
         """Return names of list references (recursive)."""
         if isinstance(item, ListReference):
@@ -101,7 +102,7 @@ class Alternative(Group):
 class Permutation(Group):
     """Permutations of a set of expressions"""
 
-    def iterate_permutations(self) -> Iterable[Tuple[Expression, "Permutation"]]:
+    def iterate_permutations(self) -> Iterable[Tuple[Expression, Permutation]]:
         """Iterate over all permutations."""
         for i, item in enumerate(self.items):
             items = self.items[:]
@@ -156,13 +157,13 @@ class Sentence:
 
     def list_names(
         self,
-        expansion_rules: Optional[Dict[str, "Sentence"]] = None,
+        expansion_rules: Optional[Dict[str, Sentence]] = None,
     ) -> Iterator[str]:
         """Return names of list references in this sentence."""
         assert isinstance(self.exp, Group)
         return self.exp.list_names(expansion_rules)  # pylint: disable=no-member
 
-    def compile(self, expansion_rules: Dict[str, "Sentence"]) -> None:
+    def compile(self, expansion_rules: Dict[str, Sentence]) -> None:
         if self.pattern is not None:
             # Already compiled
             return
@@ -173,7 +174,7 @@ class Sentence:
         self.pattern = re.compile(f"^{pattern_str}$", re.IGNORECASE)
 
     def _compile_expression(
-        self, exp: Expression, pattern_chunks: List[str], rules: Dict[str, "Sentence"]
+        self, exp: Expression, pattern_chunks: List[str], rules: Dict[str, Sentence]
     ) -> None:
         if isinstance(exp, TextChunk):
             # Literal text
