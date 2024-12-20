@@ -18,6 +18,7 @@ from .expression import (
     Expression,
     Group,
     ListReference,
+    Permutation,
     RuleReference,
     Sentence,
     Sequence,
@@ -158,6 +159,22 @@ def sample_expression(
             sentence_texts = itertools.product(*seq_sentences)
             for sentence_words in sentence_texts:
                 yield normalize_whitespace("".join(sentence_words))
+        elif isinstance(grp, Permutation):
+            seq_sentences = map(
+                partial(
+                    sample_expression,
+                    slot_lists=slot_lists,
+                    expansion_rules=expansion_rules,
+                    language=language,
+                    expand_lists=expand_lists,
+                    expand_ranges=expand_ranges,
+                ),
+                grp.items,
+            )
+            for perm_sentences in itertools.permutations(seq_sentences):
+                sentence_texts = itertools.product(*perm_sentences)
+                for sentence_words in sentence_texts:
+                    yield normalize_whitespace("".join(sentence_words))
         else:
             raise ValueError(f"Unexpected group type: {grp}")
     elif isinstance(expression, ListReference):
