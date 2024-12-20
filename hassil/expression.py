@@ -4,7 +4,7 @@ import re
 from abc import ABC
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Dict, Iterator, List, Optional
+from typing import Dict, Iterator, List, Optional, Tuple
 
 
 @dataclass
@@ -101,7 +101,7 @@ class Alternative(Group):
 class Permutation(Group):
     """Permutations of a set of expressions"""
 
-    def iterate_permutations(self) -> Iterable[tuple[Expression, "Permutation"]]:
+    def iterate_permutations(self) -> Iterable[Tuple[Expression, "Permutation"]]:
         """Iterate over all permutations."""
         for i, item in enumerate(self.items):
             items = self.items[:]
