@@ -431,13 +431,9 @@ def match_expression(
                 yield from match_expression(settings, context, grp.items[0])
             else:
                 # All must match (in arbitrary order)
-                for i, item in enumerate(grp.items):
-                    items = grp.items[:]
-                    del items[i]
-                    perm = Permutation(items=items)
-
+                for item, rest in grp.iterate_permutations():
                     for item_context in match_expression(settings, context, item):
-                        yield from match_expression(settings, item_context, perm)
+                        yield from match_expression(settings, item_context, rest)
 
         else:
             raise ValueError(f"Unexpected group type: {grp}")
