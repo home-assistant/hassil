@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0
+
+- Upgrade to `unicode-rbnf` 2.2
+- Transition to pyproject.toml
+
 ## 2.0.4
 
 - Trie values are accumulated on `insert` instead of being overwritten

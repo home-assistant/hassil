@@ -1,2 +1,0 @@
-PyYAML>=6.0,<7
-unicode-rbnf>=2.1,<3
