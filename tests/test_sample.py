@@ -1,5 +1,5 @@
 from hassil import parse_sentence
-from hassil.intents import RangeSlotList, TextSlotList
+from hassil.intents import RangeFractionType, RangeSlotList, TextSlotList
 from hassil.sample import sample_expression
 
 
@@ -87,6 +87,52 @@ def test_list_range_words():
         "run test two",
         "run test 3",
         "run test three",
+    }
+
+
+def test_list_range_halves_words():
+    sentence = parse_sentence("run test {num}")
+    num_list = RangeSlotList(
+        name=None, start=1, stop=1, fraction_type=RangeFractionType.HALVES, words=True
+    )
+    assert set(
+        sample_expression(sentence, slot_lists={"num": num_list}, language="en")
+    ) == {
+        "run test 1",
+        "run test one",
+        "run test 1.5",
+        "run test one point five",
+    }
+
+
+def test_list_range_tenths_words():
+    sentence = parse_sentence("run test {num}")
+    num_list = RangeSlotList(
+        name=None, start=1, stop=1, fraction_type=RangeFractionType.TENTHS, words=True
+    )
+    assert set(
+        sample_expression(sentence, slot_lists={"num": num_list}, language="en")
+    ) == {
+        "run test 1",
+        "run test one",
+        "run test 1.1",
+        "run test one point one",
+        "run test 1.2",
+        "run test one point two",
+        "run test 1.3",
+        "run test one point three",
+        "run test 1.4",
+        "run test one point four",
+        "run test 1.5",
+        "run test one point five",
+        "run test 1.6",
+        "run test one point six",
+        "run test 1.7",
+        "run test one point seven",
+        "run test 1.8",
+        "run test one point eight",
+        "run test 1.9",
+        "run test one point nine",
     }
 
 

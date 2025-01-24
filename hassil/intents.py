@@ -30,6 +30,23 @@ class RangeType(str, Enum):
     TEMPERATURE = "temperature"
 
 
+class RangeFractionType(str, Enum):
+    """Number range fraction type."""
+
+    HALVES = "halves"
+    TENTHS = "tenths"
+
+    @staticmethod
+    def get_fractions(fraction_type: "Optional[RangeFractionType]") -> List[float]:
+        if fraction_type == RangeFractionType.HALVES:
+            return [0.5]
+
+        if fraction_type == RangeFractionType.TENTHS:
+            return [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+
+        return []
+
+
 @dataclass
 class RangeSlotList(SlotList):
     """Slot list for a range of numbers."""
@@ -38,6 +55,7 @@ class RangeSlotList(SlotList):
     stop: int
     step: int = 1
     type: RangeType = RangeType.NUMBER
+    fraction_type: Optional[RangeFractionType] = None
     multiplier: Optional[float] = None
     digits: bool = True
     words: bool = True
@@ -48,6 +66,17 @@ class RangeSlotList(SlotList):
         assert self.start <= self.stop, "start cannot be greater than stop"
         assert self.step > 0, "step must be positive"
         assert self.digits or self.words, "must have digits, words, or both"
+
+    def get_numbers(self) -> Iterable[Union[float, int]]:
+        integers = range(self.start, self.stop + 1, self.step)
+        if self.fraction_type is None:
+            yield from integers
+        else:
+            fractions = RangeFractionType.get_fractions(self.fraction_type)
+            for integer in integers:
+                yield integer
+                for fraction in fractions:
+                    yield integer + fraction
 
 
 @dataclass
@@ -415,6 +444,7 @@ def _parse_list(
         # Number range
         range_dict = list_dict["range"]
         range_multiplier = range_dict.get("multiplier")
+        fractions_type = range_dict.get("fractions")
         return RangeSlotList(
             name=list_name,
             type=RangeType(range_dict.get("type", "number")),
@@ -427,6 +457,11 @@ def _parse_list(
             digits=bool(range_dict.get("digits", True)),
             words=bool(range_dict.get("words", True)),
             words_language=range_dict.get("words_language"),
+            fraction_type=(
+                RangeFractionType(fractions_type)
+                if fractions_type is not None
+                else None
+            ),
         )
 
     if list_dict.get("wildcard", False):

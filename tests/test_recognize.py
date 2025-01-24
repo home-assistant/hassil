@@ -1749,3 +1749,67 @@ def test_range_list_with_one_number() -> None:
     # Check ranges
     assert recognize("test 1", intents)
     assert not recognize("test 2", intents)
+
+
+def test_range_list_with_halves() -> None:
+    """Test a range list with fractions (1/2)."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {value}"
+    lists:
+      value:
+        range:
+          from: 1
+          to: 2
+          fractions: halves
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    assert recognize("test 1", intents)
+    assert recognize("test 1.5", intents)
+    assert recognize("test one point five", intents, language="en")
+    assert recognize("test 2.0", intents)
+    assert recognize("test 2.5", intents)
+
+    # Only halves
+    assert not recognize("test 2.1", intents)
+
+
+def test_range_list_with_tenths() -> None:
+    """Test a range list with fractions (1/10)."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {value}"
+    lists:
+      value:
+        range:
+          from: 1
+          to: 2
+          fractions: tenths
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    assert recognize("test 1", intents)
+    assert recognize("test 2", intents)
+
+    for integer in range(1, 3):
+        for tenth in range(1, 10):
+            assert recognize(f"test {integer}.{tenth}", intents)
+
+    assert recognize("test one point one", intents, language="en")
+    assert recognize("test two point six", intents, language="en")
+
+    # Only tenths
+    assert not recognize("test 2.12", intents)
