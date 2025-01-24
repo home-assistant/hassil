@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.1
+
+- Allow number ranges to have the same start/stop (single number)
+
 ## 2.1.0
 
 - Upgrade to `unicode-rbnf` 2.2
