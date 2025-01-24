@@ -1725,3 +1725,27 @@ def test_wildcard_then_other_stuff() -> None:
     assert result.entities["item"].value == "apples"
     assert result.entities["todo_list"].text == "shopping list"
     assert result.entities["todo_list"].value == "shopping list"
+
+
+def test_range_list_with_one_number() -> None:
+    """Test a range list with the same start/stop value."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {value}"
+    lists:
+      value:
+        range:
+          from: 1
+          to: 1
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    # Check ranges
+    assert recognize("test 1", intents)
+    assert not recognize("test 2", intents)

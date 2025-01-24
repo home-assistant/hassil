@@ -45,7 +45,7 @@ class RangeSlotList(SlotList):
 
     def __post_init__(self):
         """Validate number range"""
-        assert self.start < self.stop, "start must be less than stop"
+        assert self.start <= self.stop, "start cannot be greater than stop"
         assert self.step > 0, "step must be positive"
         assert self.digits or self.words, "must have digits, words, or both"
 
