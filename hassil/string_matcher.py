@@ -42,8 +42,10 @@ from .util import (
     remove_punctuation,
 )
 
-NUMBER_START = re.compile(r"^(\s*-?[0-9]+(?:\.[0-9]+)?)")
-NUMBER_ANYWHERE = re.compile(r"(\s*-?[0-9]+(?:\.[0-9]+)?)")
+INTEGER_START = re.compile(r"^(\s*-?[0-9]+)")
+FLOAT_START = re.compile(r"^(\s*-?[0-9]+(?:\.[0-9]+)?)")
+INTEGER_ANYWHERE = re.compile(r"(\s*-?[0-9])")
+FLOAT_ANYWHERE = re.compile(r"(\s*-?[0-9]+(?:\.[0-9]+)?)")
 BREAK_WORDS_TABLE = str.maketrans("-_", "  ")
 
 # lang -> engine
@@ -577,13 +579,22 @@ def match_expression(
                 number_matches: List[re.Match] = []
                 if wildcard is None:
                     # Look for digits at the start of the incoming text
-                    number_match = NUMBER_START.match(context.text)
+                    if range_list.fraction_type is None:
+                        number_match = INTEGER_START.match(context.text)
+                    else:
+                        number_match = FLOAT_START.match(context.text)
+
                     if number_match is not None:
                         number_matches.append(number_match)
                 else:
                     # Look for digit(s) anywhere in the string.
                     # The wildcard will consume text up to that point.
-                    number_matches.extend(NUMBER_ANYWHERE.finditer(context.text))
+                    if range_list.fraction_type is None:
+                        number_pattern = INTEGER_ANYWHERE
+                    else:
+                        number_pattern = FLOAT_ANYWHERE
+
+                    number_matches.extend(number_pattern.finditer(context.text))
 
                 digits_match = False
                 if range_list.digits and number_matches:
@@ -632,8 +643,12 @@ def match_expression(
                                 )
                             else:
                                 # Wildcard consumes text before number
-                                wildcard.text += context.text[: number_match.end() - 1]
-                                wildcard.value = wildcard.text
+                                if wildcard.is_wildcard_open:
+                                    wildcard.text += context.text[
+                                        : number_match.end() - 1
+                                    ]
+                                    wildcard.value = wildcard.text
+
                                 yield MatchContext(
                                     text=context.text[number_match.end() :],
                                     entities=entities,

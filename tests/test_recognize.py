@@ -1858,3 +1858,79 @@ def test_range_list_with_tenths() -> None:
 
     # Only tenths
     assert not recognize("test 2.12", intents)
+
+
+def test_range_lists_separated_by_punctuation() -> None:
+    """Test range lists separated by punctuation."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {value1}.{value2}"
+    lists:
+      value1:
+        range:
+          from: 0
+          to: 1
+      value2:
+        range:
+          from: 0
+          to: 2
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("test 1.2", intents)
+    assert result is not None
+
+    value1 = result.entities.get("value1")
+    assert value1 is not None
+    assert value1.value == 1
+
+    value2 = result.entities.get("value2")
+    assert value2 is not None
+    assert value2.value == 2
+
+
+def test_range_lists_separated_by_punctuation_with_wildcard() -> None:
+    """Test range lists separated by punctuation preceeded by a wildcard."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {anything} {value1}.{value2}"
+    lists:
+      anything:
+        wildcard: true
+      value1:
+        range:
+          from: 0
+          to: 1
+      value2:
+        range:
+          from: 0
+          to: 2
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("test for the big 1.2", intents)
+    assert result is not None
+
+    anything = result.entities.get("anything")
+    assert anything is not None
+    assert anything.value == "for the big"
+
+    value1 = result.entities.get("value1")
+    assert value1 is not None
+    assert value1.value == 1
+
+    value2 = result.entities.get("value2")
+    assert value2 is not None
+    assert value2.value == 2
