@@ -13,7 +13,6 @@ TEMPLATE_SYNTAX = re.compile(r".*[(){}<>\[\]|].*")
 
 PUNCTUATION_STR = ".。,，?¿？؟!¡！;；:：’"
 PUNCTUATION_PATTERN = rf"[{re.escape(PUNCTUATION_STR)}]+"
-PUNCTUATION_ALL = re.compile(rf"{PUNCTUATION_PATTERN}")
 PUNCTUATION_START = re.compile(rf"^{PUNCTUATION_PATTERN}")
 PUNCTUATION_END = re.compile(rf"{PUNCTUATION_PATTERN}$")
 PUNCTUATION_END_SPACE = re.compile(rf"{PUNCTUATION_PATTERN}\s*$")

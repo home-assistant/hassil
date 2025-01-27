@@ -18,7 +18,14 @@ from .expression import (
     SequenceType,
     TextChunk,
 )
-from .intents import IntentData, RangeSlotList, SlotList, TextSlotList, WildcardSlotList
+from .intents import (
+    IntentData,
+    RangeFractionType,
+    RangeSlotList,
+    SlotList,
+    TextSlotList,
+    WildcardSlotList,
+)
 from .models import (
     MatchEntity,
     UnmatchedEntity,
@@ -27,23 +34,27 @@ from .models import (
 )
 from .trie import Trie
 from .util import (
-    PUNCTUATION_ALL,
     WHITESPACE,
     check_excluded_context,
     check_required_context,
     match_first,
     match_start,
+    remove_punctuation,
 )
 
-NUMBER_START = re.compile(r"^(\s*-?[0-9]+)")
-NUMBER_ANYWHERE = re.compile(r"(\s*-?[0-9]+)")
+INTEGER_START = re.compile(r"^(\s*-?[0-9]+)")
+FLOAT_START = re.compile(r"^(\s*-?[0-9]+(?:\.[0-9]+)?)")
+INTEGER_ANYWHERE = re.compile(r"(\s*-?[0-9])")
+FLOAT_ANYWHERE = re.compile(r"(\s*-?[0-9]+(?:\.[0-9]+)?)")
 BREAK_WORDS_TABLE = str.maketrans("-_", "  ")
 
 # lang -> engine
 _ENGINE_CACHE: Dict[str, RbnfEngine] = {}
 
 # lang -> number -> words
-_RANGE_TRIE_CACHE: Dict[str, Dict[Tuple[int, int, int], Trie]] = defaultdict(dict)
+_RANGE_TRIE_CACHE: Dict[
+    str, Dict[Tuple[int, int, int, Optional[RangeFractionType]], Trie]
+] = defaultdict(dict)
 
 _LOGGER = logging.getLogger()
 
@@ -115,7 +126,7 @@ class MatchContext:
     @property
     def is_match(self) -> bool:
         """True if no text is left that isn't just whitespace or punctuation"""
-        text = PUNCTUATION_ALL.sub("", self.text).strip()
+        text = remove_punctuation(self.text).strip()
         if text:
             return False
 
@@ -568,31 +579,40 @@ def match_expression(
                 number_matches: List[re.Match] = []
                 if wildcard is None:
                     # Look for digits at the start of the incoming text
-                    number_match = NUMBER_START.match(context.text)
+                    if range_list.fraction_type is None:
+                        number_match = INTEGER_START.match(context.text)
+                    else:
+                        number_match = FLOAT_START.match(context.text)
+
                     if number_match is not None:
                         number_matches.append(number_match)
                 else:
                     # Look for digit(s) anywhere in the string.
                     # The wildcard will consume text up to that point.
-                    number_matches.extend(NUMBER_ANYWHERE.finditer(context.text))
+                    if range_list.fraction_type is None:
+                        number_pattern = INTEGER_ANYWHERE
+                    else:
+                        number_pattern = FLOAT_ANYWHERE
+
+                    number_matches.extend(number_pattern.finditer(context.text))
 
                 digits_match = False
                 if range_list.digits and number_matches:
                     for number_match in number_matches:
                         number_text = number_match[1]
-                        word_number: Union[int, float] = int(number_text)
+                        word_number: Union[int, float] = float(number_text)
 
                         # Check if number is within range of our list
-                        if range_list.step == 1:
+                        if (range_list.step == 1) and (
+                            range_list.fraction_type is None
+                        ):
                             # Unit step
                             in_range = (
                                 range_list.start <= word_number <= range_list.stop
                             )
                         else:
-                            # Non-unit step
-                            in_range = word_number in range(
-                                range_list.start, range_list.stop + 1, range_list.step
-                            )
+                            # Non-unit step or fractions
+                            in_range = word_number in range_list.get_numbers()
 
                         if in_range:
                             # Number is in range
@@ -623,8 +643,12 @@ def match_expression(
                                 )
                             else:
                                 # Wildcard consumes text before number
-                                wildcard.text += context.text[: number_match.end() - 1]
-                                wildcard.value = wildcard.text
+                                if wildcard.is_wildcard_open:
+                                    wildcard.text += context.text[
+                                        : number_match.end() - 1
+                                    ]
+                                    wildcard.value = wildcard.text
+
                                 yield MatchContext(
                                     text=context.text[number_match.end() :],
                                     entities=entities,
@@ -670,6 +694,7 @@ def match_expression(
                             range_list.start,
                             range_list.stop,
                             range_list.step,
+                            range_list.fraction_type,
                         )
                         range_trie = _RANGE_TRIE_CACHE[words_language].get(
                             range_settings
@@ -813,7 +838,7 @@ def _build_range_trie(language: str, range_list: RangeSlotList) -> Trie:
         engine = RbnfEngine.for_language(language)
         _ENGINE_CACHE[language] = engine
 
-    for word_number in range(range_list.start, range_list.stop + 1, range_list.step):
+    for word_number in range_list.get_numbers():
         range_value: Union[float, int] = word_number
         if range_list.multiplier is not None:
             range_value *= range_list.multiplier

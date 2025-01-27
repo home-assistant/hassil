@@ -4,7 +4,7 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Union
 
-from .util import PUNCTUATION_ALL
+from .util import remove_punctuation
 
 
 @dataclass
@@ -32,7 +32,7 @@ class MatchEntity:
     @property
     def text_clean(self) -> str:
         """Trimmed text with punctuation removed."""
-        return PUNCTUATION_ALL.sub("", self.text.strip())
+        return remove_punctuation(self.text).strip()
 
 
 @dataclass

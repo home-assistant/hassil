@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.0
+
+- Add "fractions" to number ranges with halves and tenths
+- Don't remove punctuation within words in `text_clean` (e.g., "2.5")
+
 ## 2.1.1
 
 - Allow number ranges to have the same start/stop (single number)

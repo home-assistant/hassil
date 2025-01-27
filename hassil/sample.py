@@ -185,9 +185,7 @@ def sample_expression(
                 return
 
             if range_list.digits:
-                number_strs = map(
-                    str, range(range_list.start, range_list.stop + 1, range_list.step)
-                )
+                number_strs = map(str, range_list.get_numbers())
                 yield from number_strs
 
             if range_list.words:
@@ -201,9 +199,7 @@ def sample_expression(
                     assert engine is not None
 
                     # digits -> words
-                    for word_number in range(
-                        range_list.start, range_list.stop + 1, range_list.step
-                    ):
+                    for word_number in range_list.get_numbers():
                         # Use all unique words for a number, including different
                         # genders, cases, etc.
                         format_result = engine.format_number(word_number)
