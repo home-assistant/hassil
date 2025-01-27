@@ -34,12 +34,12 @@ from .models import (
 )
 from .trie import Trie
 from .util import (
-    PUNCTUATION_ALL,
     WHITESPACE,
     check_excluded_context,
     check_required_context,
     match_first,
     match_start,
+    remove_punctuation,
 )
 
 NUMBER_START = re.compile(r"^(\s*-?[0-9]+(?:\.[0-9]+)?)")
@@ -124,7 +124,7 @@ class MatchContext:
     @property
     def is_match(self) -> bool:
         """True if no text is left that isn't just whitespace or punctuation"""
-        text = PUNCTUATION_ALL.sub("", self.text).strip()
+        text = remove_punctuation(self.text).strip()
         if text:
             return False
 

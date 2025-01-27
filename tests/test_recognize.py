@@ -1047,7 +1047,7 @@ def test_wildcard() -> None:
     assert result is None, f"{sentence} should not match"
 
     # Test without text at the end
-    sentence = "start the white album by the beatles"
+    sentence = "start the white album by the beatles."
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
@@ -1772,10 +1772,37 @@ def test_range_list_with_halves() -> None:
         intents = Intents.from_yaml(test_file)
 
     assert recognize("test 1", intents)
-    assert recognize("test 1.5", intents)
-    assert recognize("test one point five", intents, language="en")
-    assert recognize("test 2.0", intents)
-    assert recognize("test 2.5", intents)
+    result = recognize("test 1.5", intents)
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 1.5
+    assert value.text == "1.5"
+    assert value.text_clean == "1.5"
+
+    result = recognize("test one point five", intents, language="en")
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 1.5
+    assert value.text == "one point five"
+    assert value.text_clean == "one point five"
+
+    result = recognize("test 2.0", intents)
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 2
+    assert value.text == "2.0"
+    assert value.text_clean == "2.0"
+
+    result = recognize("test 2.5", intents)
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 2.5
+    assert value.text == "2.5"
+    assert value.text_clean == "2.5"
 
     # Only halves
     assert not recognize("test 2.1", intents)
@@ -1806,10 +1833,28 @@ def test_range_list_with_tenths() -> None:
 
     for integer in range(1, 3):
         for tenth in range(1, 10):
-            assert recognize(f"test {integer}.{tenth}", intents)
+            value_str = f"{integer}.{tenth}"
+            result = recognize(f"test {value_str}", intents)
+            assert result is not None
+            value = result.entities.get("value")
+            assert value is not None
+            assert value.value == float(value_str)
+            assert value.text == value_str
+            assert value.text_clean == value_str
 
-    assert recognize("test one point one", intents, language="en")
-    assert recognize("test two point six", intents, language="en")
+    result = recognize("test one point one", intents, language="en")
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 1.1
+    assert value.text == "one point one"
+
+    result = recognize("test two point six", intents, language="en")
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 2.6
+    assert value.text == "two point six"
 
     # Only tenths
     assert not recognize("test 2.12", intents)
