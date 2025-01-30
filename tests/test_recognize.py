@@ -1076,6 +1076,16 @@ def test_wildcard() -> None:
         assert result.entities["album"].is_wildcard
         assert result.entities["artist"].is_wildcard
 
+    # Test use of next word at end of word in wildcard
+    sentence = "play Moby by Moby please now"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"album", "artist"}
+    assert result.entities["album"].value == "Moby"
+    assert result.entities["album"].is_wildcard
+    assert result.entities["artist"].value == "Moby"
+    assert result.entities["artist"].is_wildcard
+
     # Add "artist" word
     sentence = "begin day by day by artist taken by trees"
     result = recognize(sentence, intents)
