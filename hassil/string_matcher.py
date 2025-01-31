@@ -512,15 +512,21 @@ def match_expression(
                         else:
                             remaining_text = context.text
 
+                        entity_text = (
+                            remaining_text[: -len(value_context.text)]
+                            if value_context.text
+                            else remaining_text
+                        )
+
                         entities = value_context.entities + [
                             MatchEntity(
                                 name=list_ref.slot_name,
-                                value=slot_value.value_out,
-                                text=(
-                                    remaining_text[: -len(value_context.text)]
-                                    if value_context.text
-                                    else remaining_text
+                                value=(
+                                    entity_text
+                                    if slot_value.value_out is None
+                                    else slot_value.value_out
                                 ),
+                                text=entity_text,
                                 metadata=slot_value.metadata,
                             )
                         ]

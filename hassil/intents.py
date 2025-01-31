@@ -419,11 +419,15 @@ def _parse_list(
         # Text values
         text_values: List[TextSlotValue] = []
         for value in list_dict["values"]:
+            if isinstance(value, str) and allow_template and is_template(value):
+                # Wrap template
+                value = {"in": value}
+
             if isinstance(value, str):
                 # String value
                 text_values.append(
                     TextSlotValue(
-                        text_in=_maybe_parse_template(value, allow_template),
+                        text_in=_maybe_parse_template(value, allow_template=False),
                         value_out=value,
                     )
                 )
@@ -432,7 +436,7 @@ def _parse_list(
                 text_values.append(
                     TextSlotValue(
                         text_in=_maybe_parse_template(value["in"], allow_template),
-                        value_out=value["out"],
+                        value_out=value.get("out"),
                         context=value.get("context"),
                         metadata=value.get("metadata"),
                     )

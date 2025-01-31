@@ -1934,3 +1934,42 @@ def test_range_lists_separated_by_punctuation_with_wildcard() -> None:
     value2 = result.entities.get("value2")
     assert value2 is not None
     assert value2.value == 2
+
+
+def test_list_value_in_no_out() -> None:
+    """Test list values with "in" but no "out"."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {value1}"
+          - sentences:
+              - "also test {value2}"
+            lists:
+              value2:
+                values:
+                  - g[h]i
+                  - j[k]l
+    lists:
+      value1:
+        values:
+          - a[b]c
+          - in: d[e]f
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for value in ("abc", "ac", "def", "df"):
+        result = recognize(f"test {value}", intents)
+        assert result is not None, value
+        assert "value1" in result.entities
+        assert result.entities["value1"].value == value
+
+    for value in ("ghi", "gi", "jkl", "jl"):
+        result = recognize(f"also test {value}", intents)
+        assert result is not None, value
+        assert "value2" in result.entities
+        assert result.entities["value2"].value == value
