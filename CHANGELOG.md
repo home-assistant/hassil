@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.1
+
+- Allow list values with "in" but no "out"
+
 ## 2.2.0
 
 - Add "fractions" to number ranges with halves and tenths
