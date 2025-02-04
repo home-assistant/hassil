@@ -96,7 +96,14 @@ def parse_group_or_alt_or_perm(
             ParseType.LIST,
             ParseType.RULE,
         ):
-            item = parse_expression(item_chunk, metadata=metadata)
+            # Chunk text ends with explicit whitespace
+            is_end_of_word = (item_chunk.end_index < len(seq_text)) and seq_text[
+                item_chunk.end_index
+            ].isspace()
+
+            item = parse_expression(
+                item_chunk, metadata=metadata, is_end_of_word=is_end_of_word
+            )
 
             if seq.type in (SequenceType.ALTERNATIVE, SequenceType.PERMUTATION):
                 # Add to most recent group
@@ -154,7 +161,9 @@ def parse_group_or_alt_or_perm(
 
 
 def parse_expression(
-    chunk: ParseChunk, metadata: Optional[ParseMetadata] = None
+    chunk: ParseChunk,
+    metadata: Optional[ParseMetadata] = None,
+    is_end_of_word: bool = True,
 ) -> Expression:
     if chunk.parse_type == ParseType.WORD:
         original_text = _remove_escapes(chunk.text)
@@ -174,7 +183,7 @@ def parse_expression(
     if chunk.parse_type == ParseType.LIST:
         text = _remove_escapes(chunk.text)
         list_name = _remove_delimiters(text, LIST_START, LIST_END)
-        return ListReference(list_name=list_name)
+        return ListReference(list_name=list_name, is_end_of_word=is_end_of_word)
 
     if chunk.parse_type == ParseType.RULE:
         text = _remove_escapes(chunk.text)

@@ -220,7 +220,16 @@ def match_expression(
                     return
 
                 # Wildcard cannot be empty
-                start_idx = match_first(context_text, chunk_text)
+                if settings.ignore_whitespace:
+                    is_wildcard_end_of_word = False
+                else:
+                    is_wildcard_end_of_word = wildcard.is_wildcard_end_of_word
+
+                start_idx = match_first(
+                    context_text,
+                    chunk_text,
+                    start_of_word=is_wildcard_end_of_word,
+                )
                 if start_idx < 0:
                     # Cannot possibly match
                     return
@@ -228,7 +237,12 @@ def match_expression(
                 if start_idx == 0:
                     # Possible degenerate case where the next word in the
                     # template duplicates.
-                    start_idx = match_first(context_text, chunk_text, 1)
+                    start_idx = match_first(
+                        context_text,
+                        chunk_text,
+                        1,
+                        start_of_word=is_wildcard_end_of_word,
+                    )
                     if start_idx < 0:
                         # Cannot possibly match
                         return
@@ -814,7 +828,11 @@ def match_expression(
                     entities=context.entities
                     + [
                         MatchEntity(
-                            name=list_ref.slot_name, value="", text="", is_wildcard=True
+                            name=list_ref.slot_name,
+                            value="",
+                            text="",
+                            is_wildcard=True,
+                            is_wildcard_end_of_word=list_ref.is_end_of_word,
                         )
                     ],
                     close_unmatched=True,

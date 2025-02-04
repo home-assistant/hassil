@@ -204,12 +204,18 @@ def match_start(text: str, prefix: str) -> Optional[int]:
     return match.end()
 
 
-def match_first(text: str, prefix: str, start_idx: int = 0) -> int:
+def match_first(
+    text: str, prefix: str, start_idx: int = 0, start_of_word: bool = False
+) -> int:
     if start_idx > 0:
         text = text[start_idx:]
 
-    # Use word boundary anchor to ensure the prefix only matches the start of a word
-    match = re.search(rf"\b{re.escape(prefix)}", text, re.IGNORECASE)
+    if start_of_word:
+        boundary = r"\b"
+    else:
+        boundary = ""
+
+    match = re.search(rf"{boundary}{re.escape(prefix)}", text, re.IGNORECASE)
     if match is None:
         return -1
 
