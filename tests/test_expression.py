@@ -125,6 +125,28 @@ def test_sentence_alternative_whitespace():
     )
 
 
+def test_list_reference_inside_word():
+    assert parse_sentence("ab{test}cd") == Sentence(
+        type=SequenceType.GROUP,
+        items=[
+            t(text="ab"),
+            ListReference("test", is_end_of_word=False),
+            t(text="cd"),
+        ],
+    )
+
+
+def test_list_reference_outside_word():
+    assert parse_sentence("ab{test} cd") == Sentence(
+        type=SequenceType.GROUP,
+        items=[
+            t(text="ab"),
+            ListReference("test", is_end_of_word=True),
+            t(text=" cd"),
+        ],
+    )
+
+
 # def test_fix_pattern_whitespace():
 #     assert fix_pattern_whitespace("[start] middle [end]") == "[(start) ]middle[ (end)]"
 #     assert fix_pattern_whitespace("start [middle] end") == "start[ (middle)] end"

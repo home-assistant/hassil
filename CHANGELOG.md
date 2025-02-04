@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.3
+
+- Fix behavior with wildcards inside and outside words
+
 ## 2.2.2
 
 - Allow "," as a decimal separator for fractional ranges

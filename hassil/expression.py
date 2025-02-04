@@ -118,6 +118,7 @@ class ListReference(Expression):
     list_name: str = ""
     prefix: Optional[str] = None
     suffix: Optional[str] = None
+    is_end_of_word: bool = True
     _slot_name: Optional[str] = None
 
     def __post_init__(self):

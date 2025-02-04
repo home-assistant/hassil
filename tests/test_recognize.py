@@ -1289,6 +1289,84 @@ def test_wildcard_punctuation() -> None:
     assert result.entities["zone"].value == "New York"
 
 
+def test_wildcard_inside_word() -> None:
+    """Test wildcard inside of a word."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "ab{test}cd"
+    lists:
+      test:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "ab123cd"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"test"}
+    assert result.entities["test"].value == "123"
+    assert result.entities["test"].is_wildcard
+
+
+def test_wildcard_outside_word() -> None:
+    """Test wildcard outside of a word."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "ab{test} cd"
+    lists:
+      test:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "ab123 cd"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"test"}
+    assert result.entities["test"].value == "123"
+    assert result.entities["test"].is_wildcard
+
+    sentence = "ab123cd"
+    result = recognize(sentence, intents)
+    assert result is None, f"{sentence} should not match"
+
+
+def test_wildcard_outside_word_ignore_whitespace() -> None:
+    """Test wildcard outside of a word when ignoring whitespace."""
+    yaml_text = """
+    language: "en"
+    settings:
+      ignore_whitespace: true
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "ab{test} cd"
+    lists:
+      test:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for sentence in ("abc123 cd", "abc123cd"):
+        result = recognize(sentence, intents)
+        assert result is not None, f"{sentence} should match"
+
+
 def test_entity_metadata() -> None:
     """Ensure metadata is returned for text slots"""
     yaml_text = """

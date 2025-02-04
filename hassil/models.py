@@ -29,6 +29,9 @@ class MatchEntity:
     is_wildcard_open: bool = True
     """While True, wildcard can continue matching."""
 
+    is_wildcard_end_of_word: bool = True
+    """True if wildcard {list} is followed by whitespace."""
+
     @property
     def text_clean(self) -> str:
         """Trimmed text with punctuation removed."""
