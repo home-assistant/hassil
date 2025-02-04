@@ -43,9 +43,9 @@ from .util import (
 )
 
 INTEGER_START = re.compile(r"^(\s*-?[0-9]+)")
-FLOAT_START = re.compile(r"^(\s*-?[0-9]+(?:\.[0-9]+)?)")
+FLOAT_START = re.compile(r"^(\s*-?[0-9]+(?:[.,][0-9]+)?)")
 INTEGER_ANYWHERE = re.compile(r"(\s*-?[0-9])")
-FLOAT_ANYWHERE = re.compile(r"(\s*-?[0-9]+(?:\.[0-9]+)?)")
+FLOAT_ANYWHERE = re.compile(r"(\s*-?[0-9]+(?:[.,][0-9]+)?)")
 BREAK_WORDS_TABLE = str.maketrans("-_", "  ")
 
 # lang -> engine
@@ -606,7 +606,9 @@ def match_expression(
                 if range_list.digits and number_matches:
                     for number_match in number_matches:
                         number_text = number_match[1]
-                        word_number: Union[int, float] = float(number_text)
+                        word_number: Union[int, float] = float(
+                            number_text.replace(",", ".")  # normalize decimal separator
+                        )
 
                         # Check if number is within range of our list
                         if (range_list.step == 1) and (

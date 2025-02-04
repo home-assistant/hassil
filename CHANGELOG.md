@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.2
+
+- Allow "," as a decimal separator for fractional ranges
+
 ## 2.2.1
 
 - Allow list values with "in" but no "out"

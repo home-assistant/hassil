@@ -1807,6 +1807,15 @@ def test_range_list_with_halves() -> None:
     # Only halves
     assert not recognize("test 2.1", intents)
 
+    # Comma separator
+    result = recognize("test 2,5", intents)
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 2.5
+    assert value.text == "2,5"
+    assert value.text_clean == "2,5"
+
 
 def test_range_list_with_tenths() -> None:
     """Test a range list with fractions (1/10)."""
