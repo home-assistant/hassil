@@ -86,7 +86,7 @@ def parse_group(
             ParseType.RULE,
         ):
             # Chunk text ends with explicit whitespace
-            is_end_of_word = (item_chunk.end_index < len(seq_text)) and seq_text[
+            is_end_of_word = (item_chunk.end_index < len(grp_text)) and grp_text[
                 item_chunk.end_index
             ].isspace()
 

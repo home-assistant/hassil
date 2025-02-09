@@ -171,23 +171,25 @@ def test_sentence_alternative_whitespace():
 
 def test_list_reference_inside_word():
     assert parse_sentence("ab{test}cd") == Sentence(
-        type=SequenceType.GROUP,
-        items=[
-            t(text="ab"),
-            ListReference("test", is_end_of_word=False),
-            t(text="cd"),
-        ],
+        exp=Sequence(
+            items=[
+                t(text="ab"),
+                ListReference("test", is_end_of_word=False),
+                t(text="cd"),
+            ],
+        )
     )
 
 
 def test_list_reference_outside_word():
     assert parse_sentence("ab{test} cd") == Sentence(
-        type=SequenceType.GROUP,
-        items=[
-            t(text="ab"),
-            ListReference("test", is_end_of_word=True),
-            t(text=" cd"),
-        ],
+        exp=Sequence(
+            items=[
+                t(text="ab"),
+                ListReference("test", is_end_of_word=True),
+                t(text=" cd"),
+            ],
+        )
     )
 
 
