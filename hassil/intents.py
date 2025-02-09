@@ -493,6 +493,6 @@ def _parse_data_settings(settings_dict: Dict[str, Any]) -> IntentDataSettings:
 def _maybe_parse_template(text: str, allow_template: bool = True) -> Expression:
     """Parse string as a sentence template if it has template syntax."""
     if allow_template and is_template(text):
-        return parse_sentence(text)
+        return parse_sentence(text).exp
 
     return TextChunk(normalize_text(text))
