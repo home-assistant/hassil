@@ -13,7 +13,6 @@ TEMPLATE_SYNTAX = re.compile(r".*[(){}<>\[\]|].*")
 
 PUNCTUATION_STR = ".。,，?¿？؟!¡！;；:：’"
 PUNCTUATION_PATTERN = rf"[{re.escape(PUNCTUATION_STR)}]+"
-PUNCTUATION_ALL = re.compile(rf"{PUNCTUATION_PATTERN}")
 PUNCTUATION_START = re.compile(rf"^{PUNCTUATION_PATTERN}")
 PUNCTUATION_END = re.compile(rf"{PUNCTUATION_PATTERN}$")
 PUNCTUATION_END_SPACE = re.compile(rf"{PUNCTUATION_PATTERN}\s*$")
@@ -205,11 +204,18 @@ def match_start(text: str, prefix: str) -> Optional[int]:
     return match.end()
 
 
-def match_first(text: str, prefix: str, start_idx: int = 0) -> int:
+def match_first(
+    text: str, prefix: str, start_idx: int = 0, start_of_word: bool = False
+) -> int:
     if start_idx > 0:
         text = text[start_idx:]
 
-    match = re.search(rf"{re.escape(prefix)}", text, re.IGNORECASE)
+    if start_of_word:
+        boundary = r"\b"
+    else:
+        boundary = ""
+
+    match = re.search(rf"{boundary}{re.escape(prefix)}", text, re.IGNORECASE)
     if match is None:
         return -1
 

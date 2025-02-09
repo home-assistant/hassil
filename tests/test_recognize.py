@@ -1047,7 +1047,7 @@ def test_wildcard() -> None:
     assert result is None, f"{sentence} should not match"
 
     # Test without text at the end
-    sentence = "start the white album by the beatles"
+    sentence = "start the white album by the beatles."
     result = recognize(sentence, intents)
     assert result is not None, f"{sentence} should match"
     assert set(result.entities.keys()) == {"album", "artist"}
@@ -1075,6 +1075,16 @@ def test_wildcard() -> None:
     for result in results:
         assert result.entities["album"].is_wildcard
         assert result.entities["artist"].is_wildcard
+
+    # Test use of next word at end of word in wildcard
+    sentence = "play Moby by Moby please now"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"album", "artist"}
+    assert result.entities["album"].value == "Moby"
+    assert result.entities["album"].is_wildcard
+    assert result.entities["artist"].value == "Moby"
+    assert result.entities["artist"].is_wildcard
 
     # Add "artist" word
     sentence = "begin day by day by artist taken by trees"
@@ -1277,6 +1287,84 @@ def test_wildcard_punctuation() -> None:
     assert set(result.entities.keys()) == {"name", "zone"}
     assert result.entities["name"].value == "Alice"
     assert result.entities["zone"].value == "New York"
+
+
+def test_wildcard_inside_word() -> None:
+    """Test wildcard inside of a word."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "ab{test}cd"
+    lists:
+      test:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "ab123cd"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"test"}
+    assert result.entities["test"].value == "123"
+    assert result.entities["test"].is_wildcard
+
+
+def test_wildcard_outside_word() -> None:
+    """Test wildcard outside of a word."""
+    yaml_text = """
+    language: "en"
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "ab{test} cd"
+    lists:
+      test:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    sentence = "ab123 cd"
+    result = recognize(sentence, intents)
+    assert result is not None, f"{sentence} should match"
+    assert set(result.entities.keys()) == {"test"}
+    assert result.entities["test"].value == "123"
+    assert result.entities["test"].is_wildcard
+
+    sentence = "ab123cd"
+    result = recognize(sentence, intents)
+    assert result is None, f"{sentence} should not match"
+
+
+def test_wildcard_outside_word_ignore_whitespace() -> None:
+    """Test wildcard outside of a word when ignoring whitespace."""
+    yaml_text = """
+    language: "en"
+    settings:
+      ignore_whitespace: true
+    intents:
+      Test:
+        data:
+          - sentences:
+              - "ab{test} cd"
+    lists:
+      test:
+        wildcard: true
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for sentence in ("abc123 cd", "abc123cd"):
+        result = recognize(sentence, intents)
+        assert result is not None, f"{sentence} should match"
 
 
 def test_entity_metadata() -> None:
@@ -1725,3 +1813,260 @@ def test_wildcard_then_other_stuff() -> None:
     assert result.entities["item"].value == "apples"
     assert result.entities["todo_list"].text == "shopping list"
     assert result.entities["todo_list"].value == "shopping list"
+
+
+def test_range_list_with_one_number() -> None:
+    """Test a range list with the same start/stop value."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {value}"
+    lists:
+      value:
+        range:
+          from: 1
+          to: 1
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    # Check ranges
+    assert recognize("test 1", intents)
+    assert not recognize("test 2", intents)
+
+
+def test_range_list_with_halves() -> None:
+    """Test a range list with fractions (1/2)."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {value}"
+    lists:
+      value:
+        range:
+          from: 1
+          to: 2
+          fractions: halves
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    assert recognize("test 1", intents)
+    result = recognize("test 1.5", intents)
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 1.5
+    assert value.text == "1.5"
+    assert value.text_clean == "1.5"
+
+    result = recognize("test one point five", intents, language="en")
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 1.5
+    assert value.text == "one point five"
+    assert value.text_clean == "one point five"
+
+    result = recognize("test 2.0", intents)
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 2
+    assert value.text == "2.0"
+    assert value.text_clean == "2.0"
+
+    result = recognize("test 2.5", intents)
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 2.5
+    assert value.text == "2.5"
+    assert value.text_clean == "2.5"
+
+    # Only halves
+    assert not recognize("test 2.1", intents)
+
+    # Comma separator
+    result = recognize("test 2,5", intents)
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 2.5
+    assert value.text == "2,5"
+    assert value.text_clean == "2,5"
+
+
+def test_range_list_with_tenths() -> None:
+    """Test a range list with fractions (1/10)."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {value}"
+    lists:
+      value:
+        range:
+          from: 1
+          to: 2
+          fractions: tenths
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    assert recognize("test 1", intents)
+    assert recognize("test 2", intents)
+
+    for integer in range(1, 3):
+        for tenth in range(1, 10):
+            value_str = f"{integer}.{tenth}"
+            result = recognize(f"test {value_str}", intents)
+            assert result is not None
+            value = result.entities.get("value")
+            assert value is not None
+            assert value.value == float(value_str)
+            assert value.text == value_str
+            assert value.text_clean == value_str
+
+    result = recognize("test one point one", intents, language="en")
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 1.1
+    assert value.text == "one point one"
+
+    result = recognize("test two point six", intents, language="en")
+    assert result is not None
+    value = result.entities.get("value")
+    assert value is not None
+    assert value.value == 2.6
+    assert value.text == "two point six"
+
+    # Only tenths
+    assert not recognize("test 2.12", intents)
+
+
+def test_range_lists_separated_by_punctuation() -> None:
+    """Test range lists separated by punctuation."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {value1}.{value2}"
+    lists:
+      value1:
+        range:
+          from: 0
+          to: 1
+      value2:
+        range:
+          from: 0
+          to: 2
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("test 1.2", intents)
+    assert result is not None
+
+    value1 = result.entities.get("value1")
+    assert value1 is not None
+    assert value1.value == 1
+
+    value2 = result.entities.get("value2")
+    assert value2 is not None
+    assert value2.value == 2
+
+
+def test_range_lists_separated_by_punctuation_with_wildcard() -> None:
+    """Test range lists separated by punctuation preceeded by a wildcard."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {anything} {value1}.{value2}"
+    lists:
+      anything:
+        wildcard: true
+      value1:
+        range:
+          from: 0
+          to: 1
+      value2:
+        range:
+          from: 0
+          to: 2
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    result = recognize("test for the big 1.2", intents)
+    assert result is not None
+
+    anything = result.entities.get("anything")
+    assert anything is not None
+    assert anything.value == "for the big"
+
+    value1 = result.entities.get("value1")
+    assert value1 is not None
+    assert value1.value == 1
+
+    value2 = result.entities.get("value2")
+    assert value2 is not None
+    assert value2.value == 2
+
+
+def test_list_value_in_no_out() -> None:
+    """Test list values with "in" but no "out"."""
+    yaml_text = """
+    language: "en"
+    intents:
+      TestIntent:
+        data:
+          - sentences:
+              - "test {value1}"
+          - sentences:
+              - "also test {value2}"
+            lists:
+              value2:
+                values:
+                  - g[h]i
+                  - j[k]l
+    lists:
+      value1:
+        values:
+          - a[b]c
+          - in: d[e]f
+    """
+
+    with io.StringIO(yaml_text) as test_file:
+        intents = Intents.from_yaml(test_file)
+
+    for value in ("abc", "ac", "def", "df"):
+        result = recognize(f"test {value}", intents)
+        assert result is not None, value
+        assert "value1" in result.entities
+        assert result.entities["value1"].value == value
+
+    for value in ("ghi", "gi", "jkl", "jl"):
+        result = recognize(f"also test {value}", intents)
+        assert result is not None, value
+        assert "value2" in result.entities
+        assert result.entities["value2"].value == value

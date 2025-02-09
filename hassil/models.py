@@ -4,7 +4,7 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Union
 
-from .util import PUNCTUATION_ALL
+from .util import remove_punctuation
 
 
 @dataclass
@@ -29,10 +29,13 @@ class MatchEntity:
     is_wildcard_open: bool = True
     """While True, wildcard can continue matching."""
 
+    is_wildcard_end_of_word: bool = True
+    """True if wildcard {list} is followed by whitespace."""
+
     @property
     def text_clean(self) -> str:
         """Trimmed text with punctuation removed."""
-        return PUNCTUATION_ALL.sub("", self.text.strip())
+        return remove_punctuation(self.text).strip()
 
 
 @dataclass

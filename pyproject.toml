@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=62.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name        = "hassil"
+version     = "2.2.3"
+license     = {text = "Apache-2.0"}
+description = "The Home Assistant Intent Language parser"
+readme      = "README.md"
+authors     = [
+    {name = "The Home Assistant Authors", email = "hello@home-assistant.io"}
+]
+keywords    = ["home", "assistant", "intent", "recognition"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Text Processing :: Linguistic",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.8.0"
+dependencies = [
+    "PyYAML>=6.0,<7",
+    "unicode-rbnf>=2.2,<3"
+]
+
+[project.urls]
+"Source Code" = "http://github.com/home-assistant/hassil"
+
+[tool.setuptools]
+platforms = ["any"]
+zip-safe  = true
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["hassil"]
+exclude = ["tests", "tests.*"]
+
+[project.scripts]
+hassil = "hassil.__main__:main"
