@@ -1,11 +1,13 @@
 """Home Assistant Intent Language parser"""
 
 from .expression import (
+    Alternative,
+    Group,
     ListReference,
+    Permutation,
     RuleReference,
     Sentence,
     Sequence,
-    SequenceType,
     TextChunk,
 )
 from .intents import Intents

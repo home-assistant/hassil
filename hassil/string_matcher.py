@@ -10,12 +10,14 @@ from unicode_rbnf import RbnfEngine
 
 from .errors import MissingListError, MissingRuleError
 from .expression import (
+    Alternative,
     Expression,
+    Group,
     ListReference,
+    Permutation,
     RuleReference,
     Sentence,
     Sequence,
-    SequenceType,
     TextChunk,
 )
 from .intents import (
@@ -423,19 +425,19 @@ def match_expression(
                 else:
                     # Match failed
                     pass
-    elif isinstance(expression, Sequence):
-        seq: Sequence = expression
-        if seq.type == SequenceType.ALTERNATIVE:
+    elif isinstance(expression, Group):
+        grp: Group = expression
+        if isinstance(grp, Alternative):
             # Any may match (words | in | alternative)
             # NOTE: [optional] = (optional | )
-            for item in seq.items:
+            for item in grp.items:
                 yield from match_expression(settings, context, item)
 
-        elif seq.type == SequenceType.GROUP:
-            if seq.items:
+        elif isinstance(grp, Sequence):
+            if grp.items:
                 # All must match (words in group)
                 group_contexts = [context]
-                for item in seq.items:
+                for item in grp.items:
                     # Next step
                     group_contexts = [
                         item_context
@@ -448,8 +450,18 @@ def match_expression(
                         break
 
                 yield from group_contexts
+
+        elif isinstance(grp, Permutation):
+            if len(grp.items) == 1:
+                yield from match_expression(settings, context, grp.items[0])
+            else:
+                # All must match (in arbitrary order)
+                for item, rest in grp.iterate_permutations():
+                    for item_context in match_expression(settings, context, item):
+                        yield from match_expression(settings, item_context, rest)
+
         else:
-            raise ValueError(f"Unexpected sequence type: {seq}")
+            raise ValueError(f"Unexpected group type: {grp}")
 
     elif isinstance(expression, ListReference):
         # {list}
@@ -849,7 +861,7 @@ def match_expression(
             raise MissingRuleError(f"Missing expansion rule <{rule_ref.rule_name}>")
 
         yield from match_expression(
-            settings, context, settings.expansion_rules[rule_ref.rule_name]
+            settings, context, settings.expansion_rules[rule_ref.rule_name].exp
         )
     else:
         raise ValueError(f"Unexpected expression: {expression}")

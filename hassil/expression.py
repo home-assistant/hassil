@@ -1,10 +1,11 @@
 """Classes for representing sentence templates."""
 
+from __future__ import annotations
+
 import re
 from abc import ABC
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Dict, Iterator, List, Optional
+from typing import Dict, Iterable, Iterator, List, Optional, Tuple
 
 
 @dataclass
@@ -22,7 +23,7 @@ class TextChunk(Expression):
     # Set in __post_init__
     original_text: str = None  # type: ignore
 
-    parent: "Optional[Sequence]" = None
+    parent: "Optional[Group]" = None
 
     def __post_init__(self):
         if self.original_text is None:
@@ -34,51 +35,33 @@ class TextChunk(Expression):
         return self.text == ""
 
     @staticmethod
-    def empty() -> "TextChunk":
+    def empty() -> TextChunk:
         """Returns an empty text chunk"""
         return TextChunk()
 
 
-class SequenceType(str, Enum):
-    """Type of a sequence. Optionals are alternatives with an empty option."""
-
-    # Sequence of expressions
-    GROUP = "group"
-
-    # Expressions where only one will be recognized
-    ALTERNATIVE = "alternative"
-
-    # Permutations of a set of expressions
-    PERMUTATION = "permutation"
-
-
 @dataclass
-class Sequence(Expression):
-    """Ordered sequence of expressions. Supports groups, optionals, and alternatives."""
+class Group(Expression):
+    """Ordered group of expressions. Supports sequences, optionals, and alternatives."""
 
-    # Items in the sequence
+    # Items in the group
     items: List[Expression] = field(default_factory=list)
 
-    # Group or alternative
-    type: SequenceType = SequenceType.GROUP
-
-    is_optional: bool = False
-
     def text_chunk_count(self) -> int:
-        """Return the number of TextChunk expressions in this sequence (recursive)."""
+        """Return the number of TextChunk expressions in this group (recursive)."""
         num_text_chunks = 0
         for item in self.items:
             if isinstance(item, TextChunk):
                 num_text_chunks += 1
-            elif isinstance(item, Sequence):
-                seq: Sequence = item
-                num_text_chunks += seq.text_chunk_count()
+            elif isinstance(item, Group):
+                grp: Group = item
+                num_text_chunks += grp.text_chunk_count()
 
         return num_text_chunks
 
     def list_names(
         self,
-        expansion_rules: Optional[Dict[str, "Sentence"]] = None,
+        expansion_rules: Optional[Dict[str, Sentence]] = None,
     ) -> Iterator[str]:
         """Return names of list references (recursive)."""
         for item in self.items:
@@ -87,20 +70,45 @@ class Sequence(Expression):
     def _list_names(
         self,
         item: Expression,
-        expansion_rules: Optional[Dict[str, "Sentence"]] = None,
+        expansion_rules: Optional[Dict[str, Sentence]] = None,
     ) -> Iterator[str]:
         """Return names of list references (recursive)."""
         if isinstance(item, ListReference):
             list_ref: ListReference = item
             yield list_ref.list_name
-        elif isinstance(item, Sequence):
-            seq: Sequence = item
-            yield from seq.list_names(expansion_rules)
+        elif isinstance(item, Group):
+            grp: Group = item
+            yield from grp.list_names(expansion_rules)
         elif isinstance(item, RuleReference):
             rule_ref: RuleReference = item
             if expansion_rules and (rule_ref.rule_name in expansion_rules):
-                rule_body = expansion_rules[rule_ref.rule_name]
+                rule_body = expansion_rules[rule_ref.rule_name].exp
                 yield from self._list_names(rule_body, expansion_rules)
+
+
+@dataclass
+class Sequence(Group):
+    """Sequence of expressions"""
+
+
+@dataclass
+class Alternative(Group):
+    """Expressions where only one will be recognized"""
+
+    is_optional: bool = False
+
+
+@dataclass
+class Permutation(Group):
+    """Permutations of a set of expressions"""
+
+    def iterate_permutations(self) -> Iterable[Tuple[Expression, Permutation]]:
+        """Iterate over all permutations."""
+        for i, item in enumerate(self.items):
+            items = self.items[:]
+            del items[i]
+            rest = Permutation(items=items)
+            yield (item, rest)
 
 
 @dataclass
@@ -136,49 +144,66 @@ class ListReference(Expression):
 
 
 @dataclass
-class Sentence(Sequence):
-    """Sequence representing a complete sentence template."""
+class Sentence:
+    """A complete sentence template."""
 
+    exp: Expression
     text: Optional[str] = None
     pattern: Optional[re.Pattern] = None
 
-    def compile(self, expansion_rules: Dict[str, "Sentence"]) -> None:
+    def text_chunk_count(self) -> int:
+        """Return the number of TextChunk expressions in this sentence."""
+        assert isinstance(self.exp, Group)
+        return self.exp.text_chunk_count()  # pylint: disable=no-member
+
+    def list_names(
+        self,
+        expansion_rules: Optional[Dict[str, Sentence]] = None,
+    ) -> Iterator[str]:
+        """Return names of list references in this sentence."""
+        assert isinstance(self.exp, Group)
+        return self.exp.list_names(expansion_rules)  # pylint: disable=no-member
+
+    def compile(self, expansion_rules: Dict[str, Sentence]) -> None:
         if self.pattern is not None:
             # Already compiled
             return
 
         pattern_chunks: List[str] = []
-        self._compile_expression(self, pattern_chunks, expansion_rules)
-
+        self._compile_expression(self.exp, pattern_chunks, expansion_rules)
         pattern_str = "".join(pattern_chunks).replace(r"\ ", r"[ ]*")
         self.pattern = re.compile(f"^{pattern_str}$", re.IGNORECASE)
 
     def _compile_expression(
-        self, exp: Expression, pattern_chunks: List[str], rules: Dict[str, "Sentence"]
-    ):
+        self, exp: Expression, pattern_chunks: List[str], rules: Dict[str, Sentence]
+    ) -> None:
         if isinstance(exp, TextChunk):
             # Literal text
             chunk: TextChunk = exp
             if chunk.text:
                 escaped_text = re.escape(chunk.text)
                 pattern_chunks.append(escaped_text)
-        elif isinstance(exp, Sequence):
-            # Linear sequence or alternative choices
-            seq: Sequence = exp
-            if seq.type == SequenceType.GROUP:
-                # Linear sequence
-                for item in seq.items:
+        elif isinstance(exp, Group):
+            grp: Group = exp
+            if isinstance(grp, Sequence):
+                for item in grp.items:
                     self._compile_expression(item, pattern_chunks, rules)
-            elif seq.type == SequenceType.ALTERNATIVE:
-                # Alternative choices
-                if seq.items:
+            elif isinstance(grp, Alternative):
+                if grp.items:
                     pattern_chunks.append("(?:")
-                    for item in seq.items:
+                    for item in grp.items:
                         self._compile_expression(item, pattern_chunks, rules)
                         pattern_chunks.append("|")
                     pattern_chunks[-1] = ")"
+            elif isinstance(grp, Permutation):
+                if grp.items:
+                    pattern_chunks.append("(?:")
+                    for item in grp.items:
+                        self._compile_expression(item, pattern_chunks, rules)
+                        pattern_chunks.append("|")
+                    pattern_chunks[-1] = f"){{{len(grp.items)}}}"
             else:
-                raise ValueError(seq)
+                raise ValueError(grp)
         elif isinstance(exp, ListReference):
             # Slot list
             pattern_chunks.append("(?:.+)")
@@ -190,6 +215,6 @@ class Sentence(Sequence):
                 raise ValueError(rule_ref)
 
             e_rule = rules[rule_ref.rule_name]
-            self._compile_expression(e_rule, pattern_chunks, rules)
+            self._compile_expression(e_rule.exp, pattern_chunks, rules)
         else:
             raise ValueError(exp)
