@@ -27,7 +27,7 @@ classifiers = [
 requires-python = ">=3.8.0"
 dependencies = [
     "PyYAML>=6.0,<7",
-    "unicode-rbnf>=2.2,<3"
+    "unicode-rbnf>=2.3,<3"
 ]
 
 [project.urls]
