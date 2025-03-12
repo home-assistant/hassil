@@ -4,6 +4,7 @@ from hassil.util import (
     normalize_text,
     normalize_whitespace,
     remove_escapes,
+    remove_punctuation,
 )
 
 
@@ -32,3 +33,10 @@ def test_is_template():
     assert is_template("a <rule>")
     assert is_template("(a group)")
     assert is_template("an | alternative")
+
+
+def test_remove_punctuation():
+    assert remove_punctuation("test") == "test"
+    assert remove_punctuation("test.") == "test"
+    assert remove_punctuation("A.C.") == "A.C."
+    assert remove_punctuation("A.C") == "A.C"
