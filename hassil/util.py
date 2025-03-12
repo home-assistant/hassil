@@ -20,6 +20,8 @@ PUNCTUATION_START_WORD = re.compile(rf"(?<=\W){PUNCTUATION_PATTERN}(?=\w)")
 PUNCTUATION_END_WORD = re.compile(rf"(?<=\w){PUNCTUATION_PATTERN}(?=\W)")
 PUNCTUATION_WORD = re.compile(rf"(?<=\W){PUNCTUATION_PATTERN}(?=\W)")
 
+INITIALISM_DOTS_AT_END = re.compile(r"\b(?:\w\.){2,}$")
+
 
 def merge_dict(base_dict, new_dict):
     """Merges new_dict into base_dict."""
@@ -188,7 +190,11 @@ def remove_skip_words(
 
 def remove_punctuation(text: str) -> str:
     text = PUNCTUATION_START.sub("", text)
-    text = PUNCTUATION_END.sub("", text)
+
+    if not INITIALISM_DOTS_AT_END.match(text):
+        # Don't remove final "." from "A.C.", etc.
+        text = PUNCTUATION_END.sub("", text)
+
     text = PUNCTUATION_START_WORD.sub("", text)
     text = PUNCTUATION_END_WORD.sub("", text)
     text = PUNCTUATION_WORD.sub("", text)
