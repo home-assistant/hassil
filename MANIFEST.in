@@ -1,7 +1,0 @@
-include requirements.txt
-include requirements_dev.txt
-include LICENSE.md
-include README.md
-include HassILGrammar.g4
-include hassil/VERSION
-recursive-include hassil/grammar/ *.py *.tokens *.interp
