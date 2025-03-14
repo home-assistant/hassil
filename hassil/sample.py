@@ -116,7 +116,12 @@ def sample_sentence(
     expand_ranges: bool = True,
 ) -> Iterable[str]:
     return sample_expression(
-        sentence.exp, slot_lists, expansion_rules, language, expand_lists, expand_ranges
+        sentence.expression,
+        slot_lists,
+        expansion_rules,
+        language,
+        expand_lists,
+        expand_ranges,
     )
 
 
@@ -160,21 +165,25 @@ def sample_expression(
             for sentence_words in sentence_texts:
                 yield normalize_whitespace("".join(sentence_words))
         elif isinstance(grp, Permutation):
-            seq_sentences = map(
-                partial(
-                    sample_expression,
-                    slot_lists=slot_lists,
-                    expansion_rules=expansion_rules,
-                    language=language,
-                    expand_lists=expand_lists,
-                    expand_ranges=expand_ranges,
-                ),
-                grp.items,
-            )
+            # Need to make lists instead because itertools does multiple passes.
+            seq_sentences = [
+                list(
+                    sample_expression(
+                        item,
+                        slot_lists,
+                        expansion_rules,
+                        language=language,
+                        expand_lists=expand_lists,
+                        expand_ranges=expand_ranges,
+                    )
+                )
+                for item in grp.items
+            ]
             for perm_sentences in itertools.permutations(seq_sentences):
                 sentence_texts = itertools.product(*perm_sentences)
                 for sentence_words in sentence_texts:
-                    yield normalize_whitespace("".join(sentence_words))
+                    # Strip added whitespace
+                    yield normalize_whitespace("".join(sentence_words)).strip()
         else:
             raise ValueError(f"Unexpected group type: {grp}")
     elif isinstance(expression, ListReference):
@@ -255,7 +264,7 @@ def sample_expression(
         if (not expansion_rules) or (rule_ref.rule_name not in expansion_rules):
             raise MissingRuleError(f"Missing expansion rule <{rule_ref.rule_name}>")
 
-        rule_body = expansion_rules[rule_ref.rule_name].exp
+        rule_body = expansion_rules[rule_ref.rule_name].expression
         yield from sample_expression(
             rule_body,
             slot_lists,

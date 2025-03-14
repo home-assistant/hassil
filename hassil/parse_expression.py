@@ -207,7 +207,7 @@ def parse_sentence(
             grp = first_item
 
     return Sentence(
-        exp=grp,
+        expression=grp,
         text=original_text if keep_text else None,
     )
 

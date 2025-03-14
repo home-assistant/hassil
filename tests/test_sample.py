@@ -142,3 +142,20 @@ def test_rule():
             expansion_rules={"area": parse_sentence("[the] kitchen")},
         )
     ) == {"turn off kitchen", "turn off the kitchen"}
+
+
+def test_permutation():
+    assert set(sample_sentence(parse_sentence("a;b;[c] d"))) == {
+        "a b d",
+        "a b c d",
+        "a c d b",
+        "a d b",
+        "b a d",
+        "b a c d",
+        "b c d a",
+        "b d a",
+        "c d a b",
+        "c d b a",
+        "d a b",
+        "d b a",
+    }

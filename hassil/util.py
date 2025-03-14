@@ -1,8 +1,9 @@
-"""Utility methods"""
+"""Utility methods."""
 
 import collections
 import re
 import unicodedata
+from collections.abc import Mapping, MutableMapping
 from typing import Any, Dict, Iterable, Optional
 
 WHITESPACE = re.compile(r"\s+")
@@ -23,8 +24,10 @@ PUNCTUATION_WORD = re.compile(rf"(?<=\W){PUNCTUATION_PATTERN}(?=\W)")
 INITIALISM_DOTS_AT_END = re.compile(r"\b(?:\w\.){2,}$")
 
 
-def merge_dict(base_dict, new_dict):
-    """Merges new_dict into base_dict."""
+def merge_dict(
+    base_dict: MutableMapping[Any, Any], new_dict: Mapping[Any, Any]
+) -> None:
+    """Merge new_dict into base_dict."""
     for key, value in new_dict.items():
         if key in base_dict:
             old_value = base_dict[key]
@@ -53,7 +56,7 @@ def remove_escapes(text: str) -> str:
 
 
 def normalize_whitespace(text: str) -> str:
-    """Makes all whitespace inside a string single spaced."""
+    """Make all whitespace inside a string single spaced."""
     return WHITESPACE_CAPTURE.sub(WHITESPACE_SEPARATOR, text)
 
 
@@ -66,7 +69,7 @@ def normalize_text(text: str) -> str:
 
 
 def is_template(text: str) -> bool:
-    """True if text contains template syntax"""
+    """Return True if text contains template syntax."""
     return TEMPLATE_SYNTAX.match(text) is not None
 
 
@@ -162,6 +165,7 @@ def check_excluded_context(
 def remove_skip_words(
     text: str, skip_words: Iterable[str], ignore_whitespace: bool
 ) -> str:
+    """Remove all skip words from text."""
     if not skip_words:
         return text
 
@@ -189,6 +193,7 @@ def remove_skip_words(
 
 
 def remove_punctuation(text: str) -> str:
+    """Remove punctuation from start/end of words and entire text."""
     text = PUNCTUATION_START.sub("", text)
 
     if not INITIALISM_DOTS_AT_END.match(text):
@@ -203,6 +208,7 @@ def remove_punctuation(text: str) -> str:
 
 
 def match_start(text: str, prefix: str) -> Optional[int]:
+    """Match prefix at start of text and return end of match position."""
     match = re.match(rf"^{re.escape(prefix)}", text, re.IGNORECASE)
     if match is None:
         return None
@@ -213,6 +219,7 @@ def match_start(text: str, prefix: str) -> Optional[int]:
 def match_first(
     text: str, prefix: str, start_idx: int = 0, start_of_word: bool = False
 ) -> int:
+    """Match prefix at text or word boundary and return start of match position."""
     if start_idx > 0:
         text = text[start_idx:]
 
