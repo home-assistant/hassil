@@ -10,6 +10,7 @@
 - `Sentence` now contains an `expression` field with the parsed expression
 - `Permutation` is represented explicitly instead of being expanded internally into an alternative
 - Everything used by downstream projects has been moved into a top-level import (`from hassil import Intents`). The internal structure of of hassil (e.g., `hassil.intents` or `hassil.util`) should be expected to change.
+- Drop support for Python 3.8 (EOL October 7, 2024)
 
 ## 2.2.3
 
