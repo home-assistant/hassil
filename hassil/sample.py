@@ -166,7 +166,7 @@ def sample_expression(
                 yield normalize_whitespace("".join(sentence_words))
         elif isinstance(grp, Permutation):
             # Need to make lists instead because itertools does multiple passes.
-            seq_sentences = [
+            grp_sentences = [
                 list(
                     sample_expression(
                         item,
@@ -179,7 +179,7 @@ def sample_expression(
                 )
                 for item in grp.items
             ]
-            for perm_sentences in itertools.permutations(seq_sentences):
+            for perm_sentences in itertools.permutations(grp_sentences):
                 sentence_texts = itertools.product(*perm_sentences)
                 for sentence_words in sentence_texts:
                     # Strip added whitespace
