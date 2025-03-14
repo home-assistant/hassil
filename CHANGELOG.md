@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.0.0
+
+- Rename `Sequence` to `Group`
+- Remove `SequenceType` and instead of types for each `Group`:
+    - `Sequence` for `(a b c)`
+    - `Alternative` for `(a|b|c)`
+    - `Permutation` for `(a;b;c)`
+- `Sentence` now contains an `expression` field with the parsed expression
+- `Permutation` is represented explicitly instead of being expanded internally into an alternative
+- Everything used by downstream projects has been moved into a top-level import (`from hassil import Intents`). The internal structure of of hassil (e.g., `hassil.intents` or `hassil.util`) should be expected to change.
+
 ## 2.2.3
 
 - Fix behavior with wildcards inside and outside words
