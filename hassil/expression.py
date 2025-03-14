@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import Dict, Iterator, List, Optional
 
 
 @dataclass
@@ -82,33 +82,25 @@ class Group(Expression):
         elif isinstance(item, RuleReference):
             rule_ref: RuleReference = item
             if expansion_rules and (rule_ref.rule_name in expansion_rules):
-                rule_body = expansion_rules[rule_ref.rule_name].exp
+                rule_body = expansion_rules[rule_ref.rule_name].expression
                 yield from self._list_names(rule_body, expansion_rules)
 
 
 @dataclass
 class Sequence(Group):
-    """Sequence of expressions"""
+    """Sequence of expressions."""
 
 
 @dataclass
 class Alternative(Group):
-    """Expressions where only one will be recognized"""
+    """Expressions where only one will be recognized."""
 
     is_optional: bool = False
 
 
 @dataclass
 class Permutation(Group):
-    """Permutations of a set of expressions"""
-
-    def iterate_permutations(self) -> Iterable[Tuple[Expression, Permutation]]:
-        """Iterate over all permutations."""
-        for i, item in enumerate(self.items):
-            items = self.items[:]
-            del items[i]
-            rest = Permutation(items=items)
-            yield (item, rest)
+    """Permutations of a set of expressions."""
 
 
 @dataclass
@@ -147,22 +139,22 @@ class ListReference(Expression):
 class Sentence:
     """A complete sentence template."""
 
-    exp: Expression
+    expression: Expression
     text: Optional[str] = None
     pattern: Optional[re.Pattern] = None
 
     def text_chunk_count(self) -> int:
         """Return the number of TextChunk expressions in this sentence."""
-        assert isinstance(self.exp, Group)
-        return self.exp.text_chunk_count()  # pylint: disable=no-member
+        assert isinstance(self.expression, Group)
+        return self.expression.text_chunk_count()  # pylint: disable=no-member
 
     def list_names(
         self,
         expansion_rules: Optional[Dict[str, Sentence]] = None,
     ) -> Iterator[str]:
         """Return names of list references in this sentence."""
-        assert isinstance(self.exp, Group)
-        return self.exp.list_names(expansion_rules)  # pylint: disable=no-member
+        assert isinstance(self.expression, Group)
+        return self.expression.list_names(expansion_rules)  # pylint: disable=no-member
 
     def compile(self, expansion_rules: Dict[str, Sentence]) -> None:
         if self.pattern is not None:
@@ -170,7 +162,7 @@ class Sentence:
             return
 
         pattern_chunks: List[str] = []
-        self._compile_expression(self.exp, pattern_chunks, expansion_rules)
+        self._compile_expression(self.expression, pattern_chunks, expansion_rules)
         pattern_str = "".join(pattern_chunks).replace(r"\ ", r"[ ]*")
         self.pattern = re.compile(f"^{pattern_str}$", re.IGNORECASE)
 
@@ -215,6 +207,6 @@ class Sentence:
                 raise ValueError(rule_ref)
 
             e_rule = rules[rule_ref.rule_name]
-            self._compile_expression(e_rule.exp, pattern_chunks, rules)
+            self._compile_expression(e_rule.expression, pattern_chunks, rules)
         else:
             raise ValueError(exp)

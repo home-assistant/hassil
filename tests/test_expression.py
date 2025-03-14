@@ -94,7 +94,7 @@ def test_rule_reference():
 
 def test_sentence_no_group():
     assert parse_sentence("this is a test") == Sentence(
-        exp=Sequence(
+        expression=Sequence(
             items=[t(text="this "), t(text="is "), t(text="a "), t(text="test")]
         )
     )
@@ -102,7 +102,7 @@ def test_sentence_no_group():
 
 def test_sentence_group():
     assert parse_sentence("(this is a test)") == Sentence(
-        exp=Sequence(
+        expression=Sequence(
             items=[t(text="this "), t(text="is "), t(text="a "), t(text="test")]
         )
     )
@@ -110,7 +110,7 @@ def test_sentence_group():
 
 def test_sentence_optional():
     assert parse_sentence("[this is a test]") == Sentence(
-        exp=Alternative(
+        expression=Alternative(
             items=[
                 Sequence(
                     items=[
@@ -129,7 +129,7 @@ def test_sentence_optional():
 
 def test_sentence_optional_prefix():
     assert parse_sentence("[t]est") == Sentence(
-        exp=Sequence(
+        expression=Sequence(
             items=[
                 Alternative(
                     items=[Sequence(items=[t(text="t")]), t(text="")], is_optional=True
@@ -142,7 +142,7 @@ def test_sentence_optional_prefix():
 
 def test_sentence_optional_suffix():
     assert parse_sentence("test[s]") == Sentence(
-        exp=Sequence(
+        expression=Sequence(
             items=[
                 t(text="test"),
                 Alternative(
@@ -155,7 +155,7 @@ def test_sentence_optional_suffix():
 
 def test_sentence_alternative_whitespace():
     assert parse_sentence("test ( 1 | 2)") == Sentence(
-        exp=Sequence(
+        expression=Sequence(
             items=[
                 t(text="test "),
                 Alternative(
@@ -171,7 +171,7 @@ def test_sentence_alternative_whitespace():
 
 def test_list_reference_inside_word():
     assert parse_sentence("ab{test}cd") == Sentence(
-        exp=Sequence(
+        expression=Sequence(
             items=[
                 t(text="ab"),
                 ListReference("test", is_end_of_word=False),
@@ -183,7 +183,7 @@ def test_list_reference_inside_word():
 
 def test_list_reference_outside_word():
     assert parse_sentence("ab{test} cd") == Sentence(
-        exp=Sequence(
+        expression=Sequence(
             items=[
                 t(text="ab"),
                 ListReference("test", is_end_of_word=True),

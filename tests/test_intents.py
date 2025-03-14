@@ -117,6 +117,14 @@ def test_permutations():
     assert is_match("in the kitchen is there smoke", sentence)
     assert is_match("is there smoke in the kitchen", sentence)
 
+    sentence = parse_sentence("(a;b;c)")
+    assert is_match("a b c", sentence)
+    assert is_match("a c b", sentence)
+    assert is_match("b a c", sentence)
+    assert is_match("b c a", sentence)
+    assert is_match("c a b", sentence)
+    assert is_match("c b a", sentence)
+
 
 def test_nl_optional_whitespace():
     sentence = parse_sentence(
