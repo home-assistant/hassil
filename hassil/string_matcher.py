@@ -1,6 +1,5 @@
 """Original hassil matcher."""
 
-import itertools
 import logging
 import re
 from collections import defaultdict
@@ -453,21 +452,14 @@ def match_expression(
                 yield from group_contexts
 
         elif isinstance(grp, Permutation):
-            for permutation in itertools.permutations(grp.items, len(grp.items)):
-                perm_contexts = [context]
-                for item in permutation:
-                    # Next step
-                    perm_contexts = [
-                        item_context
-                        for perm_context in perm_contexts
-                        for item_context in match_expression(
-                            settings, perm_context, item
-                        )
-                    ]
-                    if not perm_contexts:
-                        break
+            if len(grp.items) == 1:
+                yield from match_expression(settings, context, grp.items[0])
+            else:
+                # All must match (in arbitrary order)
+                for item, rest in grp.iterate_permutations():
+                    for item_context in match_expression(settings, context, item):
+                        yield from match_expression(settings, item_context, rest)
 
-                yield from perm_contexts
         else:
             raise ValueError(f"Unexpected group type: {grp}")
 
