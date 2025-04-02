@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.1
+
+- Use faster permutation iteration
+
 ## 3.0.0
 
 - Rename `Sequence` to `Group`
