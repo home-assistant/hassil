@@ -159,3 +159,9 @@ def test_permutation():
         "d a b",
         "d b a",
     }
+
+
+def test_skip_optionals() -> None:
+    assert set(sample_sentence(parse_sentence("a [b] c [d]"), skip_optionals=True)) == {
+        "a c "
+    }

@@ -114,6 +114,7 @@ def sample_sentence(
     language: Optional[str] = None,
     expand_lists: bool = True,
     expand_ranges: bool = True,
+    skip_optionals: bool = False,
 ) -> Iterable[str]:
     return sample_expression(
         sentence.expression,
@@ -122,6 +123,7 @@ def sample_sentence(
         language,
         expand_lists,
         expand_ranges,
+        skip_optionals,
     )
 
 
@@ -132,6 +134,7 @@ def sample_expression(
     language: Optional[str] = None,
     expand_lists: bool = True,
     expand_ranges: bool = True,
+    skip_optionals: bool = False,
 ) -> Iterable[str]:
     """Sample possible text strings from an expression."""
     if isinstance(expression, TextChunk):
@@ -140,15 +143,20 @@ def sample_expression(
     elif isinstance(expression, Group):
         grp: Group = expression
         if isinstance(grp, Alternative):
-            for item in grp.items:
-                yield from sample_expression(
-                    item,
-                    slot_lists,
-                    expansion_rules,
-                    language=language,
-                    expand_lists=expand_lists,
-                    expand_ranges=expand_ranges,
-                )
+            alt: Alternative = grp
+            if skip_optionals and alt.is_optional:
+                yield ""
+            else:
+                for item in grp.items:
+                    yield from sample_expression(
+                        item,
+                        slot_lists,
+                        expansion_rules,
+                        language=language,
+                        expand_lists=expand_lists,
+                        expand_ranges=expand_ranges,
+                        skip_optionals=skip_optionals,
+                    )
         elif isinstance(grp, Sequence):
             seq_sentences = map(
                 partial(
@@ -158,6 +166,7 @@ def sample_expression(
                     language=language,
                     expand_lists=expand_lists,
                     expand_ranges=expand_ranges,
+                    skip_optionals=skip_optionals,
                 ),
                 grp.items,
             )
@@ -175,6 +184,7 @@ def sample_expression(
                         language=language,
                         expand_lists=expand_lists,
                         expand_ranges=expand_ranges,
+                        skip_optionals=skip_optionals,
                     )
                 )
                 for item in grp.items
@@ -213,6 +223,7 @@ def sample_expression(
                     language=language,
                     expand_lists=expand_lists,
                     expand_ranges=expand_ranges,
+                    skip_optionals=skip_optionals,
                 )
         elif isinstance(slot_list, RangeSlotList):
             range_list: RangeSlotList = slot_list
@@ -272,6 +283,7 @@ def sample_expression(
             language=language,
             expand_lists=expand_lists,
             expand_ranges=expand_ranges,
+            skip_optionals=skip_optionals,
         )
     else:
         raise ValueError(f"Unexpected expression: {expression}")
